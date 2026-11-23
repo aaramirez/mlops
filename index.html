@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="index">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+
+<header class="hero">
+  <span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span>
+  <h1>Un modelo que funciona en el cuaderno todavía no es un producto</h1>
+  <p class="lede">Muchos modelos nunca llegan a producción, y muchos de los que llegan se degradan sin que nadie lo note. Este curso recorre el ciclo de vida completo de un modelo: cómo se versiona, se entrena de forma repetible, se sirve, se despliega con cuidado y se vigila hasta que toca reentrenarlo.</p>
+</header>
+
+<section>
+  <h2>Cómo usar este curso</h2>
+  <div class="prose">
+    <p><b>Estado.</b> El curso está en preparación. La <a href="temario.html">tabla de contenido</a> ya tiene los 10 capítulos con sus secciones y sus laboratorios, y está en revisión.</p>
+    <p><b>Para quién es.</b> Científicos de datos que quieren llevar sus modelos a producción e ingenieros que los operan. Conviene conocer Python y el aprendizaje supervisado de Aprendizaje automático. Los contenedores y la integración continua están en DevOps, y los pipelines de datos, en Ingeniería de datos.</p>
+    <p><b>Cómo está hecho.</b> Un modelo de predicción de abandono de clientes de una empresa ficticia recorre todo el curso: se versiona, se entrena en un pipeline, se sirve, se despliega en canario, se degrada con el tiempo y se reentrena. Los laboratorios simulan cada etapa en la página: mueves la deriva de los datos, el tráfico del canario o el umbral de una alerta y ves la consecuencia.</p>
+  </div>
+</section>
+
+<details class="stage" id="temario" open><summary><h2><span class="pn">Empieza aquí</span> Tabla de contenido</h2></summary>
+  <div class="mods">
+    <a class="mod" href="temario.html"><span class="n">≡</span><b>Tabla de contenido</b><p>Cada capítulo con sus secciones y sus laboratorios.</p></a>
+  </div>
+</details>
+
+<details class="stage" id="parte-1" open><summary><h2><span class="pn">Parte 1</span> Del cuaderno al sistema</h2><span class="cuenta" data-etapa-cuenta="1"></span></summary>
+  <div class="mods">
+    <div class="mod soon" data-id="por-que-falla"><span class="n">01</span><b>Por qué falla un modelo en producción</b><p>Datos que cambian, código que no se puede repetir y nadie mirando: el ciclo de vida y sus niveles de madurez.</p></div>
+    <div class="mod soon" data-id="versionar"><span class="n">02</span><b>Versionar datos, código y modelos</b><p>Saber con qué datos, qué código y qué parámetros se hizo cada modelo, y el registro que los guarda.</p></div>
+    <div class="mod soon" data-id="entrenamiento-reproducible"><span class="n">03</span><b>Entrenamiento reproducible y pipelines de ML</b><p>Del cuaderno a un pipeline que cualquiera puede correr y que da el mismo resultado.</p></div>
+    <div class="mod soon" data-id="feature-stores"><span class="n">04</span><b>Feature stores</b><p>Calcular las variables una vez y servir las mismas en el entrenamiento y en producción.</p></div>
+  </div>
+</details>
+
+<details class="stage" id="parte-2" open><summary><h2><span class="pn">Parte 2</span> Servir y desplegar</h2><span class="cuenta" data-etapa-cuenta="2"></span></summary>
+  <div class="mods">
+    <div class="mod soon" data-id="servir-modelos"><span class="n">05</span><b>Servir modelos: por lotes, en línea y en el borde</b><p>Las formas de entregar predicciones y lo que cuesta cada una en latencia y en dinero.</p></div>
+    <div class="mod soon" data-id="desplegar-modelos"><span class="n">06</span><b>Desplegar modelos: *shadow*, canario y pruebas A/B</b><p>Cambiar el modelo en producción sin apostarlo todo de una vez.</p></div>
+  </div>
+</details>
+
+<details class="stage" id="parte-3" open><summary><h2><span class="pn">Parte 3</span> Operar</h2><span class="cuenta" data-etapa-cuenta="3"></span></summary>
+  <div class="mods">
+    <div class="mod soon" data-id="monitoreo"><span class="n">07</span><b>Monitoreo: deriva de datos y de concepto</b><p>Lo que hay que vigilar de un modelo además de que el servicio responda.</p></div>
+    <div class="mod soon" data-id="reentrenamiento"><span class="n">08</span><b>Reentrenamiento y gobierno del modelo</b><p>Cuándo y cómo reentrenar, quién aprueba el modelo nuevo y cómo se retira el viejo.</p></div>
+  </div>
+</details>
+
+<details class="stage" id="parte-4" open><summary><h2><span class="pn">Parte 4</span> Modelos de lenguaje y plataforma</h2><span class="cuenta" data-etapa-cuenta="4"></span></summary>
+  <div class="mods">
+    <div class="mod soon" data-id="llmops"><span class="n">09</span><b>LLMOps: lo que cambia con los modelos de lenguaje</b><p>Modelos que no entrenas, prompts que se versionan, costos por token y evaluación sin una sola respuesta correcta.</p></div>
+    <div class="mod soon" data-id="plataforma"><span class="n">10</span><b>La plataforma de MLOps y el proyecto integrador</b><p>Las piezas de una plataforma, cómo elegirlas y el modelo de abandono de punta a punta.</p></div>
+  </div>
+</details>
+
+
+
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+</body>
+</html>
