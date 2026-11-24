@@ -17,4 +17,5 @@ Este repositorio solo tiene el sitio generado. El curso está en preparación: l
 | 07 | Monitoreo: deriva de datos y de concepto |
 | 08 | Reentrenamiento y gobierno del modelo |
 | 09 | LLMOps: lo que cambia con los modelos de lenguaje |
-| 10 | La plataforma de MLOps y el proyecto integrador |
+| 10 | Prompts para llevar un modelo a producción |
+| 11 | La plataforma de MLOps y el proyecto integrador |
