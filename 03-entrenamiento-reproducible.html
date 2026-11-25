@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Entrenamiento reproducible · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="entrenamiento-reproducible">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 03 DE 11</span><h1>Entrenamiento reproducible y pipelines de ML</h1><p class="lede">Si solo una persona puede volver a entrenar el modelo, y solo en su computador, el modelo no es de la empresa: es de esa persona. Este capítulo convierte el cuaderno del modelo de mora en un pipeline que cualquiera corre con un comando, que valida los datos antes de entrenar y que da el mismo resultado cada vez.</p></header>
+<section><div class="prose"><p>Un lunes, auditoría pidió algo razonable: volver a entrenar la v1 del modelo de mora, la que quedó en el registro con un AUC de 0,79, para confirmar ese número. Andrés abrió su cuaderno, corrió todas las celdas de arriba hacia abajo y obtuvo 0,78. Lo corrió otra vez: 0,77. Su laptop tenía otra versión de scikit-learn desde una actualización de enero, la partición entre entrenamiento y prueba no tenía semilla y una celda del medio dependía de una variable que había creado a mano en otra sesión, semanas antes.</p><p>Nadie había hecho trampa. El modelo simplemente no se podía repetir. En el capítulo anterior quedó anotado con qué datos, qué código y qué parámetros se hizo la v1; pero saber con qué se hizo no es lo mismo que poder rehacerlo. Este capítulo es el trabajo de Valeria, la ingeniera de aprendizaje automático: que el entrenamiento sea un proceso y no un recuerdo, y que de ese proceso salga la v2.</p></div></section>
+<section><h2>Por qué el cuaderno no se puede repetir</h2><div class="prose"><p>Un <b>cuaderno</b> (<i>notebook</i>), como Jupyter, es una de las mejores herramientas para explorar: escribes una celda, la corres, miras un gráfico y decides la siguiente. Esa misma libertad lo vuelve malo para producir un modelo que otros deban repetir.</p></div><div class="analogia"><b>Imagínalo así</b><p>Un cuaderno es como la cocina de una abuela que cocina «a ojo». El guiso le sale delicioso, pero la receta vive en sus manos: un puñado de esto, «hasta que se vea bien», la olla de siempre. Si otra persona quiere el mismo guiso, necesita una receta escrita con cantidades, orden, temperatura y tiempos. Un pipeline es esa receta escrita.</p></div><div class="prose"><p>El cuaderno falla por cuatro razones, casi siempre juntas:</p><ul><li><b>Estado oculto</b> (<i>hidden state</i>). Las celdas se pueden correr en cualquier orden, y las variables quedan en la memoria del núcleo aunque borres la celda que las creó. El cuaderno guardado no dice en qué orden se corrió.</li><li><b>Datos que se mueven.</b> La celda dice <code>pd.read_sql("select * from clientes")</code>, y esa tabla cambia todos los días. Volver a correr no es repetir: es entrenar con otros datos.</li><li><b>Entorno sin anotar.</b> El modelo depende de Python, pandas, scikit-learn, NumPy y sus dependencias. Cada actualización puede cambiar un valor por defecto, el orden de una operación o un redondeo.</li><li><b>Azar sin fijar.</b> Partir los datos en entrenamiento y prueba, iniciar un bosque aleatorio o barajar los ejemplos usa números aleatorios. Si nadie fija de dónde salen, cada corrida es distinta.</li></ul></div><figure class="fig fig-comparacion" id="03-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 440" style="min-width:680px" role="img" aria-label="Comparación entre el cuaderno y el pipeline en cinco aspectos: orden, estado, datos, entorno y azar. En el cuaderno, las celdas se corrieron en orden 3, 1, 7, 2, las variables viven en la memoria, se lee la tabla viva, se usa lo instalado en la laptop y no hay semilla; en el pipeline, pasos en orden fijo, artefactos en disco, instantánea con versión, versiones exactas o contenedor y semilla anotada">
+<text x="20" y="30" class="t t-xs t-b t-m">ASPECTO</text>
+<rect x="170" y="12" width="340" height="30" rx="8" class="caja" style="stroke-dasharray:5 4"/>
+<text x="340" y="32" class="t t-b" text-anchor="middle">El cuaderno de Andrés</text>
+<rect x="530" y="12" width="350" height="30" rx="8" class="c-enl"/>
+<text x="705" y="32" class="t t-b k-enl" text-anchor="middle">El pipeline de entrenamiento</text>
+
+
+<rect x="180" y="54" width="320" height="22" rx="4" class="caja"/>
+<text x="188" y="69" class="t t-s t-mono t-m">[3]</text><text x="220" y="69" class="t t-s t-mono">df = limpiar(df)</text>
+<rect x="180" y="80" width="320" height="22" rx="4" class="caja"/>
+<text x="188" y="95" class="t t-s t-mono t-m">[1]</text><text x="220" y="95" class="t t-s t-mono">df = pd.read_sql(SQL_CLIENTES)</text>
+<rect x="180" y="106" width="320" height="22" rx="4" class="caja"/>
+<text x="188" y="121" class="t t-s t-mono t-m">[7]</text><text x="220" y="121" class="t t-s t-mono">modelo.fit(X_tr, y_tr)</text>
+<rect x="180" y="132" width="320" height="22" rx="4" class="caja"/>
+<text x="188" y="147" class="t t-s t-mono t-m">[2]</text><text x="220" y="147" class="t t-s t-mono">umbral = 0.4   # ya no está</text>
+
+
+<rect x="540" y="54" width="62" height="40" rx="6" class="c-fis"/><text x="571" y="78" class="t t-s t-b" text-anchor="middle">cargar</text>
+<rect x="608" y="54" width="62" height="40" rx="6" class="c-fis"/><text x="639" y="78" class="t t-s t-b" text-anchor="middle">validar</text>
+<rect x="676" y="54" width="62" height="40" rx="6" class="c-enl"/><text x="707" y="78" class="t t-s t-b" text-anchor="middle">entrenar</text>
+<rect x="744" y="54" width="62" height="40" rx="6" class="c-enl"/><text x="775" y="78" class="t t-s t-b" text-anchor="middle">evaluar</text>
+<rect x="812" y="54" width="62" height="40" rx="6" class="c-enl"/><text x="843" y="78" class="t t-s t-b" text-anchor="middle">registrar</text>
+<text x="707" y="118" class="t t-s t-m" text-anchor="middle">siempre en el mismo orden, cada paso con su artefacto</text>
+<text x="707" y="136" class="t t-s t-m" text-anchor="middle">un comando: python -m pipeline --config config.yaml</text>
+
+<g>
+<line x1="20" y1="170" x2="880" y2="170" class="ln" style="stroke-width:.8"/>
+<text x="20" y="196" class="t t-b">Orden</text>
+<text x="180" y="190" class="t" style="font-size:12px">las celdas se corrieron 3, 1, 7, 2;</text>
+<text x="180" y="207" class="t t-m" style="font-size:12px">el archivo no lo guarda</text>
+<text x="540" y="190" class="t" style="font-size:12px">un grafo de pasos con dependencias</text>
+<text x="540" y="207" class="t t-m" style="font-size:12px">escritas en el código</text>
+</g>
+<g>
+<line x1="20" y1="222" x2="880" y2="222" class="ln" style="stroke-width:.8"/>
+<text x="20" y="248" class="t t-b">Estado</text>
+<text x="180" y="242" class="t" style="font-size:12px">variables en la memoria del núcleo,</text>
+<text x="180" y="259" class="t t-m" style="font-size:12px">aunque se borre la celda que las creó</text>
+<text x="540" y="242" class="t" style="font-size:12px">cada paso lee y escribe artefactos</text>
+<text x="540" y="259" class="t t-m" style="font-size:12px">en disco; nada queda solo en memoria</text>
+</g>
+<g>
+<line x1="20" y1="274" x2="880" y2="274" class="ln" style="stroke-width:.8"/>
+<text x="20" y="300" class="t t-b">Datos</text>
+<text x="180" y="294" class="t" style="font-size:12px">la tabla viva, que cambia cada día</text>
+<text x="180" y="311" class="t t-m" style="font-size:12px">(volver a correr es entrenar con otros datos)</text>
+<text x="540" y="294" class="t" style="font-size:12px">la instantánea clientes-m00.csv,</text>
+<text x="540" y="311" class="t t-m" style="font-size:12px">con su versión en DVC</text>
+</g>
+<g>
+<line x1="20" y1="326" x2="880" y2="326" class="ln" style="stroke-width:.8"/>
+<text x="20" y="352" class="t t-b">Entorno</text>
+<text x="180" y="346" class="t" style="font-size:12px">lo que haya instalado en la laptop</text>
+<text x="180" y="363" class="t t-m" style="font-size:12px">desde la última actualización</text>
+<text x="540" y="346" class="t" style="font-size:12px">versiones exactas en requirements.txt</text>
+<text x="540" y="363" class="t t-m" style="font-size:12px">o una imagen de contenedor con su digest</text>
+</g>
+<g>
+<line x1="20" y1="378" x2="880" y2="378" class="ln" style="stroke-width:.8"/>
+<text x="20" y="404" class="t t-b">Azar</text>
+<text x="180" y="398" class="t" style="font-size:12px">sin semilla: cada corrida parte</text>
+<text x="180" y="415" class="t t-m" style="font-size:12px">y entrena distinto</text>
+<text x="540" y="398" class="t" style="font-size:12px">random_state=42 en config.yaml,</text>
+<text x="540" y="415" class="t t-m" style="font-size:12px">anotado en el registro del experimento</text>
+</g>
+<line x1="20" y1="430" x2="880" y2="430" class="ln" style="stroke-width:.8"/>
+</svg></div><figcaption><b>El cuaderno frente al pipeline.</b> Arriba a la izquierda, cuatro celdas del cuaderno de Andrés con el orden real en que se corrieron (los números entre corchetes saltan: 3, 1, 7, 2); arriba a la derecha, los mismos pasos como un pipeline de cinco bloques. Debajo, cinco filas: orden, estado, datos, entorno y azar. Lee cada fila de izquierda a derecha: qué queda fuera del archivo en el cuaderno y qué lo reemplaza en el pipeline.</figcaption></figure><div class="prose"><p>Una aclaración: el problema no es Jupyter. Es usar como sistema de producción lo que es un borrador. La exploración sigue en el cuaderno; lo que se lleva al pipeline son las funciones que funcionaron, ya limpias, en archivos <code>.py</code> con su versión en Git.</p></div></section>
+<section><h2>Semillas, entornos y contenedores</h2><div class="prose"><p>Que un entrenamiento sea <b>reproducible</b> (<i>reproducible</i>) significa que, con las mismas entradas, da el mismo resultado. Las entradas son más que los datos: también el código, el entorno y el azar. Hay que fijar cada una.</p><h3>La semilla: el azar con nombre</h3><p>Una <b>semilla</b> (<i>random seed</i>) es el número con que arranca un <b>generador de números pseudoaleatorios</b> (<i>pseudo-random number generator</i>, PRNG): un algoritmo que produce una secuencia que parece aleatoria, pero que es siempre la misma si empieza con el mismo número. En scikit-learn se fija con el parámetro <code>random_state</code> de cada función que usa azar (<code>train_test_split</code>, <code>RandomForestClassifier</code>, <code>KFold</code>); en NumPy, creando un generador con <code>np.random.default_rng(42)</code>, como hace <code>generar_datos.py</code> desde el capítulo 1.</p><p>Fijar la semilla no es hacer trampa ni elegir la que da mejor resultado. Es lo contrario: decidir una antes de mirar, anotarla y, para saber cuánto depende el resultado del azar, entrenar con cinco semillas distintas y reportar el rango. Si el AUC salta de 0,76 a 0,83 según la semilla, el problema no es la semilla: el conjunto de prueba es demasiado pequeño para confiar en el número.</p><h3>El entorno: librerías con versión exacta</h3><p>El <b>entorno</b> (<i>environment</i>) es el intérprete de Python con todas sus librerías. Un <b>entorno virtual</b> (<i>virtual environment</i>), creado con <code>python -m venv</code>, aísla las librerías de un proyecto de las del resto del computador. Dentro de él, el archivo <code>requirements.txt</code> fija las versiones exactas (<code>scikit-learn==1.9.1</code>, no <code>scikit-learn</code> a secas). Herramientas como <code>pip-tools</code>, Poetry o uv generan además un <b>archivo de bloqueo</b> (<i>lock file</i>) con las versiones de las dependencias de las dependencias, que son las que suelen romper las cosas.</p><h3>El contenedor: el computador entero con versión</h3><p>Un <b>contenedor</b> (<i>container</i>) empaqueta el sistema operativo base, Python, las librerías y el código en una <b>imagen</b> (<i>image</i>) que corre igual en la laptop de Andrés, en el servidor de entrenamiento y en la nube. Docker es la herramienta más conocida. Para el entrenamiento, la imagen se construye una vez, se etiqueta (<code>entrenar-mora-30d:v2</code>) y se guarda en un registro de imágenes; el pipeline siempre la usa por su etiqueta o, mejor, por su <b>resumen criptográfico</b> (<i>digest</i>), que cambia si cambia un solo byte. Cómo se construyen y se protegen las imágenes está en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>.</p></div><figure class="fig fig-capas" id="03-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 420" style="min-width:700px" role="img" aria-label="Seis capas de un entrenamiento reproducible, de arriba hacia abajo: código, datos, parámetros y semilla, librerías, sistema y Python, y hardware; para cada una, qué pasa si cambia, la herramienta que la fija y lo que se anota en el registro del experimento">
+<text x="20" y="28" class="t t-xs t-b t-m">CAPA</text>
+<text x="220" y="28" class="t t-xs t-b t-m">SI CAMBIA SIN AVISO…</text>
+<text x="480" y="28" class="t t-xs t-b t-m">LA FIJA</text>
+<text x="700" y="28" class="t t-xs t-b t-m">SE ANOTA EN EL REGISTRO</text>
+
+<rect x="20" y="42" width="180" height="54" rx="8" class="c-enl"/>
+<text x="34" y="66" class="t t-b k-enl">Código</text>
+<text x="34" y="84" class="t t-s">las funciones del pipeline</text>
+<text x="220" y="66" class="t t-s">otra limpieza, otra variable,</text>
+<text x="220" y="82" class="t t-s">otro modelo</text>
+<text x="480" y="66" class="t t-s t-b">Git</text>
+<text x="480" y="82" class="t t-s t-m">un commit por corrida</text>
+<text x="700" y="74" class="t t-s t-mono">commit 4f2a9c1</text>
+
+<rect x="20" y="104" width="180" height="54" rx="8" class="c-fis"/>
+<text x="34" y="128" class="t t-b k-fis">Datos</text>
+<text x="34" y="146" class="t t-s">la instantánea de entrada</text>
+<text x="220" y="128" class="t t-s">otros clientes, otros meses,</text>
+<text x="220" y="144" class="t t-s">otras etiquetas</text>
+<text x="480" y="128" class="t t-s t-b">DVC o tablas con historia</text>
+<text x="480" y="144" class="t t-s t-m">capítulo 2</text>
+<text x="700" y="136" class="t t-s t-mono">clientes-m00.csv</text>
+
+<rect x="20" y="166" width="180" height="54" rx="8" class="c-enl"/>
+<text x="34" y="190" class="t t-b k-enl">Parámetros y semilla</text>
+<text x="34" y="208" class="t t-s">lo que se elige al entrenar</text>
+<text x="220" y="190" class="t t-s">otra partición, otros árboles,</text>
+<text x="220" y="206" class="t t-s">otro AUC</text>
+<text x="480" y="190" class="t t-s t-b">config.yaml</text>
+<text x="480" y="206" class="t t-s t-m">random_state en cada función</text>
+<text x="700" y="198" class="t t-s t-mono">semilla 42 · C 1.0</text>
+
+<rect x="20" y="228" width="180" height="54" rx="8" class="c-enl"/>
+<text x="34" y="252" class="t t-b k-enl">Librerías</text>
+<text x="34" y="270" class="t t-s">pandas, scikit-learn, NumPy</text>
+<text x="220" y="252" class="t t-s">un valor por defecto nuevo,</text>
+<text x="220" y="268" class="t t-s">otro orden de operaciones</text>
+<text x="480" y="252" class="t t-s t-b">requirements.txt exacto</text>
+<text x="480" y="268" class="t t-s t-m">o un archivo de bloqueo</text>
+<text x="700" y="260" class="t t-s t-mono">scikit-learn==1.9.1</text>
+
+<rect x="20" y="290" width="180" height="54" rx="8" class="c-enl"/>
+<text x="34" y="314" class="t t-b k-enl">Sistema y Python</text>
+<text x="34" y="332" class="t t-s">el intérprete y el sistema</text>
+<text x="220" y="314" class="t t-s">otra versión de Python o</text>
+<text x="220" y="330" class="t t-s">de una librería del sistema</text>
+<text x="480" y="314" class="t t-s t-b">imagen de contenedor</text>
+<text x="480" y="330" class="t t-s t-m">por su digest</text>
+<text x="700" y="322" class="t t-s t-mono">entrenar-mora@sha256:9b1e…</text>
+
+<g class="apagado">
+<rect x="20" y="352" width="180" height="54" rx="8" class="caja"/>
+<text x="34" y="376" class="t t-b">Hardware</text>
+<text x="34" y="394" class="t t-s">CPU o tarjeta gráfica</text>
+<text x="220" y="376" class="t t-s">sumas en otro orden:</text>
+<text x="220" y="392" class="t t-s">cambia el sexto decimal</text>
+<text x="480" y="376" class="t t-s t-b">casi nunca se fija</text>
+<text x="480" y="392" class="t t-s t-m">opciones deterministas, más lentas</text>
+<text x="700" y="384" class="t t-s t-mono">tipo de máquina</text>
+</g>
+</svg></div><figcaption><b>Las capas de un entrenamiento reproducible.</b> Cada fila es algo que, si cambia, cambia el resultado. De arriba hacia abajo: el código (con su commit de Git), los datos (con su versión de DVC o su instantánea), los parámetros y la semilla (en un archivo de configuración), las librerías (en el archivo de bloqueo), el sistema y Python (en la imagen del contenedor) y el hardware. A la derecha de cada capa, la herramienta que la fija y lo que se anota en el registro del experimento. La última fila queda atenuada: el hardware casi nunca se fija, y por eso «igual» a veces significa «igual hasta el sexto decimal».</figcaption></figure><div class="prose"><p>La última capa merece honestidad. En una tarjeta gráfica, algunas operaciones en paralelo suman en distinto orden según cómo se repartan los hilos, y la suma con decimales no es asociativa: el resultado puede variar en el sexto decimal. Las librerías de aprendizaje profundo tienen opciones para forzar el determinismo, a costa de velocidad. Para el modelo de mora, que es un modelo tabular en CPU, la reproducibilidad exacta sí está al alcance.</p></div><div class="lab" id="03-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>¿Se repite el resultado?</h3></div><p class="hint">Elige qué fijas antes de entrenar: la semilla de la partición, la semilla del modelo, la versión de los datos y las versiones de las librerías. Pulsa «Entrenar 5 veces» y mira los cinco AUC y la huella de las predicciones. Después cambia una sola cosa (la versión de scikit-learn o la tabla de datos) y observa qué se mueve y cuánto.</p><style>
+[id="03-lab-2"] .c3l2-g{display:grid;gap:4px}
+[id="03-lab-2"] .c3l2-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="03-lab-2"] .c3l2-chk{display:flex;align-items:center;gap:8px;font:500 .86rem var(--f-display);color:var(--ink)}
+[id="03-lab-2"] .c3l2-chk input{width:18px;height:18px;accent-color:var(--good);flex:none}
+[id="03-lab-2"] .c3l2-fij{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:6px 14px}
+[id="03-lab-2"] .c3l2-tabla{width:100%;border-collapse:collapse;font:500 .82rem var(--f-display)}
+[id="03-lab-2"] .c3l2-tabla th{font:700 .7rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+[id="03-lab-2"] .c3l2-tabla td{padding:4px 6px;border-bottom:1px solid var(--grid);color:var(--ink)}
+[id="03-lab-2"] .c3l2-tabla td.m{font-family:var(--f-mono)}
+[id="03-lab-2"] .c3l2-tabla td.dif{color:var(--warm);font-weight:700}
+[id="03-lab-2"] canvas{width:100%;display:block}
+</style>
+<div class="c3l2-g"><span>Qué fijas antes de entrenar</span>
+<div class="c3l2-fij">
+  <label class="c3l2-chk"><input type="checkbox" id="c3l2-ss" checked> Semilla de la partición (42)</label>
+  <label class="c3l2-chk"><input type="checkbox" id="c3l2-sm" checked> Semilla del modelo, si usa azar (42)</label>
+  <label class="c3l2-chk"><input type="checkbox" id="c3l2-dv" checked> Datos: instantánea con versión</label>
+  <label class="c3l2-chk"><input type="checkbox" id="c3l2-lv" checked> Librerías con versión exacta</label>
+</div></div>
+<div class="opciones">
+  <label>Versión de scikit-learn fijada
+    <select id="c3l2-sk"><option value="1.8.0">1.8.0</option><option value="1.9.1">1.9.1</option></select>
+  </label>
+  <label>Tabla de datos fijada
+    <select id="c3l2-snap"><option value="m00">clientes-m00.csv</option><option value="m01">clientes-m01.csv</option></select>
+  </label>
+</div>
+<div class="btns"><button type="button" class="primary" id="c3l2-run">Entrenar 5 veces</button></div>
+<canvas id="c3l2-c" role="img" aria-label="Los AUC de las cinco corridas como puntos sobre un eje de 0,76 a 0,84, y los de la tanda anterior en gris"></canvas>
+<div class="legend"><span><i style="background:var(--accent)"></i>esta tanda</span><span><i style="background:var(--muted)"></i>tanda anterior</span></div>
+<table class="c3l2-tabla"><thead><tr><th>Corrida</th><th>Entorno</th><th>AUC</th><th>Huella</th></tr></thead><tbody id="c3l2-tb"></tbody></table>
+<div class="readout texto" id="c3l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>La misma semilla, el mismo resultado</h3></div><p>Vas a entrenar el modelo de mora con los datos del mes 0, dos veces con la misma semilla, una con otra y dos sin semilla, y a comparar el AUC y una huella de las predicciones. Trabaja en la carpeta <code>mora-30d</code> del capítulo 1, con su entorno activado y los datos generados. Primero anota las versiones exactas de tu entorno:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip freeze &gt; requirements.txt</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>semillas.py</code>:</p><div class="code-copia"><pre><code>"""Semillas y huella.
+
+Entrena el modelo de mora con el mes 0 y deja una huella de sus predicciones.
+"""
+import hashlib, json, sys
+import pandas as pd
+import sklearn
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
+             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
+semilla = None if sys.argv[1:] == ["azar"] else int(sys.argv[1]) if len(sys.argv) &gt; 1 else 42
+
+datos = pd.read_csv("datos/clientes-m00.csv")
+ent, pru = train_test_split(datos, test_size=0.3, random_state=semilla, stratify=datos.mora_30d)
+prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),
+                          ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
+modelo = make_pipeline(prep, LogisticRegression(max_iter=1000)).fit(ent, ent.mora_30d)
+p = modelo.predict_proba(pru)[:, 1]
+huella = hashlib.sha256(p.round(6).tobytes()).hexdigest()[:12]
+print(json.dumps({"semilla": semilla, "sklearn": sklearn.__version__,
+                  "auc": round(roc_auc_score(pru.mora_30d, p), 4), "huella": huella}))</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python semillas.py 42</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python semillas.py 42</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python semillas.py 7</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python semillas.py azar</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python semillas.py azar</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 semillas.py 42</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 semillas.py 42</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 semillas.py 7</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 semillas.py azar</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 semillas.py azar</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Compara las dos corridas con semilla 42: el AUC y la huella.</span></li><li><span>Compara con la corrida de semilla 7 y con las dos sin semilla.</span></li><li><span>Abre <code>requirements.txt</code> y busca la línea de <code>scikit-learn</code>; compárala con la que imprime el programa.</span></li></ol><p><b>Qué observar:</b> con la misma semilla, el AUC y la huella son idénticos, carácter por carácter: el entrenamiento se repitió. La regresión logística no usa azar al ajustarse; lo que cambia con la semilla es qué clientes quedan en la prueba, y con eso el AUC se mueve en el segundo o tercer decimal (alrededor de 0,79). Sin semilla, cada corrida da otro número y otra huella: es el cuaderno de Andrés. Tus decimales pueden diferir de los de otra persona con otra versión de scikit-learn; por eso <code>requirements.txt</code> es parte del modelo tanto como el código.</p></div></section>
+<section><h2>El pipeline de entrenamiento: datos, validación, entrenamiento, evaluación y registro</h2><div class="prose"><p>Un <b>pipeline de entrenamiento</b> (<i>training pipeline</i>) es la secuencia de pasos que va de los datos crudos a un modelo registrado, escrita como código y ejecutada siempre igual. Técnicamente es un <b>grafo dirigido acíclico</b> (<i>directed acyclic graph</i>, DAG): pasos unidos por flechas que dicen qué depende de qué, sin ciclos. Cada paso recibe artefactos con versión, hace una sola cosa y entrega artefactos nuevos.</p><p>No confundas este pipeline con el <code>Pipeline</code> de scikit-learn, que encadena transformaciones y el estimador dentro de un mismo objeto (se ve en <a href="https://aaramirez.github.io/aprendizaje-estadistico/temario.html" target="_blank" rel="noopener">Aprendizaje automático</a>). El <code>Pipeline</code> de scikit-learn vive dentro del paso «entrenar» del pipeline de ML.</p><p>Para el modelo de mora, los pasos son cinco:</p><ol class="steps"><li><span><b>Cargar</b> (<i>ingest</i>): lee la instantánea de datos con su versión (<code>clientes-m00.csv</code>, versionada con DVC en el capítulo 2) y no la tabla viva.</span></li><li><span><b>Validar</b> (<i>validate</i>): revisa que los datos tengan la forma y los rangos esperados. Si algo falla, el pipeline se detiene aquí.</span></li><li><span><b>Entrenar</b> (<i>train</i>): ajusta el modelo con los parámetros y la semilla del archivo de configuración.</span></li><li><span><b>Evaluar</b> (<i>evaluate</i>): mide el modelo en datos que no vio, con las métricas acordadas, y lo compara con el mínimo de la ficha (AUC 0,75) y con el modelo que está hoy en producción.</span></li><li><span><b>Registrar</b> (<i>register</i>): si pasa la <b>compuerta de calidad</b> (<i>quality gate</i>), guarda el modelo en el registro con su linaje: versión de datos, commit, imagen, parámetros y métricas.</span></li></ol></div><figure class="fig fig-esquema" id="03-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 400" style="min-width:720px" role="img" aria-label="El pipeline de entrenamiento del modelo de mora en cinco pasos de izquierda a derecha: cargar, validar, entrenar, evaluar y compuerta con registro; debajo de cada paso, su artefacto; dos salidas de parada: la validación detiene el pipeline si los datos no cumplen el esquema y la compuerta no registra un modelo peor que el de producción; abajo, qué fija cada paso">
+<defs>
+<marker id="c3d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c3d3-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<text x="20" y="26" class="t t-xs t-b t-m">PASOS · cada uno corre en su contenedor y escribe su artefacto</text>
+
+<rect x="20" y="96" width="148" height="70" rx="10" class="c-fis"/>
+<text x="94" y="122" class="t t-xs t-b k-fis" text-anchor="middle">1 · DATOS</text>
+<text x="94" y="144" class="t t-b" text-anchor="middle">Cargar</text>
+<rect x="198" y="96" width="148" height="70" rx="10" class="c-fis"/>
+<text x="272" y="122" class="t t-xs t-b k-fis" text-anchor="middle">2 · DATOS</text>
+<text x="272" y="144" class="t t-b" text-anchor="middle">Validar</text>
+<rect x="376" y="96" width="148" height="70" rx="10" class="c-enl"/>
+<text x="450" y="122" class="t t-xs t-b k-enl" text-anchor="middle">3 · ENTRENAR</text>
+<text x="450" y="144" class="t t-b" text-anchor="middle">Entrenar</text>
+<rect x="554" y="96" width="148" height="70" rx="10" class="c-enl"/>
+<text x="628" y="122" class="t t-xs t-b k-enl" text-anchor="middle">4 · ENTRENAR</text>
+<text x="628" y="144" class="t t-b" text-anchor="middle">Evaluar</text>
+<rect x="732" y="96" width="148" height="70" rx="10" class="c-enl"/>
+<text x="806" y="122" class="t t-xs t-b k-enl" text-anchor="middle">5 · ENTRENAR</text>
+<text x="806" y="142" class="t t-b" text-anchor="middle">Registrar</text>
+<text x="806" y="158" class="t t-s t-m" text-anchor="middle">si pasa la compuerta</text>
+
+<line x1="168" y1="131" x2="196" y2="131" class="ln" marker-end="url(#c3d3-m)"/>
+<line x1="346" y1="131" x2="374" y2="131" class="ln" marker-end="url(#c3d3-m)"/>
+<line x1="524" y1="131" x2="552" y2="131" class="ln" marker-end="url(#c3d3-m)"/>
+<line x1="702" y1="131" x2="730" y2="131" class="ln" marker-end="url(#c3d3-m)"/>
+
+
+<line x1="272" y1="96" x2="272" y2="66" class="ln s-warm" marker-end="url(#c3d3-w)"/>
+<rect x="202" y="38" width="140" height="26" rx="6" class="caja s-warm" style="stroke-width:1.8"/>
+<text x="272" y="56" class="t t-s t-b k-warm" text-anchor="middle">detenido: no cumple</text>
+<line x1="806" y1="96" x2="806" y2="66" class="ln s-warm" marker-end="url(#c3d3-w)"/>
+<rect x="722" y="38" width="168" height="26" rx="6" class="caja s-warm" style="stroke-width:1.8"/>
+<text x="806" y="56" class="t t-s t-b k-warm" text-anchor="middle">rechazado: sigue la v1</text>
+
+
+<text x="104" y="200" class="t t-xs t-b t-m">ARTEFACTO QUE QUEDA</text>
+<rect x="20" y="210" width="148" height="56" rx="8" class="caja"/>
+<text x="94" y="234" class="t t-s t-mono" text-anchor="middle">clientes-m00.csv</text>
+<text x="94" y="252" class="t t-s t-m" text-anchor="middle">instantánea</text>
+<rect x="198" y="210" width="148" height="56" rx="8" class="caja"/>
+<text x="272" y="234" class="t t-s t-mono" text-anchor="middle">validacion.json</text>
+<text x="272" y="252" class="t t-s t-m" text-anchor="middle">reglas y resultados</text>
+<rect x="376" y="210" width="148" height="56" rx="8" class="caja"/>
+<text x="450" y="234" class="t t-s t-mono" text-anchor="middle">modelo.pkl</text>
+<text x="450" y="252" class="t t-s t-m" text-anchor="middle">modelo serializado</text>
+<rect x="554" y="210" width="148" height="56" rx="8" class="caja"/>
+<text x="628" y="234" class="t t-s t-mono" text-anchor="middle">metricas.json</text>
+<text x="628" y="252" class="t t-s t-m" text-anchor="middle">AUC y comparación</text>
+<rect x="732" y="210" width="148" height="56" rx="8" class="caja"/>
+<text x="806" y="234" class="t t-s t-mono" text-anchor="middle">mora v2</text>
+<text x="806" y="252" class="t t-s t-m" text-anchor="middle">versión con linaje</text>
+
+<line x1="94" y1="166" x2="94" y2="208" class="ln ln-d"/>
+<line x1="272" y1="166" x2="272" y2="208" class="ln ln-d"/>
+<line x1="450" y1="166" x2="450" y2="208" class="ln ln-d"/>
+<line x1="628" y1="166" x2="628" y2="208" class="ln ln-d"/>
+<line x1="806" y1="166" x2="806" y2="208" class="ln ln-d"/>
+
+
+<rect x="20" y="296" width="860" height="88" rx="10" class="caja"/>
+<text x="36" y="320" class="t t-xs t-b t-m">QUÉ FIJA CADA PASO</text>
+<text x="36" y="346" class="t t-s">versión de datos</text>
+<text x="36" y="364" class="t t-s t-m">nunca la tabla viva</text>
+<text x="214" y="346" class="t t-s">el esquema</text>
+<text x="214" y="364" class="t t-s t-m">columnas, rangos, vacíos</text>
+<text x="392" y="346" class="t t-s">semilla y parámetros</text>
+<text x="392" y="364" class="t t-s t-m">desde config.yaml</text>
+<text x="570" y="346" class="t t-s">métricas mínimas</text>
+<text x="570" y="364" class="t t-s t-m">y el modelo a superar</text>
+<text x="748" y="346" class="t t-s">aprobación y linaje</text>
+<text x="748" y="364" class="t t-s t-m">commit, imagen, datos</text>
+</svg></div><figcaption><b>El pipeline de entrenamiento del modelo de mora.</b> Los cinco pasos van de izquierda a derecha; debajo de cada uno, el artefacto que produce (la instantánea, el informe de validación, el modelo serializado, el informe de métricas y la versión en el registro). Las dos salidas rojas son las paradas: la validación detiene el pipeline si los datos no cumplen el esquema, y la compuerta no registra un modelo que no supera al de producción. La franja de abajo dice qué fija cada paso: versión de datos, esquema, semilla y parámetros, métricas mínimas y aprobación.</figcaption></figure><div class="prose"><p>Cada paso escribe su resultado en disco o en un almacén de objetos, no en la memoria. Eso tiene tres ventajas. Si el paso 3 falla a la mitad, se vuelve a correr desde el 3 sin repetir la carga. Un paso cuyo código y entradas no cambiaron no se vuelve a ejecutar: se reutiliza su artefacto, lo que se llama <b>caché</b> (<i>caching</i>). Y cualquier persona puede abrir el informe de validación del 4 de marzo y ver exactamente qué datos entraron.</p></div><div class="lab" id="03-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Arma el pipeline y míralo correr</h3></div><p class="hint">Enciende o apaga cada bloque del pipeline y elige el escenario: datos normales, una exportación que trae los días de atraso en horas o un modelo que sale peor que el de producción. Pulsa «Correr» y sigue cada paso: qué artefacto produce, dónde se detiene y qué termina en el registro. Prueba el escenario de las horas sin el bloque de validación.</p><style>
+[id="03-lab-1"] .c3l1-g{display:grid;gap:4px}
+[id="03-lab-1"] .c3l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="03-lab-1"] .c3l1-tubo{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:640px){[id="03-lab-1"] .c3l1-tubo{grid-template-columns:minmax(0,1fr)}}
+[id="03-lab-1"] .c3l1-paso{position:relative;border:2px solid var(--line);border-radius:10px;padding:8px 10px;display:grid;gap:3px;background:var(--card);min-height:116px;transition:border-color .25s,background .25s}
+[id="03-lab-1"] .c3l1-paso.dat{border-top:5px solid var(--c-fis)}
+[id="03-lab-1"] .c3l1-paso.ent{border-top:5px solid var(--c-enl)}
+[id="03-lab-1"] .c3l1-paso b{font:700 .84rem var(--f-display);color:var(--ink)}
+[id="03-lab-1"] .c3l1-paso small{font:500 .74rem var(--f-display);color:var(--muted)}
+[id="03-lab-1"] .c3l1-paso .art{font:500 .72rem var(--f-mono);color:var(--ink);overflow-wrap:anywhere}
+[id="03-lab-1"] .c3l1-paso .est{font:700 .7rem var(--f-display);letter-spacing:.06em;text-transform:uppercase}
+[id="03-lab-1"] .c3l1-paso.ok{border-color:var(--good);background:var(--good-soft)} [id="03-lab-1"] .c3l1-paso.ok .est{color:var(--good)}
+[id="03-lab-1"] .c3l1-paso.stop{border-color:var(--warm);background:var(--warm-soft)} [id="03-lab-1"] .c3l1-paso.stop .est{color:var(--warm)}
+[id="03-lab-1"] .c3l1-paso.warn{border-color:var(--warm);border-style:dashed} [id="03-lab-1"] .c3l1-paso.warn .est{color:var(--warm)}
+[id="03-lab-1"] .c3l1-paso.skip{opacity:.45;border-style:dashed}
+[id="03-lab-1"] .c3l1-paso.run{border-color:var(--accent);background:var(--accent-soft)}
+[id="03-lab-1"] .c3l1-ver{font:700 1rem var(--f-display);padding:8px 12px;border-radius:8px;border:2px solid var(--line)}
+[id="03-lab-1"] .c3l1-ver.si{border-color:var(--good);color:var(--good);background:var(--good-soft)}
+[id="03-lab-1"] .c3l1-ver.no{border-color:var(--warm);color:var(--warm);background:var(--warm-soft)}
+[id="03-lab-1"] .c3l1-ver.ojo{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+</style>
+<div class="c3l1-g"><span>Bloques del pipeline (pulsa para quitar o poner)</span>
+<div class="btns" role="group" aria-label="Bloques del pipeline">
+  <button type="button" data-b="cargar" aria-pressed="true">1 · Cargar instantánea</button>
+  <button type="button" data-b="validar" aria-pressed="true">2 · Validar datos</button>
+  <button type="button" data-b="evaluar" aria-pressed="true">4 · Evaluar</button>
+  <button type="button" data-b="compuerta" aria-pressed="true">5 · Compuerta y registro</button>
+</div>
+<p class="hint">El bloque 3, entrenar, siempre está. Sin el bloque 1 se lee la tabla viva; sin el 5, todo lo entrenado se registra.</p></div>
+<div class="c3l1-g"><span>Escenario de este mes</span>
+<div class="btns" role="group" aria-label="Escenario">
+  <button type="button" data-e="normal" aria-pressed="true">Datos normales</button>
+  <button type="button" data-e="horas" aria-pressed="false">Exportación con días en horas</button>
+  <button type="button" data-e="peor" aria-pressed="false">Modelo nuevo peor que el de producción</button>
+</div></div>
+<div class="btns"><button type="button" class="primary" id="c3l1-run">Correr el pipeline</button></div>
+<div class="c3l1-tubo" id="c3l1-tubo" aria-label="Pasos del pipeline"></div>
+<div class="c3l1-ver" id="c3l1-ver" aria-live="polite">Pulsa «Correr el pipeline».</div>
+<div class="readout texto" id="c3l1-out" aria-live="polite"></div></div></section>
+<section><h2>Validar los datos antes de entrenar</h2><div class="prose"><p>La mayoría de los modelos malos que llegan a producción no tienen un error en el algoritmo: tienen un error en los datos. Una columna que cambió de unidad, un sistema de origen que empezó a mandar vacíos, una categoría nueva, una exportación que se cortó a la mitad. El modelo entrena igual, porque los modelos no protestan: aprenden lo que les des.</p></div><div class="analogia"><b>Imagínalo así</b><p>Validar los datos es lo que hace un cocinero cuando recibe el pedido del proveedor: revisa que llegaron diez kilos y no cien gramos, que la leche no está vencida y que el pescado huele a mar. No cocina con lo que llegó y después prueba el plato: rechaza el pedido en la puerta.</p></div><div class="prose"><p>La validación compara los datos contra un <b>esquema</b> (<i>schema</i>), una descripción de lo que se espera de cada columna. Las reglas típicas son de cinco tipos:</p><ul><li><b>Estructura</b>: están todas las columnas, con su tipo (entero, decimal, fecha, texto).</li><li><b>Completitud</b>: la fracción de vacíos de cada columna no pasa de un umbral.</li><li><b>Rangos y dominios</b>: <code>dias_atraso_prom_6m</code> entre 0 y 60; <code>metodo_pago</code> solo con los cinco valores conocidos.</li><li><b>Volumen</b>: el número de filas está cerca del de la última vez (150.000 clientes no se vuelven 40.000 en un mes).</li><li><b>Distribución</b>: la media o los cuantiles de cada variable no se alejan demasiado de los de la versión anterior. Medir cuánto se alejan es el tema del <a href="07-monitoreo.html">capítulo 7</a>.</li></ul><p>Hay librerías para escribir estas reglas sin reinventarlas: <b>Great Expectations</b>, <b>pandera</b> y <b>TensorFlow Data Validation</b> son ejemplos del mercado. Todas hacen lo mismo en el fondo: reglas declaradas, un informe legible y una salida que detiene el pipeline. La calidad de los datos en las fuentes, antes de que lleguen al modelo, es tema de <a href="https://aaramirez.github.io/ingenieria-de-datos/temario.html" target="_blank" rel="noopener">Ingeniería de datos</a>; aquí validamos lo que el modelo está a punto de comer.</p></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Un pipeline que se detiene a tiempo</h3></div><p>Vas a correr el pipeline de cinco pasos del modelo de mora con los datos del mes 0 y con una exportación que trae los días de atraso en horas, y a probarlo con pytest. Sigue en la carpeta <code>mora-30d</code>, con el entorno activado, y agrega pytest:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install pytest</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>pipeline.py</code>:</p><div class="code-copia"><pre><code>"""Pipeline de mora.
+
+Cinco pasos: cargar, validar, entrenar, evaluar y registrar.
+"""
+import hashlib, json, sys
+from pathlib import Path
+import joblib, pandas as pd, sklearn
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+CONFIG = {"datos": "datos/clientes-m00.csv", "semilla": 42, "auc_minimo": 0.75,
+          "auc_produccion": 0.79, "version": "v2"}
+NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
+             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
+RANGOS = {"antiguedad_meses": (1, 120), "precio_plan": (10, 100), "dias_atraso_prom_6m": (0, 60),
+          "reclamos_90d": (0, 10), "bajo_plan_3m": (0, 1), "mora_30d": (0, 1)}
+METODOS = {"debito", "tarjeta", "efectivo", "transferencia", "billetera"}
+
+def cargar(ruta, romper=False):
+    df = pd.read_csv(ruta)
+    if romper:  # la exportación de este mes trae los días de atraso en horas
+        df["dias_atraso_prom_6m"] = df["dias_atraso_prom_6m"] * 24
+    huella = hashlib.sha256(Path(ruta).read_bytes()).hexdigest()[:12]
+    return df, huella
+
+def validar(df):
+    errores = [f"falta {c}" for c in NUMERICAS + ["metodo_pago", "mora_30d"] if c not in df]
+    for col, (lo, hi) in RANGOS.items():
+        if col in df and not df[col].between(lo, hi).all():
+            errores.append(f"{col} fuera de [{lo}, {hi}] (máximo {df[col].max():g})")
+    if "metodo_pago" in df and not set(df.metodo_pago.unique()) &lt;= METODOS:
+        errores.append(f"metodo_pago desconocido: {set(df.metodo_pago.unique()) - METODOS}")
+    if df.isna().mean().max() &gt; 0.01:
+        errores.append("más de 1 % de vacíos en alguna columna")
+    if len(df) &lt; 10_000:
+        errores.append(f"muy pocas filas: {len(df)}")
+    return errores
+
+def entrenar(df, semilla):
+    ent, pru = train_test_split(df, test_size=0.3, random_state=semilla, stratify=df.mora_30d)
+    prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),
+                              ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
+    modelo = make_pipeline(prep, LogisticRegression(max_iter=1000)).fit(ent, ent.mora_30d)
+    return modelo, pru
+
+def evaluar(modelo, pru):
+    return roc_auc_score(pru.mora_30d, modelo.predict_proba(pru)[:, 1])
+
+def registrar(modelo, auc, huella):
+    if auc &lt; CONFIG["auc_minimo"] or auc &lt; CONFIG["auc_produccion"] - 0.01:
+        return f"rechazado: AUC {auc:.3f} (mínimo {CONFIG['auc_minimo']}, producción {CONFIG['auc_produccion']})"
+    Path("registro").mkdir(exist_ok=True)
+    nombre = f"registro/mora-30d-{CONFIG['version']}"
+    joblib.dump(modelo, nombre + ".joblib")
+    linaje = {**CONFIG, "auc": round(auc, 4), "huella_datos": huella, "sklearn": sklearn.__version__}
+    Path(nombre + ".json").write_text(json.dumps(linaje, indent=2))
+    return f"registrado {nombre}.joblib con AUC {auc:.3f}"
+
+if __name__ == "__main__":
+    df, huella = cargar(CONFIG["datos"], romper="--romper" in sys.argv)
+    print(f"1 cargar     {len(df)} filas · huella {huella}")
+    errores = validar(df)
+    if errores:
+        sys.exit("2 validar    DETENIDO: " + "; ".join(errores))
+    print("2 validar    ok")
+    modelo, pru = entrenar(df, CONFIG["semilla"])
+    print(f"3 entrenar   semilla {CONFIG['semilla']}")
+    auc = evaluar(modelo, pru)
+    print(f"4 evaluar    AUC {auc:.3f}")
+    print("5 registrar ", registrar(modelo, auc, huella))</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Y este, en la misma carpeta, como <code>test_pipeline.py</code>:</p><div class="code-copia"><pre><code>import pandas as pd
+from pipeline import CONFIG, cargar, validar, entrenar, evaluar
+
+DATOS, _ = cargar(CONFIG["datos"])
+
+def test_acepta_los_datos_buenos():
+    assert validar(DATOS) == []
+
+def test_rechaza_dias_en_horas():
+    malos, _ = cargar(CONFIG["datos"], romper=True)
+    assert any("dias_atraso_prom_6m" in e for e in validar(malos))
+
+def test_rechaza_un_metodo_de_pago_nuevo():
+    assert validar(DATOS.assign(metodo_pago="cripto")) != []
+
+def test_entrenar_es_determinista():
+    a = evaluar(*entrenar(DATOS, semilla=1))
+    b = evaluar(*entrenar(DATOS, semilla=1))
+    assert a == b
+
+def test_mas_facturas_tarde_no_baja_el_riesgo():
+    modelo, pru = entrenar(DATOS, semilla=42)
+    antes = modelo.predict_proba(pru)[:, 1]
+    despues = modelo.predict_proba(pru.assign(facturas_tarde_12m=pru.facturas_tarde_12m + 1))[:, 1]
+    assert (despues &gt;= antes).all()</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python pipeline.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python pipeline.py --romper</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python -m pytest -q</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 pipeline.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 pipeline.py --romper</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 -m pytest -q</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el pipeline normal, anota el AUC y abre <code>registro/mora-30d-v2.json</code>.</span></li><li><span>Córrelo con <code>--romper</code> y lee el mensaje del paso 2.</span></li><li><span>Corre las pruebas y mira cuántas pasan.</span></li></ol><p><b>Qué observar:</b> con los datos normales los cinco pasos terminan, el AUC ronda 0,79 y el modelo queda en <code>registro/</code> con un JSON de linaje: la huella del archivo de datos, la semilla, la versión de scikit-learn y los umbrales. Con <code>--romper</code> el pipeline se detiene en el paso 2, dice qué columna falló y su máximo, y no entrena nada. Fíjate en que los días en horas no producen ningún error de Python: sin la validación, el modelo habría entrenado feliz con una variable 24 veces más grande. Las cinco pruebas pasan en segundos y revisan cosas distintas: dos reglas de validación, el determinismo y una prueba direccional. En el capítulo 2 registraste la v1 en MLflow; aquí el paso 5 escribe archivos para que el ejemplo corra sin servidor, y cambiarlo por el registro de MLflow es cambiar esa función.</p></div></section>
+<section><h2>Orquestadores de ML</h2><div class="prose"><p>Correr cinco pasos en orden en tu computador se resuelve con un programa de Python. En producción aparecen preguntas nuevas: ¿quién lo lanza cada mes?, ¿en qué máquina corre el paso de entrenamiento, que necesita más memoria?, ¿qué pasa si el paso 3 falla a las 3 de la mañana?, ¿dónde se ven los artefactos de la corrida del 4 de marzo? Eso lo resuelve un <b>orquestador</b> (<i>orchestrator</i>): un sistema que ejecuta los pasos de un DAG, cada uno en su contenedor, con reintentos, programación, registros y una interfaz para ver cada corrida.</p></div><div class="analogia"><b>Imagínalo así</b><p>El orquestador es el jefe de cocina en la hora pico. No cocina ningún plato, pero sabe qué estación prepara qué, en qué orden salen los platos de cada mesa, a quién pasarle la sartén si un cocinero se enferma y qué se sirvió en cada mesa a qué hora.</p></div><div class="prose"><p>Los orquestadores generales de datos, como Airflow, Dagster o Prefect, sirven también para entrenar modelos, y se estudian en <a href="https://aaramirez.github.io/ingenieria-de-datos/temario.html" target="_blank" rel="noopener">Ingeniería de datos</a>. Los orquestadores de ML agregan lo propio del aprendizaje automático: guardan cada artefacto con su linaje, comparan corridas, reutilizan pasos en caché y piden GPU para un paso y no para otro. Algunos ejemplos del mercado:</p><ul><li><b>Kubeflow Pipelines</b>: de código abierto, corre sobre Kubernetes. Cada paso es un componente con una imagen de contenedor; el pipeline se escribe en Python y se compila a una especificación.</li><li><b>Servicios gestionados</b> de las nubes, como Vertex AI Pipelines, SageMaker Pipelines o Azure Machine Learning: la misma idea, sin administrar el clúster.</li><li><b>Herramientas livianas</b>, como Metaflow, ZenML o los propios proyectos de MLflow, que empiezan en el computador y escalan después.</li></ul><p>Elegir el orquestador importa menos de lo que parece. Lo que importa es que el pipeline ya esté escrito como pasos con entradas y salidas claras: eso se lleva a cualquier orquestador en días. Un cuaderno, en cambio, no se lleva a ninguno.</p></div><div class="caso"><b>Un caso real</b><p><b>El modelo que solo corría los martes.</b> En una empresa de servicios, el modelo de riesgo de cobranza se reentrenaba cada mes con un cuaderno que corría su autor. Cuando cambió de equipo, nadie más pudo hacerlo: el cuaderno leía un archivo de una carpeta personal y tenía una celda que solo funcionaba si antes se había corrido otra, más abajo. Pasaron cuatro meses sin reentrenar. Rehacerlo como pipeline llevó tres semanas, la mitad de ellas en descubrir qué hacía cada celda. El primer pipeline no tenía orquestador: era un programa con cinco funciones, un archivo de configuración y una tarea programada. El orquestador llegó medio año después, sin cambiar los pasos.</p></div></section>
+<section><h2>Pruebas para código de aprendizaje automático</h2><div class="prose"><p>El código de ML se prueba como cualquier código, más algunas pruebas propias. La diferencia es que no siempre hay una «respuesta correcta» exacta que comparar: un modelo nuevo puede tener otro AUC y seguir siendo bueno. Por eso las pruebas se dividen en cuatro grupos:</p><div class="tbl"><table><thead><tr><th>Tipo de prueba</th><th>Qué revisa</th><th>Ejemplo en el modelo de mora</th></tr></thead><tbody><tr><td><b>Unitarias</b> (<i>unit tests</i>)</td><td>Cada función, con datos pequeños hechos a mano</td><td><code>dias_atraso_prom_6m</code> da 3,75 para un historial conocido</td></tr><tr><td><b>De datos</b> (<i>data tests</i>)</td><td>Que las reglas de validación atrapan lo que deben</td><td>Una exportación en horas no pasa <code>validar</code></td></tr><tr><td><b>Del modelo</b> (<i>model tests</i>)</td><td>Comportamientos esperados, no un número exacto</td><td>Una factura tarde más no baja la probabilidad de mora; el AUC supera al de una regla simple</td></tr><tr><td><b>De integración</b> (<i>integration tests</i>)</td><td>El pipeline completo con una muestra pequeña</td><td>Los cinco pasos corren de punta a punta en menos de un minuto</td></tr></tbody></table></div><p>Las pruebas del modelo merecen un comentario. Una <b>prueba de invariancia</b> (<i>invariance test</i>) cambia algo que no debería importar (el nombre del cliente) y verifica que la predicción no cambie. Una <b>prueba direccional</b> (<i>directional test</i>) cambia algo que sí importa en una dirección conocida (una factura tarde más en <code>facturas_tarde_12m</code>) y verifica que la probabilidad suba o al menos no baje. Una <b>prueba de mínimo</b> compara contra una <b>línea base</b> (<i>baseline</i>): si el modelo no supera a la regla «más de dos facturas tarde es riesgo», sobra.</p><p>Estas pruebas corren en la <b>integración continua</b> (<i>continuous integration</i>, CI) con cada cambio de código, con datos sintéticos y en segundos. La evaluación con datos reales, que tarda más, corre en el paso «evaluar» del pipeline. La integración continua en general está en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>, y una rúbrica completa para saber si un sistema de ML está listo para producción es el «ML Test Score» de Google, enlazado al final.</p></div><div class="ml"><b>En la práctica</b><p><b>De la v1 a la v2.</b> Valeria convirtió los scripts sueltos en un pipeline con cinco funciones (<code>cargar</code>, <code>validar</code>, <code>entrenar</code>, <code>evaluar</code>, <code>registrar</code>), un archivo de configuración con la versión de datos, la semilla 42 y los umbrales de la ficha, y un <code>requirements.txt</code> con versiones exactas. La primera corrida dio 0,789, el mismo AUC de la v1 al tercer decimal, y auditoría la repitió por su cuenta con un solo comando. El modelo es el mismo, así que no cumplía la regla del registro que pide superar al campeón por 0,01: esa regla es para mejoras. Esto era otra cosa, la misma receta con un proceso que se puede rehacer, y la gerente de Cobranzas y Valeria aprobaron el reemplazo a mano, con una etiqueta que lo explica. Así entró la v2, con la compuerta del pipeline revisando que no empeore y el linaje completo. La primera exportación rota llegó a los dos meses: los días de atraso venían en horas. El pipeline se detuvo en la validación, el equipo de datos corrigió la exportación y la corrida se repitió al día siguiente, sin que nadie en Cobranzas se enterara.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p>El entrenamiento como pipeline, no como cuaderno. Cada paso con entradas y salidas con versión (datos, validación, entrenamiento, evaluación y registro), el azar con semilla, el entorno con versiones exactas o en un contenedor, los datos validados antes de entrenar y pruebas que corren con cada cambio. Así cualquiera repite el modelo con un comando, y un error en los datos detiene el proceso antes de llegar al negocio.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Por qué volver a correr todas las celdas de un cuaderno no garantiza el mismo modelo?</summary><p>Porque el cuaderno no guarda el orden en que se corrieron las celdas ni el estado de la memoria, suele leer tablas vivas que cambian y no anota las versiones de las librerías ni las semillas.</p></details><details><summary>¿Fijar la semilla es elegir la que da el mejor resultado?</summary><p>No. Se decide una antes de mirar y se anota; para saber cuánto pesa el azar se entrena con varias semillas y se reporta el rango.</p></details><details><summary>¿Qué diferencia hay entre un archivo <code>requirements.txt</code> con versiones exactas y un contenedor?</summary><p>El primero fija las librerías de Python; el contenedor fija además el sistema operativo base, el intérprete y todo lo instalado, y corre igual en cualquier máquina.</p></details><details><summary>¿Qué hace el paso de validación cuando los datos no cumplen el esquema, y por qué no basta con que Python no dé error?</summary><p>Detiene el pipeline antes de entrenar. Un cambio de unidad o de rango no produce errores de Python: el modelo entrena igual y aprende algo equivocado.</p></details><details><summary>¿Qué es una prueba direccional y qué verificaría en el modelo de mora?</summary><p>Una prueba que cambia una entrada en una dirección conocida y revisa que la predicción se mueva como se espera; por ejemplo, que una factura tarde más no baje la probabilidad de mora.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Por qué la suma de números con decimales en una computadora no es asociativa, y qué tiene que ver la norma IEEE 754?<small>Pista: busca «floating point addition associativity».</small></li><li>¿Qué diferencia hay entre una etiqueta de imagen de contenedor y su <i>digest</i> SHA-256, y por qué una etiqueta puede apuntar a otra imagen mañana?</li><li>¿Qué algoritmo usa por defecto <code>np.random.default_rng</code> y por qué NumPy dejó de recomendar <code>np.random.seed</code>?<small>Pista: busca «NumPy PCG64» y «legacy random generation».</small></li><li>¿Qué es la especificación intermedia en que se compila un pipeline de Kubeflow y para qué sirve?<small>Pista: busca «Kubeflow Pipelines IR YAML».</small></li><li>¿Qué son las pruebas basadas en propiedades (<i>property-based testing</i>) y cómo se usan con la librería Hypothesis?</li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://scikit-learn.org/stable/common_pitfalls.html#controlling-randomness" target="_blank" rel="noopener">scikit-learn: controlar el azar <small>documentación, en inglés</small></a><a class="vid" href="https://www.kubeflow.org/docs/components/pipelines/overview/" target="_blank" rel="noopener">Kubeflow Pipelines: introducción <small>documentación, en inglés</small></a><a class="vid" href="https://docs.greatexpectations.io/docs/home/" target="_blank" rel="noopener">Great Expectations: documentación <small>validación de datos, en inglés</small></a><a class="vid" href="https://research.google/pubs/the-ml-test-score-a-rubric-for-ml-production-readiness-and-technical-debt-reduction/" target="_blank" rel="noopener">The ML Test Score (Google Research) <small>artículo, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$,tok,canvasWidget}=window.Lab;
+  let anterior=[],actual=[];
+  function h(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i);x=Math.imul(x,16777619)>>>0;}return x;}
+  const ruido=s=>(h(s)%10000)/5000-1;           // de -1 a 1, siempre igual para la misma clave
+  const hex=s=>(h(s).toString(16)+h(s+'#').toString(16)).padStart(16,'0').slice(0,12);
+  function corrida(i){
+    const ss=$('#c3l2-ss').checked,sm=$('#c3l2-sm').checked,dv=$('#c3l2-dv').checked,lv=$('#c3l2-lv').checked;
+    const semP=ss?'42':'azar'+i+Math.random().toFixed(6),semM=sm?'42':'azar'+i+Math.random().toFixed(6);
+    const datos=dv?$('#c3l2-snap').value:'viva-dia'+(i+1);
+    const sk=lv?$('#c3l2-sk').value:(i<2?'1.8.0':'1.9.1');
+    const clave=[semP,semM,datos,sk].join('|');
+    let auc=0.789+0.012*ruido('p'+semP+datos)+0.006*ruido('m'+semM+datos+sk)+(datos==='m01'?0.004:0)+(datos.startsWith('viva')?0.006*ruido(datos):0)+(sk==='1.9.1'?0.0013:0);
+    return {i:i+1,auc,huella:hex(clave),ent:'sklearn '+sk+' · '+(dv?datos:'tabla viva, día '+(i+1))};
+  }
+  const W=canvasWidget($('#c3l2-c'),w=>w<480?0.34:0.2,(ctx,w,hh)=>{
+    const x0=0.76,x1=0.84,pl=16,pr=16,X=v=>pl+(Math.min(x1,Math.max(x0,v))-x0)/(x1-x0)*(w-pl-pr);
+    ctx.clearRect(0,0,w,hh);
+    ctx.strokeStyle=tok('--grid');ctx.fillStyle=tok('--muted');ctx.font='11px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+    for(let v=0.76;v<=0.8401;v+=0.02){ctx.beginPath();ctx.moveTo(X(v),8);ctx.lineTo(X(v),hh-20);ctx.stroke();ctx.fillText(v.toFixed(2).replace('.',','),X(v),hh-16);}
+    const fila=(arr,y,col)=>arr.forEach((c,k)=>{ctx.fillStyle=col;ctx.beginPath();ctx.arc(X(c.auc),y-(k%2)*0,6,0,7);ctx.fill();});
+    fila(anterior,(hh-20)*0.32,tok('--muted'));
+    fila(actual,(hh-20)*0.72,tok('--accent'));
+  });
+  function correr(){
+    if(actual.length)anterior=actual;
+    actual=[0,1,2,3,4].map(corrida);
+    const base=actual[0];
+    $('#c3l2-tb').innerHTML=actual.map(c=>{const d=c.huella!==base.huella;return '<tr><td>'+c.i+'</td><td>'+c.ent+'</td><td class="m'+(d?' dif':'')+'">'+c.auc.toFixed(4).replace('.',',')+'</td><td class="m'+(d?' dif':'')+'">'+c.huella+'</td></tr>';}).join('');
+    W();
+    const iguales=actual.every(c=>c.huella===base.huella);
+    const aucs=actual.map(c=>c.auc),rango=Math.max(...aucs)-Math.min(...aucs);
+    const msg=[];
+    if(iguales)msg.push('<span class="ok">Las cinco corridas son idénticas: mismo AUC y misma huella, carácter por carácter.</span>');
+    else msg.push('<span class="warn">Las corridas no se repiten: el AUC varía '+rango.toFixed(4).replace('.',',')+' entre la menor y la mayor, y las huellas cambian (en rojo, las distintas de la primera).</span>');
+    if(!$('#c3l2-ss').checked)msg.push('<span>La partición al azar cambia qué clientes quedan en la prueba: es la fuente de variación más grande.</span>');
+    if(!$('#c3l2-sm').checked)msg.push('<span>Sin semilla del modelo, un bosque aleatorio elige otras muestras y otras variables en cada árbol. La regresión logística de la v2 no usa azar al ajustarse, pero un bosque como el que se prueba en el capítulo 6, sí.</span>');
+    if(!$('#c3l2-dv').checked)msg.push('<span>La tabla viva cambia de un día a otro: no estás repitiendo el entrenamiento, estás entrenando con otros datos.</span>');
+    if(!$('#c3l2-lv').checked)msg.push('<span>Sin versiones fijas, una instalación del miércoles trajo scikit-learn 1.9.1: desde la corrida 3 el resultado cambia aunque todo lo demás esté fijo.</span>');
+    if(anterior.length&&iguales&&anterior.every(c=>c.huella===anterior[0].huella)&&anterior[0].huella!==base.huella)
+      msg.push('<span>Frente a la tanda anterior cambió algo fijado (la versión de la librería o la tabla): cada tanda se repite, pero son modelos distintos. Por eso la versión de cada cosa se anota en el registro.</span>');
+    $('#c3l2-out').innerHTML=msg.join('');
+  }
+  $('#c3l2-run').addEventListener('click',correr);
+  correr();
+})();
+</script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const root=document.querySelector('[id="03-lab-1"]');
+  const on={cargar:true,validar:true,evaluar:true,compuerta:true};
+  let esc='normal',timers=[];
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const PASOS=[['cargar','1 · Cargar','dat'],['validar','2 · Validar','dat'],['entrenar','3 · Entrenar','ent'],['evaluar','4 · Evaluar','ent'],['compuerta','5 · Compuerta y registro','ent']];
+  const AUC={normal:0.79,horas:0.72,peor:0.76},PROD=0.79,MIN=0.75;
+  const pasa=a=>a>=MIN&&a>=PROD-0.01;
+  const coma=x=>x.toFixed(2).replace('.',',');
+  function plan(){
+    // devuelve el estado de cada paso, el veredicto y las lecciones
+    const r={},lec=[];let parado=false,veredicto,clase;
+    r.cargar=on.cargar?['ok','listo','clientes-m00.csv · versión fija']:['warn','sin versión','SELECT * FROM clientes (tabla viva)'];
+    if(!on.cargar)lec.push('Sin la instantánea, el pipeline lee la tabla viva: el mes que viene nadie podrá repetir esta corrida con los mismos datos.');
+    if(!on.validar)r.validar=['skip','omitido','—'];
+    else if(esc==='horas'){r.validar=['stop','detenido','dias_atraso_prom_6m fuera de [0, 90] · máx 866,4'];parado=true;}
+    else r.validar=['ok','listo','informe-validacion.json · 0 errores'];
+    if(parado){
+      ['entrenar','evaluar','compuerta'].forEach(k=>r[k]=['skip','no corre','—']);
+      veredicto='Nada llega al registro: el pipeline se detuvo en la validación.';clase='si';
+      lec.push('La mitad de las filas trae los días de atraso en horas (24 veces más). Python no da ningún error: solo la regla de rango lo detecta. El equipo de datos corrige la exportación y el pipeline se vuelve a correr desde el paso 1.');
+      return {r,veredicto,clase,lec};
+    }
+    r.entrenar=esc==='horas'?['warn','entrena igual','modelo.pkl · semilla 42 · variable ×24 en la mitad']:['ok','listo','modelo.pkl · semilla 42'];
+    if(esc==='horas')lec.push('Sin validación, el modelo entrena sin quejarse con una variable que mezcla días y horas.');
+    const auc=AUC[esc];
+    r.evaluar=on.evaluar?[pasa(auc)?'ok':'warn',pasa(auc)?'listo':'peor que producción','metricas.json · AUC '+coma(auc)+' (v1 en producción: '+coma(PROD)+')']:['skip','omitido','sin métricas'];
+    if(!on.compuerta){
+      r.compuerta=['warn','registra todo','registro: mora v2 · AUC '+(on.evaluar?coma(auc):'desconocido')];
+      if(pasa(auc)){veredicto='La v2 se registró, pero por suerte: nadie la comparó con la v1.';clase='ojo';}
+      else{veredicto='Al registro llega un modelo peor que el de producción (AUC '+coma(auc)+' contra '+coma(PROD)+').';clase='no';}
+      lec.push('Sin compuerta, el registro acepta cualquier cosa que el pipeline produzca. El paso siguiente, desplegar, confía en el registro.');
+    }else if(!on.evaluar){
+      r.compuerta=['stop','sin datos para decidir','pendiente de revisión manual'];
+      veredicto='La compuerta no tiene métricas: el modelo queda en espera de que alguien lo revise a mano.';clase='ojo';
+      lec.push('La compuerta compara métricas; sin el paso de evaluación no tiene con qué decidir.');
+    }else if(pasa(auc)){
+      r.compuerta=['ok','registrado','registro: mora v2 · linaje completo'];
+      veredicto=on.cargar?'La v2 entra al registro con su linaje: datos, código, semilla y métricas.':'La v2 entra al registro, pero su linaje apunta a una tabla que ya cambió.';clase=on.cargar?'si':'ojo';
+    }else{
+      r.compuerta=['stop','rechazado','no se registra · sigue la v1'];
+      veredicto='La compuerta rechaza el modelo: en producción sigue la v1.';clase='si';
+      lec.push(esc==='peor'?'Alguien quitó una variable para simplificar y el modelo bajó a 0,76: pasa el mínimo de 0,75, pero queda tres puntos debajo de la v1. Que el pipeline corra bien no significa que el modelo sea mejor.':'El modelo entrenado con la variable mezclada rinde 0,72: la compuerta lo para, aunque la causa estaba dos pasos antes.');
+    }
+    return {r,veredicto,clase,lec};
+  }
+  function pintar(estados,actual){
+    $('#c3l1-tubo').innerHTML=PASOS.map(([k,nom,cl],i)=>{
+      const e=estados&&estados[k];
+      let c='c3l1-paso '+cl,est='en espera',art='';
+      if(k!=='entrenar'&&!on[k]){c+=' skip';est='quitado';}
+      if(e){c+=' '+e[0];est=e[1];art=e[2];}
+      if(actual===i){c+=' run';est='corriendo…';art='';}
+      return '<div class="'+c+'"><b>'+nom+'</b><span class="est">'+est+'</span><span class="art">'+art+'</span></div>';
+    }).join('');
+  }
+  function correr(){
+    timers.forEach(clearTimeout);timers=[];
+    const p=plan(),parcial={};
+    $('#c3l1-ver').className='c3l1-ver';$('#c3l1-ver').textContent='Corriendo…';$('#c3l1-out').innerHTML='';
+    const fin=()=>{pintar(p.r);$('#c3l1-ver').className='c3l1-ver '+p.clase;$('#c3l1-ver').textContent=p.veredicto;
+      $('#c3l1-out').innerHTML=(p.lec.length?p.lec:['Todos los pasos dejaron su artefacto. Cualquiera puede repetir esta corrida con un comando y llegar al mismo AUC.']).map(t=>'<span>'+t+'</span>').join('');};
+    if(reduce){fin();return;}
+    PASOS.forEach(([k],i)=>{
+      timers.push(setTimeout(()=>{pintar(parcial,i);},i*450));
+      timers.push(setTimeout(()=>{parcial[k]=p.r[k];pintar(parcial);},i*450+380));
+    });
+    timers.push(setTimeout(fin,PASOS.length*450+50));
+  }
+  root.querySelectorAll('[data-b]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.b;on[k]=!on[k];b.setAttribute('aria-pressed',on[k]?'true':'false');pintar(null);$('#c3l1-ver').className='c3l1-ver';$('#c3l1-ver').textContent='Cambiaste el pipeline: pulsa «Correr el pipeline».';$('#c3l1-out').innerHTML='';}));
+  root.querySelectorAll('[data-e]').forEach(b=>b.addEventListener('click',()=>{esc=b.dataset.e;root.querySelectorAll('[data-e]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));correr();}));
+  $('#c3l1-run').addEventListener('click',correr);
+  pintar(null);
+})();
+</script>
+</body>
+</html>

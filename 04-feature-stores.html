@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Feature stores · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="feature-stores">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 04 DE 11</span><h1>Feature stores</h1><p class="lede">El modelo de mora aprendió con una receta de «días de atraso» y en producción recibe otra. Este capítulo muestra cómo nace esa diferencia, cómo la evita un feature store con una sola definición de cada variable para el entrenamiento y para el servicio, por qué hay que unir los datos sin mirar el futuro y cuándo basta con algo más simple.</p></header>
+<section><div class="prose"><p>En el capítulo 1 viste un cliente con dos números para la misma variable: 12,4 días de atraso promedio en el cuaderno de Andrés y 7,1 en el servicio. No era un error de tipeo. Eran dos recetas: la del cuaderno promediaba los últimos seis pagos hechos; la del servicio, escrita meses después por otro equipo, tomaba seis meses de calendario y contaba como cero la factura que todavía no vencía. El cliente parecía más puntual en producción, y el modelo lo dejaba fuera de la lista de cobranza preventiva.</p><p>El pipeline del capítulo anterior hace que el entrenamiento se repita. Pero un pipeline repetible puede repetir, con toda exactitud, una variable distinta de la que verá el modelo en producción. Este capítulo trata de cerrar esa grieta.</p></div></section>
+<section><h2>El sesgo entre entrenamiento y servicio</h2><div class="prose"><p>Una <b>variable</b> (<i>feature</i>, también llamada característica) es cada dato de entrada que el modelo usa para predecir: <code>dias_atraso_prom_6m</code>, <code>facturas_tarde_12m</code>, <code>reclamos_90d</code>, <code>antiguedad_meses</code>. Casi nunca están listas en una tabla: se calculan a partir de eventos crudos, como pagos, facturas y tickets.</p><p>El <b>sesgo entre entrenamiento y servicio</b> (<i>training-serving skew</i>) es la diferencia entre la variable con que el modelo aprendió y la que recibe cuando predice. El modelo no tiene forma de saberlo: recibe un número y lo usa con todo lo que aprendió para números parecidos.</p></div><div class="analogia"><b>Imagínalo así</b><p>Imagina que aprendiste a cocinar con una receta que dice «una taza de azúcar», y tu taza era de 250 mililitros. En la cocina del restaurante, la taza es de 180. Sigues la receta al pie de la letra y los postres salen menos dulces, todos, todos los días, y nadie sabe por qué, porque «la receta es la misma».</p></div><div class="prose"><p>El sesgo aparece por causas muy concretas, casi siempre por tener dos implementaciones de la misma idea:</p><ul><li><b>Dos lenguajes.</b> El pipeline calcula la variable en SQL o pandas; el servicio en línea, en Java o en el lenguaje del backend, reescrita por otro equipo.</li><li><b>Vacíos tratados distinto.</b> pandas ignora los vacíos al promediar; un bucle escrito a mano los cuenta como cero.</li><li><b>Ventanas distintas.</b> «Últimos seis meses» puede ser seis meses de calendario, 180 días o las últimas seis facturas.</li><li><b>Relojes distintos.</b> El pipeline corta el día a medianoche en UTC; el sistema de facturación, en hora local. Un pago de las 9 de la noche cae en días distintos.</li><li><b>Datos que llegan tarde.</b> En el entrenamiento, la tabla histórica ya tiene todo; en producción, los pagos del día llegan con horas de retraso.</li></ul></div><figure class="fig fig-arquitectura" id="04-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 360" style="min-width:700px" role="img" aria-label="Dos caminos desde los mismos eventos de pagos y facturas: arriba, el pipeline de entrenamiento calcula dias_atraso_prom_6m con la receta del cuaderno y da 12,4; abajo, la API del servicio la calcula con su propia función y da 7,1; los dos números llegan al mismo modelo; el sesgo nace en tener dos definiciones">
+<defs>
+<marker id="c4d1-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c4d1-e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-enl"/></marker>
+<marker id="c4d1-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+</defs>
+<rect x="190" y="16" width="690" height="140" rx="12" class="caja" style="stroke-dasharray:5 4"/>
+<text x="204" y="38" class="t t-xs t-b k-enl">CAMINO DEL ENTRENAMIENTO · una vez al mes</text>
+<rect x="190" y="196" width="690" height="140" rx="12" class="caja" style="stroke-dasharray:5 4"/>
+<text x="204" y="328" class="t t-xs t-b k-red">CAMINO DEL SERVICIO · cada vez que el CRM pregunta</text>
+
+<rect x="20" y="126" width="150" height="100" rx="10" class="c-fis"/>
+<text x="95" y="152" class="t t-xs t-b k-fis" text-anchor="middle">EVENTOS CRUDOS</text>
+<text x="95" y="174" class="t t-b" text-anchor="middle">Pagos y</text>
+<text x="95" y="192" class="t t-b" text-anchor="middle">facturas</text>
+<text x="95" y="212" class="t t-s t-m" text-anchor="middle">facturación</text>
+
+<rect x="230" y="56" width="200" height="80" rx="10" class="c-enl"/>
+<text x="244" y="80" class="t t-b">Pipeline (SQL)</text>
+<text x="244" y="100" class="t t-s">receta A: últimos 6 pagos</text>
+<text x="244" y="116" class="t t-s">hechos; sin pagar, se ignora</text>
+
+<rect x="230" y="236" width="200" height="80" rx="10" class="c-red"/>
+<text x="244" y="260" class="t t-b">API (Java)</text>
+<text x="244" y="280" class="t t-s">receta B: 6 meses calendario;</text>
+<text x="244" y="296" class="t t-s">sin pagar cuenta como 0</text>
+
+<rect x="480" y="66" width="170" height="60" rx="10" class="caja"/>
+<text x="565" y="90" class="t t-s t-mono" text-anchor="middle">dias_atraso_prom_6m</text>
+<text x="565" y="114" class="t t-b k-enl" text-anchor="middle" style="font-size:16px">12,4</text>
+
+<rect x="480" y="246" width="170" height="60" rx="10" class="caja"/>
+<text x="565" y="270" class="t t-s t-mono" text-anchor="middle">dias_atraso_prom_6m</text>
+<text x="565" y="294" class="t t-b k-red" text-anchor="middle" style="font-size:16px">7,1</text>
+
+<rect x="720" y="136" width="140" height="80" rx="10" class="c-enl"/>
+<text x="790" y="164" class="t t-b" text-anchor="middle">Modelo v2</text>
+<text x="790" y="184" class="t t-s" text-anchor="middle">aprendió con A,</text>
+<text x="790" y="200" class="t t-s" text-anchor="middle">predice con B</text>
+
+<path d="M170 160 C200 160 200 96 228 96" class="ln s-enl" marker-end="url(#c4d1-e)"/>
+<path d="M170 192 C200 192 200 276 228 276" class="ln s-red" marker-end="url(#c4d1-r)"/>
+<line x1="430" y1="96" x2="478" y2="96" class="ln s-enl" marker-end="url(#c4d1-e)"/>
+<line x1="430" y1="276" x2="478" y2="276" class="ln s-red" marker-end="url(#c4d1-r)"/>
+<path d="M650 96 C690 96 690 156 718 160" class="ln s-enl" marker-end="url(#c4d1-e)"/>
+<path d="M650 276 C690 276 690 206 718 196" class="ln s-red" marker-end="url(#c4d1-r)"/>
+
+<rect x="240" y="160" width="430" height="30" rx="8" class="caja s-warm" style="stroke-width:2"/>
+<text x="455" y="180" class="t t-s t-b k-warm" text-anchor="middle">aquí nace el sesgo: dos definiciones de la misma variable</text>
+<line x1="330" y1="160" x2="330" y2="138" class="ln s-warm"/>
+<line x1="330" y1="190" x2="330" y2="234" class="ln s-warm"/>
+</svg></div><figcaption><b>Dos recetas para la misma variable.</b> Arriba, el camino del entrenamiento: los eventos de pagos y facturas pasan por el pipeline de SQL, que calcula <code>dias_atraso_prom_6m</code> con la receta del cuaderno y alimenta al modelo. Abajo, el camino del servicio: los mismos eventos llegan a la API, que tiene su propia función, escrita en otro lenguaje. Las dos flechas terminan en el mismo modelo con dos números distintos para el mismo cliente, 12,4 y 7,1. La marca roja señala dónde nace el sesgo: en tener dos definiciones, no en el modelo.</figcaption></figure><div class="lab" id="04-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Encuentra la diferencia</h3></div><p class="hint">Un cliente, su historial de seis facturas y dos implementaciones de <code>dias_atraso_prom_6m</code>: la del pipeline y la de la API. Activa o corrige cada diferencia (cómo tratan las facturas sin pagar, la ventana y la zona horaria) y mira cómo cambian los dos valores, la probabilidad de mora y la decisión de llamar. Abajo, cuántos clientes de una muestra de mil cambian de decisión.</p><style>
+[id="04-lab-1"] .c4l1-g{display:grid;gap:4px}
+[id="04-lab-1"] .c4l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="04-lab-1"] .c4l1-chk{display:flex;align-items:flex-start;gap:8px;font:500 .86rem var(--f-display);color:var(--ink)}
+[id="04-lab-1"] .c4l1-chk input{width:18px;height:18px;accent-color:var(--good);flex:none;margin-top:2px}
+[id="04-lab-1"] .c4l1-chk small{display:block;color:var(--muted);font-weight:500}
+[id="04-lab-1"] .c4l1-tw{overflow-x:auto}
+[id="04-lab-1"] table{width:100%;border-collapse:collapse;font:500 .8rem var(--f-display);min-width:440px}
+[id="04-lab-1"] th{font:700 .68rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+[id="04-lab-1"] td{padding:4px 6px;border-bottom:1px solid var(--grid);color:var(--ink)}
+[id="04-lab-1"] td.n{font-family:var(--f-mono);text-align:right}
+[id="04-lab-1"] td.fuera{color:var(--muted);text-decoration:line-through}
+[id="04-lab-1"] td.dist{color:var(--warm);font-weight:700}
+[id="04-lab-1"] .c4l1-dos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+[id="04-lab-1"] .c4l1-v{border:2px solid var(--line);border-radius:10px;padding:8px 12px;display:grid;gap:2px}
+[id="04-lab-1"] .c4l1-v.ent{border-top:5px solid var(--c-enl)}
+[id="04-lab-1"] .c4l1-v.ser{border-top:5px solid var(--c-red)}
+[id="04-lab-1"] .c4l1-v small{font:700 .68rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+[id="04-lab-1"] .c4l1-v b{font:700 1.5rem var(--f-mono);color:var(--ink)}
+[id="04-lab-1"] .c4l1-v span{font:500 .8rem var(--f-display);color:var(--ink)}
+[id="04-lab-1"] .c4l1-v span.llama{color:var(--warm);font-weight:700}
+[id="04-lab-1"] .c4l1-v span.nollama{color:var(--muted);font-weight:700}
+[id="04-lab-1"] .c4l1-pista{position:relative;height:12px;background:var(--grid);border-radius:4px;margin-top:4px}
+[id="04-lab-1"] .c4l1-bar{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--accent);transition:width .3s}
+[id="04-lab-1"] .c4l1-um{position:absolute;left:30%;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+</style>
+<div class="c4l1-g"><span>Historial del cliente al 1 de noviembre (días de atraso de cada factura)</span>
+<div class="c4l1-tw"><table><thead><tr><th>Factura</th><th>Vencía</th><th>Pagó (hora local)</th><th>Pipeline</th><th>API</th></tr></thead><tbody id="c4l1-tb"></tbody></table></div></div>
+<div class="c4l1-g"><span>Iguala la API a la receta del pipeline</span>
+  <label class="c4l1-chk"><input type="checkbox" id="c4l1-u"> <span>Facturas sin pagar<small>Pipeline: se ignoran (promedio de lo pagado). API: cuentan como 0 días.</small></span></label>
+  <label class="c4l1-chk"><input type="checkbox" id="c4l1-w"> <span>Ventana<small>Pipeline: últimas 6 facturas. API: facturas vencidas en los últimos 180 días.</small></span></label>
+  <label class="c4l1-chk"><input type="checkbox" id="c4l1-t"> <span>Zona horaria<small>Pipeline: corta el día en UTC. API: en hora local (UTC−4).</small></span></label>
+</div>
+<div class="btns"><button type="button" id="c4l1-fs">Usar una sola definición (feature store)</button><button type="button" id="c4l1-rst">Volver a las dos recetas</button></div>
+<div class="c4l1-dos">
+  <div class="c4l1-v ent"><small>Entrenamiento · pipeline</small><b id="c4l1-ve"></b><span id="c4l1-pe"></span><div class="c4l1-pista"><div class="c4l1-bar" id="c4l1-be"></div><div class="c4l1-um"></div></div><span id="c4l1-de"></span></div>
+  <div class="c4l1-v ser"><small>Producción · API</small><b id="c4l1-vs"></b><span id="c4l1-ps"></span><div class="c4l1-pista"><div class="c4l1-bar" id="c4l1-bs"></div><div class="c4l1-um"></div></div><span id="c4l1-ds"></span></div>
+</div>
+<div class="readout texto" id="c4l1-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Dos recetas, dos números</h3></div><p>Vas a calcular la misma variable con dos recetas razonables y ver que dan números distintos para el mismo cliente. Trabaja en la carpeta <code>mora-30d</code>, con su entorno activado. Guarda este programa como <code>sesgo.py</code>:</p><div class="code-copia"><pre><code>import pandas as pd
+
+# Días de atraso de las últimas seis facturas de un cliente (None = todavía sin pagar)
+atrasos = [0, 3, 0, 12, None, None]
+
+# Receta del entrenamiento (pandas, en el pipeline): mean() ignora las facturas sin pagar
+entrenamiento = pd.Series(atrasos, dtype="float").mean()
+
+# Receta del servicio (reescrita en la API por otro equipo): las sin pagar cuentan como 0
+def dias_atraso_prom_6m(lista):
+    return sum(d or 0 for d in lista) / len(lista)
+servicio = dias_atraso_prom_6m(atrasos)
+
+print(f"entrenamiento: {entrenamiento:.2f} días")
+print(f"servicio:      {servicio:.2f} días")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python sesgo.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 sesgo.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el programa y anota los dos valores.</span></li><li><span>Cambia la lista a <code>[0, 3, 0, 12, 20, 25]</code> (el cliente pagó todo, tarde) y vuelve a correrlo.</span></li></ol><p><b>Qué observar:</b> con dos facturas sin pagar, el pipeline dice 3,75 días y la API 2,50: el mismo cliente se ve un tercio más puntual en producción. Con todas las facturas pagadas, las dos recetas coinciden, y por eso el error pasa las pruebas con datos «limpios». Ninguna de las dos recetas es absurda; el problema es que son dos. Fíjate además en que el cliente con facturas sin pagar es justo el que más importa para un modelo de mora.</p></div></section>
+<section><h2>Qué es un feature store: almacén fuera de línea y en línea</h2><div class="prose"><p>Un <b>feature store</b> (almacén de variables) es un sistema que guarda la definición de cada variable una sola vez y la entrega calculada a dos clientes muy distintos: al pipeline de entrenamiento, que necesita la historia completa, y al servicio en línea, que necesita el último valor en milisegundos.</p></div><div class="analogia"><b>Imagínalo así</b><p>Piensa en la cocina central de una cadena de restaurantes. La salsa se prepara una vez, con una sola receta, en la cocina central. Una parte se congela en el depósito, con su fecha, para la escuela de cocineros que quiere practicar con la salsa de cualquier semana del año. Otra parte va, fresca, a la heladera de cada local para servir al instante. Nadie hace la salsa por su cuenta en el local.</p></div><div class="prose"><p>Por dentro, un feature store tiene cuatro piezas:</p><ul><li><b>El registro de definiciones</b> (<i>feature registry</i>): el catálogo de variables, escritas como código con su nombre, su tipo, su entidad (por ejemplo, <code>cliente</code>), su fuente y su dueño. Es la «receta única».</li><li><b>El almacén fuera de línea</b> (<i>offline store</i>): guarda la historia de cada variable con la fecha en que tomó cada valor. Vive en un almacén de datos o en archivos Parquet, y sirve para construir conjuntos de entrenamiento. Responde en segundos o minutos, con millones de filas.</li><li><b>El almacén en línea</b> (<i>online store</i>): guarda solo el valor más reciente de cada variable para cada entidad, en una base de clave y valor como Redis o DynamoDB. Responde en pocos milisegundos para un cliente a la vez.</li><li><b>La materialización</b> (<i>materialization</i>): el proceso que calcula las variables y copia los valores nuevos del almacén fuera de línea al en línea, por ejemplo cada hora.</li></ul></div><figure class="fig fig-arquitectura" id="04-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 400" style="min-width:720px" role="img" aria-label="Arquitectura de un feature store: a la izquierda, las fuentes por lotes y en streaming; en el centro, el registro con una sola definición de dias_atraso_prom_6m que alimenta el almacén fuera de línea, con la historia, y el almacén en línea, con el último valor; la materialización copia del primero al segundo; a la derecha, el pipeline de entrenamiento lee la historia con corrección en el tiempo y la API del modelo lee el último valor en unos 5 ms">
+<defs>
+<marker id="c4d2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c4d2-f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-fis"/></marker>
+<marker id="c4d2-e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-enl"/></marker>
+<marker id="c4d2-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+</defs>
+<text x="20" y="26" class="t t-xs t-b t-m">FUENTES</text>
+<text x="230" y="26" class="t t-xs t-b t-m">FEATURE STORE</text>
+<text x="690" y="26" class="t t-xs t-b t-m">QUIÉN LEE</text>
+
+<rect x="20" y="70" width="160" height="80" rx="10" class="c-fis"/>
+<text x="34" y="94" class="t t-b">Facturas</text>
+<text x="34" y="114" class="t t-s">por lotes, cada noche</text>
+<text x="34" y="132" class="t t-s t-m">almacén de datos</text>
+<rect x="20" y="246" width="160" height="80" rx="10" class="c-fis"/>
+<text x="34" y="270" class="t t-b">Pagos</text>
+<text x="34" y="290" class="t t-s">en streaming, al instante</text>
+<text x="34" y="308" class="t t-s t-m">un tema de Kafka</text>
+
+<rect x="216" y="40" width="450" height="340" rx="14" class="caja" style="stroke-dasharray:5 4"/>
+
+<rect x="236" y="150" width="170" height="90" rx="10" class="c-fis"/>
+<text x="250" y="172" class="t t-xs t-b k-fis">REGISTRO</text>
+<text x="250" y="192" class="t t-s t-mono">dias_atraso_prom_6m</text>
+<text x="250" y="210" class="t t-s">una sola definición,</text>
+<text x="250" y="226" class="t t-s">con versión y dueño</text>
+
+<rect x="450" y="60" width="196" height="110" rx="10" class="caja" style="stroke-width:1.6"/>
+<text x="464" y="82" class="t t-xs t-b t-m">FUERA DE LÍNEA</text>
+<text x="464" y="102" class="t t-b">La historia</text>
+<text x="464" y="120" class="t t-s">cada valor con su fecha</text>
+<text x="464" y="136" class="t t-s">millones de filas, segundos</text>
+<text x="464" y="156" class="t t-s t-m">Parquet o almacén de datos</text>
+
+<rect x="450" y="250" width="196" height="110" rx="10" class="caja" style="stroke-width:1.6"/>
+<text x="464" y="272" class="t t-xs t-b t-m">EN LÍNEA</text>
+<text x="464" y="292" class="t t-b">El último valor</text>
+<text x="464" y="310" class="t t-s">uno por cliente</text>
+<text x="464" y="326" class="t t-s">un cliente, milisegundos</text>
+<text x="464" y="346" class="t t-s t-m">Redis o DynamoDB</text>
+
+<line x1="548" y1="170" x2="548" y2="248" class="ln" marker-end="url(#c4d2-m)"/>
+<text x="556" y="206" class="t t-s t-b">materialización</text>
+<text x="556" y="222" class="t t-s t-m">cada hora</text>
+
+<path d="M180 110 C205 110 205 180 234 180" class="ln s-fis" marker-end="url(#c4d2-f)"/>
+<path d="M180 286 C205 286 205 214 234 214" class="ln s-fis" marker-end="url(#c4d2-f)"/>
+<path d="M406 180 C428 180 428 115 448 115" class="ln s-fis" marker-end="url(#c4d2-f)"/>
+<path d="M406 214 C428 214 428 300 448 300" class="ln s-fis" marker-end="url(#c4d2-f)"/>
+<text x="232" y="340" class="t t-s t-m">el streaming escribe</text>
+<text x="232" y="356" class="t t-s t-m">directo al almacén en línea</text>
+
+<rect x="700" y="70" width="180" height="90" rx="10" class="c-enl"/>
+<text x="714" y="94" class="t t-b">Pipeline de</text>
+<text x="714" y="112" class="t t-b">entrenamiento</text>
+<text x="714" y="132" class="t t-s">historia con corrección</text>
+<text x="714" y="148" class="t t-s">en el tiempo</text>
+<rect x="700" y="260" width="180" height="90" rx="10" class="c-red"/>
+<text x="714" y="284" class="t t-b">API del modelo</text>
+<text x="714" y="304" class="t t-s">último valor del</text>
+<text x="714" y="320" class="t t-s">cliente 20417</text>
+<text x="714" y="338" class="t t-s t-b k-red">≈ 5 ms</text>
+
+<line x1="646" y1="115" x2="698" y2="115" class="ln s-enl" marker-end="url(#c4d2-e)"/>
+<line x1="646" y1="305" x2="698" y2="305" class="ln s-red" marker-end="url(#c4d2-r)"/>
+</svg></div><figcaption><b>La arquitectura de un feature store.</b> A la izquierda, las fuentes: la tabla de facturas (por lotes) y el flujo de pagos (en streaming). En el centro, el registro con una sola definición de <code>dias_atraso_prom_6m</code>, que alimenta los dos almacenes: arriba, el fuera de línea, con la historia y la fecha de cada valor; abajo, el en línea, con el último valor por cliente. A la derecha, quién lee de cada uno: el pipeline de entrenamiento pide la historia con corrección en el tiempo, y la API del modelo pide el último valor en unos 5 ms. La flecha entre los dos almacenes es la materialización.</figcaption></figure><div class="prose"><p>Con esta arquitectura, la API del modelo de mora ya no calcula nada: pide <code>dias_atraso_prom_6m</code> del cliente 20417 y recibe el mismo número que habría calculado el pipeline. Si la receta cambia, cambia en un solo lugar, recibe una versión nueva y los dos caminos la usan a la vez.</p></div></section>
+<section><h2>Corrección en el tiempo: no usar datos del futuro</h2><div class="prose"><p>Para entrenar, necesitas una fila por cada ejemplo: el cliente, la fecha en que se habría hecho la predicción, las variables tal como estaban <b>ese día</b> y la etiqueta, que es lo que pasó después (<code>mora_30d</code>: si la factura emitida ese día seguía sin pagar 30 días después de su vencimiento, o sea, el día 45). La palabra clave es «ese día». Si la variable <code>facturas_tarde_12m</code> se toma de la tabla de hoy, incluye facturas que en la fecha del ejemplo todavía no existían.</p><p>Eso es una <b>fuga de datos</b> (<i>data leakage</i>): información del futuro que se cuela en el entrenamiento. El modelo aprende algo que en producción nunca va a tener, y la métrica fuera de línea sale espectacular y falsa. El capítulo 1 mostró la versión más evidente, con la variable <code>gestion_cobranza</code>; la de las uniones es más silenciosa, porque la variable es legítima y solo el momento está mal.</p></div><div class="analogia"><b>Imagínalo así</b><p>Es como evaluar a un pronosticador del tiempo dándole el periódico de mañana. Va a acertar siempre. El día que le quites el periódico, va a pronosticar tan mal como cualquiera, y lo habrás contratado por un récord de mentira.</p></div><div class="prose"><p>La solución es la <b>unión con corrección en el tiempo</b> (<i>point-in-time join</i>): para cada ejemplo, se toma el último valor de cada variable registrado <b>antes</b> de la fecha del ejemplo, nunca después. En pandas se hace con <code>merge_asof</code>; en SQL, con una condición sobre las fechas y una ventana; en un feature store, la hace la función que arma el conjunto de entrenamiento.</p></div><figure class="fig fig-esquema" id="04-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 320" style="min-width:700px" role="img" aria-label="Línea de tiempo de un cliente en 2026: facturas_tarde_12m cambia a 1 en marzo, a 2 el 8 de julio y a 3 el 19 de julio; la predicción es el 1 de julio y la etiqueta se decide en los 45 días siguientes; la unión correcta toma el valor 1, el último antes de la fecha; la unión ingenua toma el 3, que incluye las facturas de julio que definen la etiqueta">
+<defs>
+<marker id="c4d3-e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-enl"/></marker>
+<marker id="c4d3-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<rect x="459" y="90" width="99" height="110" class="c-red" style="stroke-dasharray:3 3"/>
+<text x="508" y="84" class="t t-s t-b k-red" text-anchor="middle">45 días</text>
+<text x="566" y="226" class="t t-s k-red">aquí se decide mora_30d</text>
+
+<line x1="60" y1="170" x2="860" y2="170" class="ln" style="stroke-width:1.6"/>
+<g class="t t-s t-m">
+<text x="60" y="192">ene</text><text x="127" y="192">feb</text><text x="193" y="192">mar</text><text x="260" y="192">abr</text><text x="327" y="192">may</text><text x="393" y="192">jun</text><text x="460" y="192">jul</text><text x="527" y="192">ago</text><text x="593" y="192">sep</text><text x="660" y="192">oct</text><text x="727" y="192">nov</text><text x="793" y="192">dic</text>
+</g>
+
+<line x1="459" y1="56" x2="459" y2="200" class="ln" style="stroke:var(--ink);stroke-width:2.5"/>
+<text x="459" y="44" class="t t-b" text-anchor="middle">predicción: 1 de julio</text>
+
+<circle cx="225" cy="150" r="9" class="c-fis" style="stroke-width:2"/>
+<text x="225" y="134" class="t t-b k-fis" text-anchor="middle">1</text>
+<text x="225" y="214" class="t t-s" text-anchor="middle">15 mar</text>
+<circle cx="476" cy="150" r="9" class="caja s-warm" style="stroke-width:2.4"/>
+<text x="476" y="134" class="t t-b k-warm" text-anchor="middle">2</text>
+<circle cx="500" cy="150" r="9" class="caja s-warm" style="stroke-width:2.4"/>
+<text x="504" y="134" class="t t-b k-warm" text-anchor="middle">3</text>
+
+<path d="M235 150 Q340 112 450 120" class="ln s-enl" style="stroke-width:2" marker-end="url(#c4d3-e)"/>
+<text x="250" y="104" class="t t-s t-b k-enl">correcta: último valor antes = 1</text>
+
+<path d="M500 162 Q470 250 300 262" class="ln s-warm" style="stroke-width:2" marker-end="url(#c4d3-w)"/>
+<text x="60" y="258" class="t t-s t-b k-warm">ingenua: el último valor de la tabla = 3</text>
+<text x="60" y="276" class="t t-s k-warm">cruza la fecha: es la fuga</text>
+
+<rect x="600" y="240" width="270" height="62" rx="8" class="caja"/>
+<text x="614" y="262" class="t t-s">Las facturas tarde del 8 y del 19 de</text>
+<text x="614" y="278" class="t t-s">julio son las mismas que vuelven</text>
+<text x="614" y="294" class="t t-s">mora_30d = 1 en este ejemplo.</text>
+</svg></div><figcaption><b>Una unión con corrección en el tiempo.</b> La línea horizontal es el tiempo de un cliente, de enero a diciembre. Los puntos son los momentos en que cambió <code>facturas_tarde_12m</code>. La barra vertical es la fecha de la predicción, el 1 de julio, día de emisión de la factura, y la franja sombreada a su derecha son los 45 días en que se decide la etiqueta. La unión correcta toma el último punto a la izquierda de la barra (valor 1). La unión ingenua toma el último punto de toda la línea (valor 3), que incluye las facturas tardías de julio: las mismas que definen la etiqueta. Esa flecha que cruza la barra es la fuga.</figcaption></figure><div class="prose"><p>Un detalle más fino: no basta con que el valor sea anterior a la fecha del ejemplo; tiene que haber estado <b>disponible</b> a esa hora. Si los pagos del día llegan al almacén con un día de retraso, la lista de las 7 de la mañana no conoce el pago de anoche. Un conjunto de entrenamiento honesto respeta también ese retraso.</p></div><div class="lab" id="04-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Une con y sin corrección en el tiempo</h3></div><p class="hint">Mueve la fecha de la predicción sobre la historia de un cliente y elige el tipo de unión. Mira qué eventos cuenta cada una (los que cruzan la fecha se marcan en rojo) y cómo cambian el AUC fuera de línea y el AUC que tendría el modelo en producción. Después sube el retraso con que llegan los datos y mira qué valor conocía de verdad el sistema a esa hora.</p><style>
+[id="04-lab-2"] .c4l2-g{display:grid;gap:4px}
+[id="04-lab-2"] .c4l2-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="04-lab-2"] .c4l2-lz{overflow-x:auto}
+[id="04-lab-2"] svg{width:100%;min-width:560px;height:auto;display:block;font-family:var(--f-display)}
+[id="04-lab-2"] .tx{fill:var(--ink);font-size:13px}
+[id="04-lab-2"] .tm{fill:var(--muted);font-size:12px}
+[id="04-lab-2"] .eje{stroke:var(--muted);stroke-width:1.4}
+[id="04-lab-2"] .ven{fill:var(--c-fis-s);stroke:none}
+[id="04-lab-2"] .eti{fill:var(--accent-soft);stroke:none}
+[id="04-lab-2"] .corte{stroke:var(--ink);stroke-width:2.5}
+[id="04-lab-2"] .ev{stroke-width:2.5}
+[id="04-lab-2"] .ev.cuenta{fill:var(--c-fis);stroke:var(--c-fis)}
+[id="04-lab-2"] .ev.fuga{fill:var(--warm);stroke:var(--warm)}
+[id="04-lab-2"] .ev.no{fill:var(--card);stroke:var(--muted)}
+[id="04-lab-2"] .ev.tarde{fill:var(--card);stroke:var(--c-fis);stroke-dasharray:3 2}
+[id="04-lab-2"] .c4l2-num{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:520px){[id="04-lab-2"] .c4l2-num{grid-template-columns:minmax(0,1fr)}}
+[id="04-lab-2"] .c4l2-num div{border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:grid;gap:2px}
+[id="04-lab-2"] .c4l2-num small{font:700 .66rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+[id="04-lab-2"] .c4l2-num b{font:700 1.25rem var(--f-mono);color:var(--ink)}
+[id="04-lab-2"] .c4l2-num b.mal{color:var(--warm)}
+</style>
+<div class="c4l2-g"><span>Tipo de unión</span>
+<div class="btns" role="group" aria-label="Tipo de unión">
+  <button type="button" data-m="ing" aria-pressed="true">Ingenua: la tabla de hoy</button>
+  <button type="button" data-m="pit" aria-pressed="false">Con corrección en el tiempo</button>
+</div></div>
+<div class="ctls">
+  <div class="ctl"><label for="c4l2-f">Fecha de la predicción</label><input type="range" id="c4l2-f" min="60" max="300" step="1" value="181"><output id="c4l2-fo"></output></div>
+  <div class="ctl"><label for="c4l2-r">Retraso con que llegan los datos al entrenar (días)</label><input type="range" id="c4l2-r" min="0" max="5" step="1" value="0"><output id="c4l2-ro"></output></div>
+</div>
+<div class="c4l2-lz"><svg id="c4l2-s" viewBox="0 0 640 200" role="img" aria-label="Línea de tiempo de 2026 de un cliente con sus facturas tarde, la fecha de la predicción, la ventana de doce meses de la variable y los 45 días en que se decide la etiqueta"></svg></div>
+<div class="legend"><span><i style="background:var(--c-fis)"></i>cuenta y es legítima</span><span><i style="background:var(--warm)"></i>cuenta pero viene del futuro (fuga)</span><span><i style="background:var(--card);border:1.5px dashed var(--c-fis)"></i>pasó, pero todavía no había llegado</span><span><i style="background:var(--accent-soft)"></i>45 días en que se decide la etiqueta</span></div>
+<div class="c4l2-num">
+  <div><small>facturas_tarde_12m</small><b id="c4l2-v"></b></div>
+  <div><small>AUC fuera de línea</small><b id="c4l2-a1"></b></div>
+  <div><small>AUC en producción</small><b id="c4l2-a2"></b></div>
+</div>
+<div class="readout texto" id="c4l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>La fuga que infla el AUC</h3></div><p>Vas a armar el conjunto de entrenamiento del modelo de mora con una unión ingenua y con una unión con corrección en el tiempo, y comparar el AUC. Sigue en la carpeta <code>mora-30d</code>, con su entorno activado. Guarda este programa como <code>punto_en_el_tiempo.py</code>:</p><div class="code-copia"><pre><code>import numpy as np, pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+
+rng = np.random.default_rng(3)
+N = 3000
+riesgo = rng.beta(1.2, 6, N)                     # propensión oculta de cada cliente
+# Eventos: cada factura vencida de cada cliente en 2026, con su fecha
+eventos = []
+for c in range(N):
+    for mes in range(1, 13):
+        if rng.random() &lt; riesgo[c]:
+            eventos.append((c, pd.Timestamp(2026, mes, rng.integers(1, 28))))
+ev = pd.DataFrame(eventos, columns=["cliente", "fecha"]).sort_values("fecha")
+ev["vencidas_acum"] = ev.groupby("cliente").cumcount() + 1
+
+# Etiquetas: para cada cliente, ¿tuvo una factura vencida en los 30 días siguientes al 1 de julio?
+corte = pd.Timestamp(2026, 7, 1)
+etiquetas = pd.DataFrame({"cliente": range(N), "fecha": corte})
+futuro = ev[(ev.fecha &gt;= corte) &amp; (ev.fecha &lt; corte + pd.Timedelta(days=30))].cliente.unique()
+etiquetas["mora"] = etiquetas.cliente.isin(futuro).astype(int)
+
+# Unión ingenua: el total de vencidas que hay hoy en la tabla (incluye el futuro)
+total = ev.groupby("cliente").size().rename("vencidas").reset_index()
+ingenua = etiquetas.merge(total, on="cliente", how="left").fillna({"vencidas": 0})
+
+# Unión con corrección en el tiempo: el último valor conocido ANTES de la fecha de cada etiqueta
+pit = pd.merge_asof(etiquetas.sort_values("fecha"), ev[["cliente", "fecha", "vencidas_acum"]],
+                    on="fecha", by="cliente", allow_exact_matches=False, direction="backward")
+pit["vencidas"] = pit["vencidas_acum"].fillna(0)
+
+for nombre, tabla in [("ingenua", ingenua), ("punto en el tiempo", pit)]:
+    X, y = tabla[["vencidas"]], tabla["mora"]
+    p = LogisticRegression().fit(X, y).predict_proba(X)[:, 1]
+    print(f"{nombre:20} AUC {roc_auc_score(y, p):.3f}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python punto_en_el_tiempo.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 punto_en_el_tiempo.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el programa y anota los dos AUC.</span></li><li><span>Cambia <code>corte</code> al 1 de noviembre (<code>pd.Timestamp(2026, 11, 1)</code>) y vuelve a correrlo.</span></li></ol><p><b>Qué observar:</b> la unión ingenua da un AUC cerca de 0,80 y la correcta, cerca de 0,64. La diferencia no es mérito del modelo: la unión ingenua cuenta las facturas vencidas de julio, que son justamente las que definen la etiqueta. En producción, el 1 de julio nadie conoce esas facturas, y el modelo ingenuo rendiría como el correcto o peor. Con el corte en noviembre los dos AUC suben, porque hay más historia antes de la fecha, pero la distancia entre ellos sigue ahí: la fuga no depende de la fecha que elijas. Para simplificar, el programa evalúa con los mismos datos con que entrena; con una sola variable y un modelo lineal, el AUC es casi el mismo que con datos aparte.</p></div></section>
+<section><h2>Variables por lotes y en streaming</h2><div class="prose"><p>No todas las variables cambian al mismo ritmo, y eso decide cómo se calculan.</p><ul><li><b>Por lotes</b> (<i>batch features</i>): se calculan cada cierto tiempo, por ejemplo cada noche, sobre la historia. <code>antiguedad_meses</code>, <code>facturas_tarde_12m</code> y <code>reclamos_90d</code> cambian poco en un día; recalcularlas cada noche alcanza.</li><li><b>En streaming</b> (<i>streaming features</i>): se actualizan con cada evento, en segundos. Para el modelo de mora, la más valiosa es <code>pago_hoy</code>: si el cliente pagó a las 8:55, no tiene sentido llamarlo a las 9:00 para recordarle la factura. Esa variable sale del flujo de eventos de pagos, por ejemplo un tema de Kafka, y se escribe en el almacén en línea al instante.</li><li><b>Al momento de pedir</b> (<i>on-demand features</i>): se calculan con datos que llegan en la misma petición, como el canal por el que el cliente escribe ahora o la hora del día.</li></ul><p>Las variables en streaming son más caras: necesitan un procesador de flujos encendido todo el tiempo, y su corrección en el tiempo es más difícil, porque hay que guardar también su historia para entrenar. La regla práctica es empezar por lotes y pasar a streaming solo la variable cuya frescura cambia una decisión. El streaming como plataforma está en <a href="https://aaramirez.github.io/ingenieria-de-datos/temario.html" target="_blank" rel="noopener">Ingeniería de datos</a>.</p></div></section>
+<section><h2>Feast y los servicios gestionados como ejemplos</h2><div class="prose"><p><b>Feast</b> es el feature store de código abierto más conocido. No calcula las transformaciones pesadas (eso lo hace tu pipeline de datos o dbt); se encarga del registro, de la unión con corrección en el tiempo, de la materialización y de servir en línea. Las variables se definen en Python, así:</p><div class="code-copia"><pre><code>from datetime import timedelta
+from feast import Entity, FeatureView, Field, FileSource
+from feast.types import Float32, Int64
+
+cliente = Entity(name="cliente", join_keys=["cliente_id"])
+pagos = FileSource(path="data/historial_pagos.parquet", timestamp_field="fecha_evento")
+
+historial_pagos = FeatureView(
+    name="historial_pagos",
+    entities=[cliente],
+    ttl=timedelta(days=180),
+    schema=[Field(name="dias_atraso_prom_6m", dtype=Float32),
+            Field(name="facturas_tarde_12m", dtype=Int64)],
+    source=pagos,
+)</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Con las definiciones aplicadas (<code>feast apply</code>), el pipeline de entrenamiento llama a <code>get_historical_features</code> con una tabla de clientes y fechas, y recibe las variables unidas con corrección en el tiempo. El comando <code>feast materialize</code> copia los valores recientes al almacén en línea, y la API del modelo llama a <code>get_online_features</code> con el <code>cliente_id</code>. Las dos llamadas leen la misma definición.</p><p>Entre los servicios gestionados, los feature stores de Vertex AI, SageMaker y Databricks hacen lo mismo dentro de su nube; Tecton y Hopsworks son plataformas comerciales dedicadas, con transformaciones en streaming incluidas. La pregunta para elegir no es cuál tiene más funciones, sino dónde viven ya tus datos y quién va a operar el sistema.</p></div><div class="caso"><b>Un caso real</b><p><b>El AUC que bajó al corregir un error.</b> Un equipo de una empresa de servicios por suscripción tenía un modelo de cancelación con AUC de 0,91 fuera de línea y resultados mediocres en producción. Al migrar sus variables a un feature store, la unión con corrección en el tiempo pasó a ser obligatoria, y el AUC del mismo modelo, con los mismos datos, bajó a 0,78. La primera reacción fue culpar a la herramienta. La revisión encontró que dos variables de reclamos se tomaban de la tabla actual, con reclamos posteriores a la fecha del ejemplo. El 0,78 era el número real; el modelo en producción nunca había rendido 0,91. A partir de ahí, las mejoras que se veían fuera de línea se vieron también en producción.</p></div></section>
+<section><h2>Cuándo no hace falta uno</h2><div class="prose"><p>Un feature store es infraestructura: hay que operarlo, pagarlo y enseñarlo. No lo necesitas si:</p><ul><li><b>Solo predices por lotes.</b> Si el modelo corre una vez al mes sobre toda la cartera, el mismo código calcula las variables para entrenar y para predecir. No hay dos caminos, así que no hay sesgo entre ellos.</li><li><b>Tienes un solo modelo y pocas variables.</b> Una librería de funciones de variables, con sus pruebas, que importan el pipeline y la API, resuelve la «receta única» sin servidores nuevos.</li><li><b>Nadie más va a reusar las variables.</b> Buena parte del valor de un feature store es que el modelo de mora y el de cancelación compartan <code>facturas_tarde_12m</code> en lugar de reinventarla.</li></ul><p>Lo que sí hace falta siempre, con o sin feature store, es la corrección en el tiempo al armar los conjuntos de entrenamiento y una sola definición de cada variable. El feature store es una forma de garantizarlo; la disciplina es otra.</p></div><div class="ml"><b>En la práctica</b><p><b>La receta única del modelo de mora.</b> Valeria descubrió el 12,4 frente al 7,1 al comparar, para cien clientes, la variable que registraba la API con la que calculaba el pipeline. Como arreglo inmediato para la v2, movió las ocho variables a un paquete <code>variables_mora</code>, con pruebas unitarias para cada una, que importan tanto el pipeline como el servicio. Para la v3 fue un paso más allá: las variables pasaron a Feast. El pipeline arma el conjunto de entrenamiento con <code>get_historical_features</code>, que hace la unión con corrección en el tiempo, y la API pide el último valor al almacén en línea con <code>get_online_features</code>. Al reentrenar así, el AUC fuera de línea quedó igual que el que después se midió en producción, sin sorpresas. La primera variable en streaming, <code>pago_hoy</code>, ya tiene dónde vivir.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p><i>Feature store</i>: una sola definición de cada variable. El sesgo entre entrenamiento y servicio nace de tener dos recetas; la fuga, de unir con datos del futuro. Un feature store guarda la definición una vez, entrega la historia con corrección en el tiempo para entrenar y el último valor en milisegundos para servir. Si solo predices por lotes o tienes pocas variables, una librería compartida y uniones correctas pueden bastar.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Por qué el modelo no puede «darse cuenta» del sesgo entre entrenamiento y servicio?</summary><p>Porque solo recibe un número; no sabe con qué receta se calculó. Usa lo que aprendió para números parecidos aunque signifiquen otra cosa.</p></details><details><summary>¿Qué diferencia hay entre el almacén fuera de línea y el en línea?</summary><p>El fuera de línea guarda la historia de cada variable con sus fechas, para armar conjuntos de entrenamiento; el en línea guarda solo el último valor por entidad y responde en milisegundos al servicio.</p></details><details><summary>En una unión con corrección en el tiempo, ¿qué valor de la variable se toma para un ejemplo del 1 de julio?</summary><p>El último valor registrado antes del 1 de julio (y que ya estaba disponible a esa hora), nunca uno posterior.</p></details><details><summary>¿Por qué una fuga suele subir la métrica fuera de línea en lugar de bajarla?</summary><p>Porque le da al modelo información del futuro relacionada con la etiqueta; acierta más en la evaluación, pero en producción esa información no existe y rinde peor.</p></details><details><summary>El modelo de mora corre solo una vez al mes por lotes. ¿Necesita un feature store para evitar el sesgo?</summary><p>No necesariamente: si el mismo código calcula las variables para entrenar y para predecir, no hay dos recetas. Sigue necesitando uniones con corrección en el tiempo.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Qué es la propiedad TTL (<i>time to live</i>) de una vista de variables en Feast y qué pasa con un valor más viejo que su TTL?<small>Pista: busca «Feast feature view ttl».</small></li><li>¿Qué es la semántica «exactamente una vez» (<i>exactly-once</i>) en el procesamiento de flujos y por qué importa para una variable que cuenta pagos?</li><li>¿En qué se diferencia una base de clave y valor como Redis de una base relacional, y por qué se usa para servir en línea?</li><li>¿Qué es una dimensión de cambio lento de tipo 2 (<i>slowly changing dimension</i>) y cómo se relaciona con la corrección en el tiempo?<small>Pista: busca «SCD type 2».</small></li><li>¿Cómo se escribe una unión con corrección en el tiempo en SQL estándar, sin <code>merge_asof</code>?<small>Pista: busca «point-in-time join SQL window function» o «ASOF JOIN».</small></li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://docs.feast.dev/" target="_blank" rel="noopener">Feast: documentación <small>feature store de código abierto, en inglés</small></a><a class="vid" href="https://docs.feast.dev/getting-started/concepts/point-in-time-joins" target="_blank" rel="noopener">Feast: corrección en el tiempo <small>concepto, en inglés</small></a><a class="vid" href="https://pandas.pydata.org/docs/reference/api/pandas.merge_asof.html" target="_blank" rel="noopener">pandas: merge_asof <small>referencia, en inglés</small></a><a class="vid" href="https://developers.google.com/machine-learning/guides/rules-of-ml" target="_blank" rel="noopener">Rules of Machine Learning (Google) <small>guía, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  // dias: atraso con corte local y con corte UTC; null = sin pagar
+  const F=[
+    {f:'F-0501',v:'03-may',p:'02-jun 10:15',loc:30,utc:30,cal:false},
+    {f:'F-0601',v:'15-jun',p:'29-jun 09:40',loc:14,utc:14,cal:true},
+    {f:'F-0701',v:'15-jul',p:'15-jul 21:30',loc:0,utc:1,cal:true},
+    {f:'F-0801',v:'15-ago',p:'04-sep 11:05',loc:20,utc:20,cal:true},
+    {f:'F-0901',v:'15-sep',p:'10-oct 16:20',loc:25,utc:25,cal:true},
+    {f:'F-1001',v:'15-oct',p:'sin pagar',loc:null,utc:null,cal:true}
+  ];
+  const sig=x=>1/(1+Math.exp(-x));
+  const prob=d=>sig(-2.95+0.139*d);   // umbral de la lista: 0,30
+  function receta(cfg){
+    // cfg: {u:'excl'|'cero', w:'seis'|'cal', t:'utc'|'loc'}
+    let s=0,n=0;const uso=F.map(x=>{
+      if(cfg.w==='cal'&&!x.cal)return {in:false};
+      let d=cfg.t==='utc'?x.utc:x.loc;
+      if(d===null){if(cfg.u==='excl')return {in:false,sp:true};d=0;}
+      s+=d;n++;return {in:true,d};
+    });
+    return {val:n?s/n:0,uso};
+  }
+  const PIPE={u:'excl',w:'seis',t:'utc'};
+  function api(){return {u:$('#c4l1-u').checked?'excl':'cero',w:$('#c4l1-w').checked?'seis':'cal',t:$('#c4l1-t').checked?'utc':'loc'};}
+  const coma=(x,d)=>x.toFixed(d).replace('.',',');
+  function celda(u){if(!u.in)return '<td class="n fuera">'+(u.sp?'ignorada':'fuera')+'</td>';return '<td class="n">'+u.d+'</td>';}
+  function act(){
+    const a=api(),re=receta(PIPE),rs=receta(a);
+    $('#c4l1-tb').innerHTML=F.map((x,i)=>{
+      const ue=re.uso[i],us=rs.uso[i];
+      const dif=(ue.in!==us.in)||(ue.in&&us.in&&ue.d!==us.d);
+      return '<tr><td>'+x.f+'</td><td>'+x.v+'</td><td>'+x.p+'</td>'+celda(ue)+celda(us).replace('class="n','class="n'+(dif?' dist':''))+'</tr>';
+    }).join('')+'<tr><td colspan="3"><b>dias_atraso_prom_6m</b></td><td class="n"><b>'+coma(re.val,2)+'</b></td><td class="n'+(Math.abs(re.val-rs.val)>1e-9?' dist':'')+'"><b>'+coma(rs.val,2)+'</b></td></tr>';
+    const pe=prob(re.val),ps=prob(rs.val);
+    $('#c4l1-ve').textContent=coma(re.val,2)+' días';$('#c4l1-vs').textContent=coma(rs.val,2)+' días';
+    $('#c4l1-pe').textContent='Probabilidad de mora: '+coma(pe*100,0)+' %';$('#c4l1-ps').textContent='Probabilidad de mora: '+coma(ps*100,0)+' %';
+    $('#c4l1-be').style.width=(pe*100)+'%';$('#c4l1-bs').style.width=(ps*100)+'%';
+    const dec=(el,p)=>{el.className=p>=0.3?'llama':'nollama';el.textContent=p>=0.3?'Entra en la lista (≥ 30 %): se le llama':'No entra en la lista (< 30 %)';};
+    dec($('#c4l1-de'),pe);dec($('#c4l1-ds'),ps);
+    const onU=a.u!=='excl',onW=a.w!=='seis',onT=a.t!=='utc';
+    const cambian=Math.round(1000*(1-(1-0.13*onU)*(1-0.085*onW)*(1-0.009*onT)));
+    const msg=[];
+    if(!onU&&!onW&&!onT)msg.push('<span class="ok">Las dos recetas son la misma: el valor, la probabilidad y la decisión coinciden. Es lo que garantiza una sola definición.</span>');
+    else{
+      msg.push('<span class="warn">El mismo cliente vale '+coma(re.val,2)+' días en el entrenamiento y '+coma(rs.val,2)+' en producción'+((pe>=0.3)!==(ps>=0.3)?': cambia la decisión.':'.')+'</span>');
+      msg.push('<span>En una muestra de 1.000 clientes, '+cambian+' cambiarían de decisión con estas diferencias.</span>');
+      if(onU)msg.push('<span>La factura sin pagar es la diferencia que más pesa: contarla como 0 días hace ver más puntual justo al cliente que todavía debe.</span>');
+      else if(onW)msg.push('<span>La ventana de calendario deja fuera la factura de mayo, la más atrasada.</span>');
+      if(onT&&!onU&&!onW)msg.push('<span>La zona horaria mueve un solo pago de las 21:30 al día siguiente: cambia poco aquí, pero en otros clientes cruza el día del vencimiento.</span>');
+    }
+    $('#c4l1-out').innerHTML=msg.join('');
+  }
+  ['#c4l1-u','#c4l1-w','#c4l1-t'].forEach(id=>$(id).addEventListener('change',act));
+  $('#c4l1-fs').addEventListener('click',()=>{['#c4l1-u','#c4l1-w','#c4l1-t'].forEach(id=>$(id).checked=true);act();});
+  $('#c4l1-rst').addEventListener('click',()=>{['#c4l1-u','#c4l1-w','#c4l1-t'].forEach(id=>$(id).checked=false);act();});
+  act();
+})();
+</script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const root=document.querySelector('[id="04-lab-2"]');
+  const EV=[41,112,189,200,246,318];           // días del año con una factura tarde
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const INI=[0,31,59,90,120,151,181,212,243,273,304,334];
+  const fecha=d=>{let m=11;while(INI[m]>d)m--;return (d-INI[m]+1)+'-'+MES[m];};
+  const REAL=1;                                 // en producción los datos llegan con 1 día de retraso
+  let modo='ing';
+  const X=d=>20+d/365*600;
+  function act(){
+    const c=+$('#c4l2-f').value,r=+$('#c4l2-r').value;
+    $('#c4l2-fo').textContent=fecha(c);$('#c4l2-ro').textContent=r+(r===1?' día':' días');
+    const desde=c-365;
+    let h='';
+    h+='<rect class="ven" x="'+X(Math.max(0,desde))+'" y="62" width="'+(X(c)-X(Math.max(0,desde)))+'" height="56"/>';
+    h+='<rect class="eti" x="'+X(c)+'" y="62" width="'+(X(Math.min(365,c+45))-X(c))+'" height="56"/>';
+    h+='<line class="eje" x1="20" y1="118" x2="620" y2="118"/>';
+    MES.forEach((m,i)=>{h+='<line class="eje" x1="'+X(INI[i])+'" y1="118" x2="'+X(INI[i])+'" y2="124"/><text class="tm" x="'+(X(INI[i])+2)+'" y="140">'+m+'</text>';});
+    let cuenta=0,fuga=0,tarde=0,etiq=0;
+    EV.forEach(d=>{
+      let cl='no';
+      if(d>=c&&d<c+45)etiq=1;
+      if(modo==='ing'){
+        if(d>=desde){cl=d>=c?'fuga':'cuenta';}
+      }else{
+        if(d>=desde&&d<c){cl=(c-d<=r)?'tarde':'cuenta';}
+      }
+      if(cl==='cuenta'||cl==='fuga')cuenta++;
+      if(cl==='fuga')fuga++;
+      if(cl==='tarde')tarde++;
+      h+='<circle class="ev '+cl+'" cx="'+X(d)+'" cy="96" r="8"/>';
+    });
+    h+='<line class="corte" x1="'+X(c)+'" y1="40" x2="'+X(c)+'" y2="124"/>';
+    const lx=Math.min(Math.max(X(c),110),530);
+    h+='<text class="tx" x="'+lx+'" y="30" text-anchor="middle" font-weight="700">predicción: '+fecha(c)+'</text>';
+    h+='<text class="tm" x="'+X(Math.max(0,desde))+'" y="56">ventana de 12 meses</text>';
+    h+='<text class="tm" x="20" y="172">Etiqueta mora_30d de este ejemplo: '+etiq+(etiq?' (la factura de este mes terminó en mora)':' (la factura de este mes se pagó a tiempo)')+'</text>';
+    h+='<text class="tm" x="20" y="192">En producción los datos llegan con '+REAL+' día de retraso.</text>';
+    $('#c4l2-s').innerHTML=h;
+    $('#c4l2-v').textContent=cuenta;
+    let a1,a2;
+    if(modo==='ing'){a1=0.80;a2=0.62;}
+    else{a1=r<REAL?0.665:0.645-0.003*(r-REAL);a2=r<REAL?0.640:0.645;}
+    const coma=x=>x.toFixed(3).replace('.',',');
+    $('#c4l2-a1').textContent=coma(a1);$('#c4l2-a2').textContent=coma(a2);
+    $('#c4l2-a1').className=a1-a2>0.05?'mal':'';
+    const msg=[];
+    if(modo==='ing'){
+      msg.push(fuga?'<span class="warn">La unión ingenua cuenta '+fuga+' factura(s) posteriores a la fecha de la predicción. '+(etiq?'Una de ellas es justo la que define la etiqueta: el modelo aprende a «ver» la respuesta.':'')+'</span>':'<span>En esta fecha no hay facturas tarde después del corte, pero en la mayoría de los clientes de riesgo sí: mueve la fecha a principios de julio.</span>');
+      msg.push('<span>Fuera de línea el AUC parece 0,80; en producción, sin el futuro, cae a 0,62. La diferencia es la fuga.</span>');
+    }else{
+      msg.push('<span class="ok">Solo cuentan las facturas anteriores a la fecha: el AUC fuera de línea (0,6 y algo) es el que el modelo tendrá en producción.</span>');
+      if(r<REAL)msg.push('<span>Pero entrenas suponiendo que los datos llegan al instante, y en producción llegan con '+REAL+' día de retraso: queda un optimismo pequeño. Sube el retraso a '+REAL+'.</span>');
+      else if(r===REAL)msg.push('<span>Con el mismo retraso que en producción, el conjunto de entrenamiento ve exactamente lo que el sistema conocía a esa hora.</span>');
+      else msg.push('<span>Suponer más retraso del real es conservador: pierdes un poco de información reciente, pero no hay fuga.</span>');
+      if(tarde)msg.push('<span>La factura punteada ya había ocurrido, pero a la hora de la predicción todavía no estaba en el almacén.</span>');
+    }
+    $('#c4l2-out').innerHTML=msg.join('');
+  }
+  root.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>{modo=b.dataset.m;root.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));act();}));
+  ['#c4l2-f','#c4l2-r'].forEach(id=>$(id).addEventListener('input',act));
+  act();
+})();
+</script>
+</body>
+</html>

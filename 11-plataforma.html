@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Plataforma y proyecto · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="plataforma">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 11 DE 11</span><h1>La plataforma de MLOps y el proyecto integrador</h1><p class="lede">Una plataforma de MLOps no es un producto que se instala: es el conjunto de piezas que hace que el ciclo de vida de un modelo dé la vuelta sin depender de una persona. Este capítulo ordena esas piezas, compara comprarlas, armarlas o alquilarlas, reparte los roles y recorre una vez más, de punta a punta, el modelo de mora, del dato a la alerta de deriva y al modelo que lo reemplaza.</p></header>
+<section><div class="prose"><p>Un año después de las vacaciones de Andrés, la directora de operaciones hizo la pregunta del principio, pero al revés: «¿Ya tenemos una plataforma de MLOps?». Valeria no respondió con un nombre de producto. Abrió el registro de modelos y mostró cuatro versiones de <code>mora-30d</code>, cada una con sus datos, su código, sus métricas y la fecha en que entró y salió de producción. Abrió el tablero y mostró la alerta de deriva del mes 7, la tarea de reentrenamiento que abrió y la aprobación de la gerente de Cobranzas para que la v4 reemplazara a la v3. «Esto es la plataforma», dijo. «Ahora falta que el segundo modelo no tenga que construirla de nuevo».</p><p>Este capítulo cierra el curso. Junta en un solo mapa las piezas que aparecieron capítulo por capítulo, discute cómo elegirlas, dice quién hace qué y recorre otra vez el modelo de mora completo, esta vez sin saltos.</p></div></section>
+<section><h2>Las piezas: datos, experimentos, registro, pipelines, servicio y monitoreo</h2><div class="analogia"><b>Imagínalo así</b><p>Una cocina industrial no es un horno grande. Es una despensa con inventario, recetas escritas y probadas, una línea donde cada estación hace su parte, un pase donde se revisa el plato antes de salir y alguien que recorre las mesas para saber si la comida sigue gustando. Puedes comprar los equipos a distintos proveedores; lo que la hace funcionar es que las estaciones se pasan el trabajo sin perder nada en el camino.</p></div><div class="prose"><p>Una <b>plataforma de MLOps</b> (<i>MLOps platform</i>) es el conjunto de herramientas y acuerdos que cubre cada etapa del ciclo de vida para todos los modelos de una organización, no solo para uno. Cada pieza responde una pregunta concreta:</p><div class="tbl"><table><thead><tr><th>Pieza</th><th>La pregunta que responde</th><th>Capítulo</th><th>Ejemplos del mercado</th></tr></thead><tbody><tr><td>Datos versionados</td><td>¿Con qué datos exactos se entrenó esto?</td><td>2</td><td>DVC, lakeFS, tablas con historia (Delta Lake, Apache Iceberg)</td></tr><tr><td>Almacén de variables</td><td>¿Se calcula igual al entrenar y al predecir?</td><td>4</td><td>Feast, el almacén de variables de cada nube</td></tr><tr><td>Seguimiento de experimentos</td><td>¿Qué probamos y qué salió?</td><td>2</td><td>MLflow Tracking, Weights &amp; Biases</td></tr><tr><td>Registro de modelos</td><td>¿Qué versión está en producción y quién la aprobó?</td><td>2 y 8</td><td>MLflow Model Registry, el registro de cada nube</td></tr><tr><td>Pipelines y orquestador</td><td>¿Se puede repetir sin la persona que lo hizo?</td><td>3</td><td>Kubeflow Pipelines, Airflow, Dagster, Prefect</td></tr><tr><td>Servicio y despliegue</td><td>¿Cómo responde y cómo se cambia sin riesgo?</td><td>5 y 6</td><td>FastAPI, BentoML, KServe, Seldon Core</td></tr><tr><td>Monitoreo</td><td>¿Sigue acertando?</td><td>7</td><td>Evidently, NannyML, Prometheus y Grafana</td></tr></tbody></table></div><p>Las piezas no viven sueltas: se pasan <b>artefactos</b> (<i>artifacts</i>), cada uno con su identificador. El pipeline lee una versión de datos y deja un modelo en el registro; el servicio carga del registro la versión con el alias <code>campeon</code> y anota esa versión en cada predicción; el monitoreo lee el registro de predicciones y, cuando algo se desvía, abre una tarea que vuelve a disparar el pipeline. Si un artefacto cruza de una pieza a otra sin identificador (un archivo copiado a mano, una tabla «la de siempre»), el linaje se corta ahí.</p></div><figure class="fig fig-arquitectura" id="11-diagrama-2"><div class="lienzo"><svg viewBox="0 0 980 400" style="min-width:780px" role="img" aria-label="Arquitectura de la plataforma del modelo de mora: datos versionados y almacén de variables, pipeline con seguimiento de experimentos y registro de modelos, servicio por lotes y en línea, y monitoreo; debajo de cada pieza el artefacto con identificador que entrega a la siguiente, y una flecha de vuelta del monitoreo al pipeline con la aprobación de una persona">
+<defs>
+<marker id="c11d2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c11d2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-apl"/></marker>
+</defs>
+<text x="20" y="28" class="t t-xs t-b t-m">PIEZA</text>
+
+<rect x="20" y="40" width="170" height="124" rx="10" class="c-fis"/>
+<text x="34" y="62" class="t t-xs t-b k-fis">DATOS</text>
+<text x="34" y="82" class="t t-b">Datos versionados</text>
+<text x="34" y="98" class="t t-s">DVC, lakeFS</text>
+<text x="34" y="124" class="t t-b">Almacén de variables</text>
+<text x="34" y="140" class="t t-s">Feast</text>
+
+<rect x="216" y="40" width="190" height="124" rx="10" class="c-enl"/>
+<text x="230" y="62" class="t t-xs t-b k-enl">ENTRENAR</text>
+<text x="230" y="82" class="t t-b">Pipeline</text>
+<text x="230" y="98" class="t t-s">Airflow, Dagster, Kubeflow</text>
+<text x="230" y="124" class="t t-b">Experimentos</text>
+<text x="230" y="140" class="t t-s">MLflow Tracking</text>
+
+<rect x="432" y="40" width="160" height="124" rx="10" class="c-enl" style="stroke-width:2.5"/>
+<text x="446" y="62" class="t t-xs t-b k-enl">ENTRENAR</text>
+<text x="446" y="82" class="t t-b">Registro</text>
+<text x="446" y="98" class="t t-s">MLflow Registry</text>
+<text x="446" y="124" class="t t-s">alias campeon</text>
+<text x="446" y="140" class="t t-s">y retador</text>
+
+<rect x="618" y="40" width="160" height="124" rx="10" class="c-red"/>
+<text x="632" y="62" class="t t-xs t-b k-red">SERVIR</text>
+<text x="632" y="82" class="t t-b">Lista mensual</text>
+<text x="632" y="98" class="t t-s">tarea por lotes</text>
+<text x="632" y="124" class="t t-b">API en línea</text>
+<text x="632" y="140" class="t t-s">FastAPI o BentoML</text>
+
+<rect x="804" y="40" width="160" height="124" rx="10" class="c-tra"/>
+<text x="818" y="62" class="t t-xs t-b k-tra">MONITOREAR</text>
+<text x="818" y="82" class="t t-b">Monitoreo</text>
+<text x="818" y="98" class="t t-s">Evidently, Grafana</text>
+<text x="818" y="124" class="t t-s">PSI diario, AUC</text>
+<text x="818" y="140" class="t t-s">cuando llega la mora</text>
+
+<line x1="190" y1="102" x2="212" y2="102" class="ln" style="stroke-width:2" marker-end="url(#c11d2-m)"/>
+<line x1="406" y1="102" x2="428" y2="102" class="ln" style="stroke-width:2" marker-end="url(#c11d2-m)"/>
+<line x1="592" y1="102" x2="614" y2="102" class="ln" style="stroke-width:2" marker-end="url(#c11d2-m)"/>
+<line x1="778" y1="102" x2="800" y2="102" class="ln" style="stroke-width:2" marker-end="url(#c11d2-m)"/>
+
+<text x="114" y="200" class="t t-xs t-b t-m">ARTEFACTO QUE ENTREGA</text>
+<rect x="20" y="212" width="170" height="58" rx="6" class="caja"/>
+<text x="30" y="234" class="t t-s t-mono">clientes-m07</text>
+<text x="30" y="252" class="t t-s t-m">huella 4be1…</text>
+<rect x="216" y="212" width="190" height="58" rx="6" class="caja"/>
+<text x="226" y="234" class="t t-s t-mono">run 7c9d…</text>
+<text x="226" y="252" class="t t-s t-m">parámetros, AUC, commit</text>
+<rect x="432" y="212" width="160" height="58" rx="6" class="caja"/>
+<text x="442" y="234" class="t t-s t-mono">mora-30d/4</text>
+<text x="442" y="252" class="t t-s t-m">@campeon</text>
+<rect x="618" y="212" width="160" height="58" rx="6" class="caja"/>
+<text x="628" y="234" class="t t-s t-mono">predicción p-7f3a</text>
+<text x="628" y="252" class="t t-s t-m">version_modelo = 4</text>
+<rect x="804" y="212" width="160" height="58" rx="6" class="caja"/>
+<text x="814" y="234" class="t t-s t-mono">alerta a-0712</text>
+<text x="814" y="252" class="t t-s t-m">precio_plan PSI 0,9</text>
+<line x1="105" y1="164" x2="105" y2="208" class="ln ln-d"/>
+<line x1="311" y1="164" x2="311" y2="208" class="ln ln-d"/>
+<line x1="512" y1="164" x2="512" y2="208" class="ln ln-d"/>
+<line x1="698" y1="164" x2="698" y2="208" class="ln ln-d"/>
+<line x1="884" y1="164" x2="884" y2="208" class="ln ln-d"/>
+
+<path d="M884 270 V330 H311 V274" class="ln s-apl" style="stroke-width:3" marker-end="url(#c11d2-a)"/>
+<rect x="470" y="314" width="250" height="34" rx="8" class="c-apl"/>
+<text x="595" y="336" class="t t-s t-b k-apl" text-anchor="middle">tarea de reentrenamiento</text>
+<text x="330" y="368" class="t t-s k-apl">el pipeline entrena un retador; una persona aprueba antes de mover el alias</text>
+<text x="20" y="392" class="t t-s t-m">Si un artefacto cruza sin identificador (un archivo copiado a mano), el linaje se corta ahí.</text>
+</svg></div><figcaption><b>La plataforma del modelo de mora.</b> De izquierda a derecha, las piezas en el orden en que se pasan el trabajo, cada una con el color de su etapa: los datos versionados y el almacén de variables (ámbar), el pipeline con su seguimiento de experimentos y el registro de modelos (verde), el servicio por lotes y en línea (azul) y el monitoreo (morado). Debajo de cada pieza, el artefacto que entrega a la siguiente, con su identificador. La flecha de abajo, en rosa, es la que cierra el ciclo: el monitoreo abre una tarea de reentrenamiento que vuelve al pipeline, y una persona aprueba antes de mover el alias.</figcaption></figure><div class="prose"><p>Dos piezas quedan fuera de la tabla porque son de otros cursos y la plataforma las usa: la integración y la entrega continuas que construyen y prueban el código del pipeline y del servicio, en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>, y los pipelines de datos que llenan las tablas de origen, en <a href="https://aaramirez.github.io/ingenieria-de-datos/temario.html" target="_blank" rel="noopener">Ingeniería de datos</a>.</p></div></section>
+<section><h2>Comprar, armar con código abierto o usar un servicio gestionado</h2><div class="analogia"><b>Imagínalo así</b><p>Para tener donde vivir puedes comprar una casa hecha, construir la tuya eligiendo cada material o arrendar un departamento amoblado. La casa hecha se habita rápido, pero cambiarle algo es caro. La construida queda a tu medida y te cobra tiempo y mantenimiento para siempre. El arriendo es cómodo hasta que quieres mudarte y descubres cuánto de tu vida quedó atado al edificio.</p></div><div class="prose"><p>Hay tres caminos, y casi todas las organizaciones terminan con una mezcla:</p><ul><li><b>Comprar una plataforma integral.</b> Un solo producto comercial cubre casi todo el ciclo, con interfaz, permisos y soporte. Se avanza rápido y se paga por licencia. El riesgo es la <b>dependencia del proveedor</b> (<i>vendor lock-in</i>): los modelos, los pipelines y los hábitos del equipo quedan escritos en su formato.</li><li><b>Armar con código abierto.</b> MLflow, DVC, Feast, un orquestador y Evidently, unidos por el equipo. No hay licencia y cada pieza se cambia sin tocar las demás, pero alguien tiene que instalar, actualizar, asegurar y operar todo. El costo no desaparece: se mueve a horas de personas.</li><li><b>Usar los servicios gestionados de una nube.</b> Los servicios de aprendizaje automático de los grandes proveedores de nube (Amazon SageMaker, Google Vertex AI o Azure Machine Learning, como ejemplos del mercado) ofrecen cada pieza ya operada. Encaja si la empresa ya vive en esa nube; ata a ella si no.</li></ul><p>Las preguntas que deciden son más organizacionales que técnicas. ¿Cuántos modelos habrá en dos años: uno, diez o cien? ¿Cuántas personas pueden operar infraestructura? ¿Dónde están hoy los datos y qué dice la regulación sobre sacarlos? ¿Qué tan caro sería cambiar de camino en tres años? Con un modelo y una ingeniera de ML, una plataforma integral es demasiado; con cuarenta modelos y tres equipos, armar todo a mano es una carga. Y no todas las piezas hacen falta el primer día: un modelo que produce una lista mensual por lotes, con una sola fuente de datos, puede esperar al almacén de variables, como discutió el capítulo 4.</p></div><div class="lab" id="11-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Arma la plataforma</h3></div><p class="hint">Elige, para cada pieza, cómo se resuelve: a mano, con código abierto o con un servicio gestionado, o carga uno de los perfiles. El anillo muestra qué etapas del ciclo quedan cubiertas; las tarjetas, el nivel de madurez que alcanzas, el costo mensual estimado (infraestructura más horas de personas) y qué parte del ciclo queda sin cubrir.</p><style>
+[id="11-lab-1"] .c11l1-g{display:grid;gap:4px}
+[id="11-lab-1"] .c11l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="11-lab-1"] .c11l1-piezas{display:grid;gap:6px}
+[id="11-lab-1"] .c11l1-p{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr);gap:8px;align-items:center;border-left:5px solid var(--line);padding-left:8px}
+@media (max-width:560px){[id="11-lab-1"] .c11l1-p{grid-template-columns:minmax(0,1fr)}}
+[id="11-lab-1"] .c11l1-p b{font:600 .82rem/1.25 var(--f-display)}
+[id="11-lab-1"] .c11l1-p small{display:block;color:var(--muted);font-size:.7rem}
+[id="11-lab-1"] .c11l1-p .btns button{font-size:.76rem}
+[id="11-lab-1"] .c11l1-vis{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:12px;align-items:center}
+@media (max-width:620px){[id="11-lab-1"] .c11l1-vis{grid-template-columns:minmax(0,1fr)}}
+[id="11-lab-1"] svg{width:100%;max-width:260px;height:auto;display:block;margin:0 auto}
+[id="11-lab-1"] svg text{font:600 10px var(--f-display);fill:var(--ink)}
+[id="11-lab-1"] .c11l1-tar{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px}
+[id="11-lab-1"] .c11l1-t{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--card);display:grid;gap:2px;font:500 .74rem/1.3 var(--f-display);color:var(--muted)}
+[id="11-lab-1"] .c11l1-t b{font:700 1.05rem var(--f-mono);color:var(--ink)}
+</style>
+<div class="c11l1-g"><span>Perfiles</span>
+<div class="btns" role="group" aria-label="Perfiles" id="c11l1-perf">
+  <button type="button" data-p="mano" aria-pressed="false">Todo a mano (Andrés)</button>
+  <button type="button" data-p="abierto" aria-pressed="false">Código abierto</button>
+  <button type="button" data-p="gest" aria-pressed="false">Todo gestionado</button>
+  <button type="button" data-p="sinmon" aria-pressed="false">Todo menos monitoreo</button>
+  <button type="button" data-p="mora" aria-pressed="true">Mezcla para mora-30d</button>
+</div></div>
+<div class="c11l1-piezas" id="c11l1-piezas"></div>
+<div class="btns"><button type="button" id="c11l1-cicd" aria-pressed="false">CI/CD del pipeline y del servicio (DevOps)</button></div>
+<div class="c11l1-vis">
+  <svg id="c11l1-anillo" viewBox="-10 -10 280 280" role="img" aria-label="Anillo del ciclo de vida con las etapas cubiertas"></svg>
+  <div class="c11l1-tar" id="c11l1-tar" aria-live="polite"></div>
+</div>
+<div class="readout texto" id="c11l1-out" aria-live="polite"></div></div><div class="prose"><p>Fíjate en lo que muestra el lab con el perfil «Todo menos monitoreo»: todas las piezas resueltas menos una, y esa sola deja sin cubrir dos etapas, monitorear y reentrenar, y el ciclo abierto. Un equipo con el mejor pipeline del mundo y sin monitoreo vuelve a la historia de Andrés: el modelo se degrada y nadie se entera hasta que el negocio se queja. Es la misma regla del capítulo 1: el nivel lo marca el eslabón más débil.</p></div></section>
+<section><h2>Roles: científico de datos, ingeniero de ML y operación</h2><div class="analogia"><b>Imagínalo así</b><p>En un restaurante, la chef inventa y prueba los platos, el jefe de cocina diseña la línea para que el plato salga igual cien veces por noche, el equipo de mantenimiento cuida que los hornos y las cámaras de frío no fallen, y el dueño decide qué va en la carta. Si la chef también tiene que arreglar el horno, deja de inventar platos.</p></div><div class="prose"><p>Los nombres de los cargos cambian de una empresa a otra; las responsabilidades, no tanto:</p><ul><li><b>El científico de datos</b> (<i>data scientist</i>), como Andrés, conoce los datos y el negocio. Formula el problema, explora, elige las variables y el algoritmo, y propone la versión retadora.</li><li><b>El ingeniero de aprendizaje automático</b> (<i>ML engineer</i>), como Valeria, convierte el experimento en un sistema: el pipeline, el registro, el servicio, el despliegue y el monitoreo. Es el dueño técnico del modelo en producción.</li><li><b>La operación o el equipo de plataforma</b> (<i>platform team</i>) cuida la infraestructura compartida: el clúster, el orquestador, los permisos, las copias de seguridad y la guardia. Cuando hay muchos modelos, construye la plataforma para que cada equipo no tenga que hacerlo.</li><li><b>La dueña del caso</b>, como la gerente de Cobranzas, define qué decisión mejora el modelo, aprueba la entrada de una versión nueva y recibe el reporte de su desempeño en el negocio.</li><li>Alrededor, el <b>ingeniero de datos</b> (<i>data engineer</i>) mantiene las tablas de origen, y las áreas de riesgo y cumplimiento revisan los modelos que afectan a clientes, con las políticas de <a href="https://aaramirez.github.io/ia-responsable/temario.html" target="_blank" rel="noopener">IA responsable</a>.</li></ul></div><figure class="fig fig-comparacion" id="11-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 420" style="min-width:720px" role="img" aria-label="Tabla de roles: para cada etapa del ciclo, qué hace el científico de datos, la ingeniera de ML, la operación y la dueña del caso, con las palabras hace, decide o apoya">
+<rect x="186" y="14" width="168" height="44" rx="8" class="caja"/>
+<text x="270" y="33" class="t t-b" text-anchor="middle" style="font-size:12px">Científico de datos</text>
+<text x="270" y="49" class="t t-s t-m" text-anchor="middle">Andrés</text>
+<rect x="362" y="14" width="168" height="44" rx="8" class="caja"/>
+<text x="446" y="33" class="t t-b" text-anchor="middle" style="font-size:12px">Ingeniera de ML</text>
+<text x="446" y="49" class="t t-s t-m" text-anchor="middle">Valeria</text>
+<rect x="538" y="14" width="168" height="44" rx="8" class="caja"/>
+<text x="622" y="33" class="t t-b" text-anchor="middle" style="font-size:12px">Operación</text>
+<text x="622" y="49" class="t t-s t-m" text-anchor="middle">equipo de plataforma</text>
+<rect x="714" y="14" width="172" height="44" rx="8" class="caja" style="stroke:var(--warm);stroke-width:2"/>
+<text x="800" y="33" class="t t-b k-warm" text-anchor="middle" style="font-size:12px">Dueña del caso</text>
+<text x="800" y="49" class="t t-s t-m" text-anchor="middle">gerente de Cobranzas</text>
+
+<rect x="14" y="68" width="164" height="50" rx="8" class="d-sis"/>
+<text x="26" y="98" class="t t-b k-sis">Problema</text>
+<text x="196" y="90" class="t t-b">apoya</text><text x="196" y="106" class="t t-s t-m">traduce a métrica</text>
+<text x="372" y="90" class="t t-b">apoya</text><text x="372" y="106" class="t t-s t-m">viabilidad técnica</text>
+<text x="548" y="98" class="t t-m">—</text>
+<text x="724" y="90" class="t t-b k-warm">decide</text><text x="724" y="106" class="t t-s t-m">la decisión y el mínimo</text>
+
+<rect x="14" y="124" width="164" height="50" rx="8" class="c-fis"/>
+<text x="26" y="154" class="t t-b k-fis">Datos</text>
+<text x="196" y="146" class="t t-b">hace</text><text x="196" y="162" class="t t-s t-m">variables y validación</text>
+<text x="372" y="146" class="t t-b">hace</text><text x="372" y="162" class="t t-s t-m">versiones y almacén</text>
+<text x="548" y="146" class="t t-b">apoya</text><text x="548" y="162" class="t t-s t-m">almacenamiento, permisos</text>
+<text x="724" y="154" class="t t-m">—</text>
+
+<rect x="14" y="180" width="164" height="50" rx="8" class="c-enl"/>
+<text x="26" y="210" class="t t-b k-enl">Entrenar</text>
+<text x="196" y="202" class="t t-b">hace</text><text x="196" y="218" class="t t-s t-m">experimentos, retador</text>
+<text x="372" y="202" class="t t-b">hace</text><text x="372" y="218" class="t t-s t-m">pipeline y registro</text>
+<text x="548" y="202" class="t t-b">apoya</text><text x="548" y="218" class="t t-s t-m">cómputo, orquestador</text>
+<text x="724" y="210" class="t t-m">—</text>
+
+<rect x="14" y="236" width="164" height="50" rx="8" class="c-red"/>
+<text x="26" y="266" class="t t-b k-red">Servir y desplegar</text>
+<text x="196" y="258" class="t t-b">apoya</text><text x="196" y="274" class="t t-s t-m">revisa el canario</text>
+<text x="372" y="258" class="t t-b">hace</text><text x="372" y="274" class="t t-s t-m">servicio, sombra, canario</text>
+<text x="548" y="258" class="t t-b">hace</text><text x="548" y="274" class="t t-s t-m">clúster, guardia</text>
+<text x="724" y="258" class="t t-b">apoya</text><text x="724" y="274" class="t t-s t-m">usa la lista</text>
+
+<rect x="14" y="292" width="164" height="50" rx="8" class="c-tra"/>
+<text x="26" y="322" class="t t-b k-tra">Monitorear</text>
+<text x="196" y="314" class="t t-b">apoya</text><text x="196" y="330" class="t t-s t-m">analiza la deriva</text>
+<text x="372" y="314" class="t t-b">hace</text><text x="372" y="330" class="t t-s t-m">métricas y alertas</text>
+<text x="548" y="314" class="t t-b">hace</text><text x="548" y="330" class="t t-s t-m">salud del servicio</text>
+<text x="724" y="314" class="t t-b">apoya</text><text x="724" y="330" class="t t-s t-m">reporte de negocio</text>
+
+<rect x="14" y="348" width="164" height="50" rx="8" class="c-apl"/>
+<text x="26" y="370" class="t t-b k-apl">Reentrenar</text>
+<text x="26" y="388" class="t t-s k-apl">y gobernar</text>
+<text x="196" y="370" class="t t-b">hace</text><text x="196" y="386" class="t t-s t-m">propone la versión</text>
+<text x="372" y="370" class="t t-b">hace</text><text x="372" y="386" class="t t-s t-m">campeón contra retador</text>
+<text x="548" y="378" class="t t-m">—</text>
+<text x="724" y="370" class="t t-b k-warm">decide</text><text x="724" y="386" class="t t-s t-m">aprueba el reemplazo</text>
+<line x1="14" y1="408" x2="886" y2="408" class="ln" style="stroke-width:.6"/>
+</svg></div><figcaption><b>Quién hace qué en cada etapa.</b> Las filas son las etapas del ciclo con su color; las columnas, los cuatro roles. En cada celda, la palabra dice el tipo de participación: «hace» (ejecuta el trabajo), «decide» (aprueba y responde por el resultado) o «apoya» (aporta o revisa). Lee una columna para ver el trabajo de un rol en todo el ciclo, y una fila para ver quién tiene que estar en la sala en cada etapa. Fíjate en la última fila: la decisión de reemplazar un modelo no es de quien lo entrenó.</figcaption></figure><div class="prose"><p>La falla de roles más común no es que falte alguien, sino que una persona tenga todos los sombreros sin decirlo. El modelo de Andrés funcionó un año así: era a la vez el científico, el ingeniero, la operación y el único que sabía que existía. Repartir los roles no siempre exige más personas; exige escribir quién decide cada cosa, como en el registro de aprobaciones del capítulo 8.</p></div></section>
+<section><h2>Proyecto: el modelo de mora, del dato a la alerta de deriva</h2><div class="prose"><p>Ahora el modelo da la vuelta completa, en orden y sin saltos. El curso empezó con una figura que repartía los capítulos en una ruta, cada uno con el color de su etapa. Esta es la misma ruta, recorrida: en cada capítulo, lo que dejó en el modelo de mora, y una flecha que la convierte en un círculo.</p></div><figure class="fig fig-mapa" id="11-diagrama-1"><div class="lienzo"><svg viewBox="0 0 960 500" style="min-width:740px" role="img" aria-label="La ruta del curso del capítulo 1, ahora recorrida y cerrada: las cuatro partes con sus once capítulos en el color de su etapa, cada uno con lo que dejó en el modelo de mora, y una flecha que vuelve del reentrenamiento a los datos para la próxima vuelta del ciclo">
+<defs>
+<marker id="c11d1-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-apl"/></marker>
+</defs>
+<text x="20" y="30" class="t t-xs t-b t-m">PARTE 1</text>
+<text x="20" y="50" class="t t-b">Del cuaderno</text>
+<text x="20" y="67" class="t t-b">al sistema</text>
+<rect x="190" y="14" width="166" height="46" rx="8" class="d-sis"/>
+<text x="200" y="31" class="t t-xs t-b k-sis">✓ CAP. 01</text>
+<text x="200" y="49" class="t t-b" style="font-size:12px">Por qué falla</text>
+<text x="194" y="78" class="t t-s t-m">ficha y problema;</text>
+<text x="194" y="93" class="t t-s t-m">fuera gestion_cobranza</text>
+<rect x="364" y="14" width="166" height="46" rx="8" class="c-enl"/>
+<text x="374" y="31" class="t t-xs t-b k-enl">✓ CAP. 02</text>
+<text x="374" y="49" class="t t-b" style="font-size:12px">Versionar</text>
+<text x="368" y="78" class="t t-s t-m">datos con huella; v1 a v4</text>
+<text x="368" y="93" class="t t-s t-m">en el registro con linaje</text>
+<rect x="539" y="14" width="166" height="46" rx="8" class="c-enl"/>
+<text x="549" y="31" class="t t-xs t-b k-enl">✓ CAP. 03</text>
+<text x="549" y="49" class="t t-b" style="font-size:12px">Pipelines de ML</text>
+<text x="543" y="78" class="t t-s t-m">un comando entrena igual</text>
+<text x="543" y="93" class="t t-s t-m">en cualquier mes</text>
+<rect x="714" y="14" width="166" height="46" rx="8" class="c-fis"/>
+<text x="724" y="31" class="t t-xs t-b k-fis">✓ CAP. 04</text>
+<text x="724" y="49" class="t t-b" style="font-size:12px">Feature stores</text>
+<text x="718" y="78" class="t t-s t-m">una receta por variable,</text>
+<text x="718" y="93" class="t t-s t-m">igual en lote y en línea</text>
+<line x1="20" y1="110" x2="880" y2="110" class="ln" style="stroke-width:.6"/>
+<text x="20" y="138" class="t t-xs t-b t-m">PARTE 2</text>
+<text x="20" y="158" class="t t-b">Servir</text>
+<text x="20" y="175" class="t t-b">y desplegar</text>
+<rect x="190" y="122" width="341" height="46" rx="8" class="c-red"/>
+<text x="200" y="139" class="t t-xs t-b k-red">✓ CAP. 05</text>
+<text x="200" y="157" class="t t-b" style="font-size:12px">Servir modelos</text>
+<text x="194" y="186" class="t t-s t-m">lista mensual y POST /v1/predecir,</text>
+<text x="194" y="201" class="t t-s t-m">la versión en cada predicción</text>
+<rect x="539" y="122" width="341" height="46" rx="8" class="c-red"/>
+<text x="549" y="139" class="t t-xs t-b k-red">✓ CAP. 06</text>
+<text x="549" y="157" class="t t-b" style="font-size:12px">Desplegar modelos</text>
+<text x="543" y="186" class="t t-s t-m">sombra y canario con reversión</text>
+<text x="543" y="201" class="t t-s t-m">escrita: ningún cambio de golpe</text>
+<line x1="20" y1="218" x2="880" y2="218" class="ln" style="stroke-width:.6"/>
+<text x="20" y="246" class="t t-xs t-b t-m">PARTE 3</text>
+<text x="20" y="266" class="t t-b">Operar</text>
+<rect x="190" y="230" width="341" height="46" rx="8" class="c-tra"/>
+<text x="200" y="247" class="t t-xs t-b k-tra">✓ CAP. 07</text>
+<text x="200" y="265" class="t t-b" style="font-size:12px">Monitoreo y deriva</text>
+<text x="194" y="294" class="t t-s t-m">PSI para las entradas, AUC cuando</text>
+<text x="194" y="309" class="t t-s t-m">llega la mora; alertas con dueño</text>
+<rect x="539" y="230" width="341" height="46" rx="8" class="c-apl"/>
+<text x="549" y="247" class="t t-xs t-b k-apl">✓ CAP. 08</text>
+<text x="549" y="265" class="t t-b" style="font-size:12px">Reentrenamiento</text>
+<text x="543" y="294" class="t t-s t-m">la v4 le gana a la v3 y entra</text>
+<text x="543" y="309" class="t t-s t-m">con aprobación; la v2 se retira</text>
+<line x1="20" y1="326" x2="880" y2="326" class="ln" style="stroke-width:.6"/>
+<text x="20" y="354" class="t t-xs t-b t-m">PARTE 4</text>
+<text x="20" y="374" class="t t-b">Modelos de lenguaje</text>
+<text x="20" y="391" class="t t-b">y plataforma</text>
+<rect x="190" y="338" width="225" height="46" rx="8" class="caja" style="stroke-dasharray:5 4"/>
+<text x="200" y="355" class="t t-xs t-b t-m">✓ CAP. 09</text>
+<text x="200" y="373" class="t t-b" style="font-size:12px">LLMOps</text>
+<text x="194" y="402" class="t t-s t-m">el asistente con el mismo ciclo:</text>
+<text x="194" y="417" class="t t-s t-m">prompts con versión y alias</text>
+<rect x="423" y="338" width="225" height="46" rx="8" class="caja" style="stroke-dasharray:5 4"/>
+<text x="433" y="355" class="t t-xs t-b t-m">✓ CAP. 10</text>
+<text x="433" y="373" class="t t-b" style="font-size:12px">Prompts de producción</text>
+<text x="427" y="402" class="t t-s t-m">lo mismo, pedido por escrito</text>
+<text x="427" y="417" class="t t-s t-m">a un asistente de código</text>
+<rect x="655" y="338" width="225" height="46" rx="8" class="caja" style="stroke-width:2.5;stroke-dasharray:5 4"/>
+<text x="665" y="355" class="t t-xs t-b t-m">CAP. 11 · AQUÍ</text>
+<text x="665" y="373" class="t t-b" style="font-size:12px">Plataforma y proyecto</text>
+<text x="659" y="402" class="t t-s t-m">las piezas que sostienen</text>
+<text x="659" y="417" class="t t-s t-m">todo el ciclo, y sus roles</text>
+
+<path d="M880 253 H924 V37 H884" class="ln s-apl" style="fill:none;stroke-width:3" marker-end="url(#c11d1-m)"/>
+<text x="932" y="130" class="t t-xs t-b k-apl" transform="rotate(90 932 130)">DATOS NUEVOS: LA VUELTA DE LA V5</text>
+<rect x="190" y="440" width="690" height="44" rx="10" class="caja" style="stroke-width:2"/>
+<text x="535" y="467" class="t t-b" text-anchor="middle">MLOps como un ciclo cerrado: el capítulo 08 devuelve el modelo al 02, y la ruta vuelve a empezar</text>
+</svg></div><figcaption><b>La ruta del curso, cerrada.</b> Es la figura de la ruta del capítulo 1, con las mismas cuatro partes, los mismos capítulos y los mismos colores por etapa, pero cada capítulo tiene ahora su marca y, debajo, lo que dejó: la ficha sin la variable con fuga, los datos con huella y las versiones en el registro, el pipeline, la receta única de cada variable, la lista y la API con la versión en cada predicción, el canario con reversión, las alertas con dueño y la v4 que entró con aprobación mientras la v2 se retiraba. La flecha rosa de la derecha sale del reentrenamiento (capítulo 08) y vuelve a la primera parte, a los datos, al registro y al pipeline: la ruta no termina, da otra vuelta. La parte 4, con borde punteado, cruza todo el ciclo.</figcaption></figure><div class="lab" id="11-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Proyecto: el año del modelo de mora</h3></div><p class="hint">Avanza paso a paso por el ciclo completo: del problema y los datos del mes 0 al retador que reemplaza al campeón. En cada paso se enciende la etapa del ciclo, aparece el artefacto que queda (con su versión) y la gráfica muestra el AUC mes a mes y la deriva de las entradas. Fíjate en qué paso detecta cada cambio del mundo y en cuál solo la etiqueta lo revela.</p><style>
+[id="11-lab-2"] .c11l2-top{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:12px;align-items:center}
+@media (max-width:620px){[id="11-lab-2"] .c11l2-top{grid-template-columns:minmax(0,1fr)}}
+[id="11-lab-2"] .c11l2-ring{width:100%;max-width:230px;height:auto;display:block;margin:0 auto}
+[id="11-lab-2"] .c11l2-ring text{font:600 9px var(--f-display);fill:var(--ink)}
+[id="11-lab-2"] .c11l2-paso{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card);display:grid;gap:5px}
+[id="11-lab-2"] .c11l2-paso .et{font:700 .7rem var(--f-display);letter-spacing:.07em;text-transform:uppercase}
+[id="11-lab-2"] .c11l2-paso h4{margin:0;font:700 .95rem/1.3 var(--f-display)}
+[id="11-lab-2"] .c11l2-paso p{margin:0;font-size:.86rem;line-height:1.45}
+[id="11-lab-2"] .c11l2-art{font:500 .76rem/1.4 var(--f-mono);background:var(--paper);border-radius:6px;padding:6px 8px;white-space:pre-wrap;word-break:break-word}
+[id="11-lab-2"] .c11l2-scroll{overflow-x:auto}
+[id="11-lab-2"] .c11l2-graf{min-width:520px;width:100%;height:auto;display:block;background:var(--card);border:1px solid var(--line);border-radius:8px}
+[id="11-lab-2"] .c11l2-graf text{font:500 10.5px var(--f-display);fill:var(--muted)}
+[id="11-lab-2"] .c11l2-vers{display:flex;flex-wrap:wrap;gap:6px}
+[id="11-lab-2"] .c11l2-v{font:600 .74rem var(--f-mono);border:1px solid var(--line);border-radius:6px;padding:3px 7px;background:var(--card);color:var(--muted)}
+[id="11-lab-2"] .c11l2-v.prod{border:2px solid var(--c-red);color:var(--ink)}
+[id="11-lab-2"] .c11l2-v.ret{border:2px dashed var(--c-apl);color:var(--ink)}
+[id="11-lab-2"] .c11l2-v.fuera{text-decoration:line-through}
+</style>
+<div class="btns">
+  <button type="button" id="c11l2-ant" aria-pressed="false">◀ Anterior</button>
+  <button type="button" id="c11l2-sig" aria-pressed="false">Siguiente ▶</button>
+  <button type="button" id="c11l2-ini" aria-pressed="false">Volver al inicio</button>
+</div>
+<div class="c11l2-top">
+  <svg class="c11l2-ring" id="c11l2-ring" viewBox="-12 -12 254 254" role="img" aria-label="Ciclo de vida con la etapa del paso actual encendida"></svg>
+  <div class="c11l2-paso" id="c11l2-paso" aria-live="polite"></div>
+</div>
+<div class="c11l2-vers" id="c11l2-vers" aria-label="Versiones en el registro"></div>
+<div class="c11l2-scroll"><svg class="c11l2-graf" id="c11l2-graf" viewBox="0 0 640 220" role="img" aria-label="AUC del modelo en producción y PSI máximo de las entradas, mes a mes"></svg></div>
+<div class="legend"><span><i style="background:var(--c-red)"></i>AUC del modelo en producción (se conoce 45 días después)</span><span><i style="background:var(--c-tra)"></i>PSI máximo de las entradas</span><span>Punteadas: AUC mínimo 0,75 y PSI 0,2</span></div>
+<div class="readout texto" id="c11l2-out" aria-live="polite"></div></div><div class="prose"><p>El recorrido tiene cinco momentos, cada uno con la pieza que lo sostiene:</p><ol class="steps"><li><span><b>Datos con versión.</b> El generador del capítulo 1 produce los clientes de cada mes con semilla fija; cada mes es una versión, con su huella. El modelo nunca lee «la tabla»: lee la versión del mes.</span></li><li><span><b>Entrenar y registrar.</b> El pipeline valida los datos (y rechaza <code>gestion_cobranza</code>), entrena, evalúa contra el mínimo de 0,75 y registra la versión con sus parámetros y sus métricas. No mueve el alias: eso lo decide una persona.</span></li><li><span><b>Servir.</b> La lista mensual y la API cargan la versión del alias <code>campeon</code>. Cada predicción queda con su versión: es lo que después permite medir y comparar.</span></li><li><span><b>Monitorear.</b> Cada mes se calcula el PSI de cada variable contra la referencia del entrenamiento y, cuando llega la etiqueta, el AUC. Los dos miran cosas distintas: el PSI ve la billetera y el alza de tarifas en cuanto ocurren; el cambio de relación del mes 6 no mueve ninguna entrada, y solo el AUC lo ve, tarde.</span></li><li><span><b>Reentrenar y gobernar.</b> Una alerta abre un retador entrenado con datos recientes. El retador se compara con el campeón en un mes que ninguno de los dos vio y entra solo si gana. Al entrar, el campeón anterior queda de reserva y el más viejo se retira, con su ficha archivada.</span></li></ol></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Corre el proyecto completo: un año del modelo de mora con MLflow</h3></div><p>Vas a correr en tu computadora el ciclo completo del modelo de mora durante doce meses simulados: entrenamiento, registro con alias, predicción, deriva, reentrenamiento y campeón contra retador. Trabaja en la carpeta <code>mora-30d</code> del capítulo 1, con su entorno activado y su <code>generar_datos.py</code>. Instala MLflow, que pesa unos cientos de megabytes:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install "mlflow&gt;=3.1"</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>proyecto.py</code>:</p><div class="code-copia"><pre><code>"""Proyecto integrador: el modelo mora-30d da la vuelta completa al ciclo.
+
+Entrena y registra con MLflow, predice la lista de cada mes con la versión del alias
+campeon, mide la deriva (PSI) y el AUC cuando llega la etiqueta, y reentrena un
+retador que solo entra si le gana al campeón.
+Uso: python proyecto.py --hasta 12
+"""
+import argparse
+import warnings
+
+import mlflow
+import numpy as np
+import pandas as pd
+from mlflow import MlflowClient
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+from generar_datos import generar
+
+warnings.filterwarnings("ignore")
+NOMBRE, SEMILLA, AUC_MIN, PSI_ALERTA = "mora-30d", 42, 0.75, 0.2
+NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
+             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
+mlflow.set_tracking_uri("sqlite:///proyecto.db")   # aparte del registro del capítulo 2
+mlflow.set_experiment(NOMBRE)
+cliente = MlflowClient()
+
+
+def datos(mes):
+    return generar(mes, 20000, SEMILLA)
+
+
+def entrenar(df, meses):
+    """Entrena, registra una versión nueva y la devuelve (sin moverle el alias)."""
+    prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),
+                              ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
+    modelo = make_pipeline(prep, LogisticRegression(max_iter=1000)).fit(df, df.mora_30d)
+    with mlflow.start_run(run_name=f"meses-{meses}"):
+        mlflow.log_params({"meses": meses, "semilla": SEMILLA, "filas": len(df)})
+        info = mlflow.sklearn.log_model(modelo, name="modelo", registered_model_name=NOMBRE,
+                                        input_example=df[NUMERICAS + ["metodo_pago"]].head(3))
+    return str(info.registered_model_version), modelo
+
+
+def psi(ref, act, columna):
+    """PSI de una columna: tramos por cuantiles, o una categoría por valor si hay pocos."""
+    if ref[columna].nunique() &lt;= 6:
+        r = ref[columna].astype(str).value_counts(normalize=True)
+        a = act[columna].astype(str).value_counts(normalize=True)
+        r, a = r.reindex(r.index.union(a.index), fill_value=0), a.reindex(r.index.union(a.index), fill_value=0)
+    else:
+        cortes = np.unique(np.quantile(ref[columna], np.linspace(0, 1, 11)[1:-1]))
+        r = np.bincount(np.searchsorted(cortes, ref[columna], side="right"), minlength=len(cortes) + 1) / len(ref)
+        a = np.bincount(np.searchsorted(cortes, act[columna], side="right"), minlength=len(cortes) + 1) / len(act)
+    r, a = np.clip(np.asarray(r, float), 1e-4, None), np.clip(np.asarray(a, float), 1e-4, None)
+    return float(np.sum((a - r) * np.log(a / r)))
+
+
+p = argparse.ArgumentParser()
+p.add_argument("--hasta", type=int, default=12)
+args = p.parse_args()
+
+referencia = datos(0)
+version, campeon = entrenar(referencia, "0")
+cliente.set_registered_model_alias(NOMBRE, "campeon", version)
+print(f"Mes 0: v{version} entrenada con el mes 0 y con el alias campeon")
+retador, alertas_seguidas = None, 0
+
+for mes in range(1, args.hasta + 1):
+    df = datos(mes)
+    prob = campeon.predict_proba(df)[:, 1]
+    lista = (prob &gt;= 0.30).mean()
+    deriva = {c: psi(referencia, df, c) for c in NUMERICAS + ["metodo_pago"]}
+    peor = max(deriva, key=deriva.get)
+    alertas_seguidas = alertas_seguidas + 1 if deriva[peor] &gt; PSI_ALERTA else 0
+    auc = roc_auc_score(df.mora_30d, prob)   # en la vida real se conoce 45 días después
+    linea = (f"Mes {mes:2}: v{version} | lista {lista:5.1%} | PSI máx {deriva[peor]:5.2f} ({peor})"
+             f" | AUC {auc:.3f}")
+    if retador:   # campeón contra retador con los datos de un mes que ninguno vio
+        auc_r = roc_auc_score(df.mora_30d, retador[1].predict_proba(df)[:, 1])
+        if auc_r &gt;= auc + 0.01:   # la retadora debe superar al campeón por 0,01
+            cliente.set_registered_model_alias(NOMBRE, "campeon", retador[0])
+            linea += f" -&gt; retador v{retador[0]} gana ({auc_r:.3f}): pasa a campeon"
+            version, campeon, referencia = retador[0], retador[1], datos(mes - 1)
+        else:
+            linea += f" -&gt; retador v{retador[0]} no gana ({auc_r:.3f}): se archiva"
+        retador = None
+    elif auc &lt; AUC_MIN or alertas_seguidas &gt;= 2:
+        motivo = "AUC bajo el mínimo" if auc &lt; AUC_MIN else "deriva dos meses seguidos"
+        recientes = pd.concat([datos(mes - 1), df])
+        retador = entrenar(recientes, f"{mes - 1}-{mes}")
+        cliente.set_registered_model_alias(NOMBRE, "retador", retador[0])
+        linea += f" -&gt; {motivo}: se entrena el retador v{retador[0]}"
+    print(linea)
+
+print("\nVersiones registradas:", [m.version for m in cliente.search_model_versions(f"name='{NOMBRE}'")])
+print("Alias campeon -&gt;", cliente.get_model_version_by_alias(NOMBRE, "campeon").version)</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>python proyecto.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>mlflow ui --backend-store-uri sqlite:///proyecto.db</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre <code>python proyecto.py</code> (tarda menos de un minuto). Entre las líneas de MLflow que anuncian cada versión nueva, lee el informe de cada mes.</span></li><li><span>Anota en qué mes salta la primera alerta de deriva y qué variable la produce, qué pasa con el primer retador y qué dispara al segundo.</span></li><li><span>Abre <code>http://127.0.0.1:5000</code> con el segundo comando y busca el modelo <code>mora-30d</code> en la sección de modelos: mira sus versiones, el alias <code>campeon</code> y los parámetros de cada corrida. Detén el servidor con Ctrl+C al terminar.</span></li><li><span>Cambia <code>PSI_ALERTA</code> a 0,5 o <code>AUC_MIN</code> a 0,70, borra <code>proyecto.db</code> y córrelo de nuevo: ¿cuándo se reentrena ahora y cuánto tiempo pasa el modelo por debajo del mínimo?</span></li></ol><p><b>Qué observar:</b> el PSI de <code>metodo_pago</code> cruza 0,2 en el mes 4 por la billetera, y la segunda alerta seguida, en el mes 5, entrena un retador con los meses 4 y 5. Ese retador no gana en el mes 6: la relación entre el historial y la mora acaba de cambiar, y un modelo entrenado justo antes del cambio no sirve después. En el mes 7 el AUC queda bajo 0,75 (además, el alza de tarifas dispara el PSI de <code>precio_plan</code>); el retador entrenado con los meses 6 y 7 le gana al campeón en el mes 8 y pasa a producción, y la referencia de la deriva se renueva con él. Es el ciclo completo del curso en un minuto: la deriva de datos se ve enseguida, la de concepto solo con la etiqueta, y ningún modelo entra sin ganarle al que está. El script calcula el AUC del mes en el acto para que el año quepa en un minuto; en la vida real esa cifra llega 45 días después. Los decimales pueden variar un poco con otras versiones de scikit-learn.</p></div><div class="caso"><b>Un caso real</b><p><b>Una plataforma para que cada equipo no reinvente el ciclo.</b> En 2017, Uber describió públicamente Michelangelo, la plataforma interna de aprendizaje automático que había construido después de ver que cada equipo armaba por su cuenta, y de forma distinta, la manera de preparar datos, entrenar, desplegar y vigilar sus modelos, con sistemas difíciles de mantener y de escalar. La plataforma unió esas etapas en un flujo común, con un almacén de variables compartido entre equipos, un registro de modelos y el monitoreo de las predicciones. Lo que enseña no es la escala de Uber: es que la plataforma nace cuando el costo de que cada modelo repita el trabajo supera el de construir las piezas una vez.</p></div></section>
+<section><h2>Lista de verificación antes de salir a producción</h2><div class="prose"><p>El capítulo anterior terminó con una lista para revisar el código que entrega un asistente. Esta es otra cosa: la lista que firma el equipo antes de que un modelo, cualquiera, empiece a decidir en serio. Cada punto tiene un dueño y una evidencia.</p></div><div class="analogia"><b>Imagínalo así</b><p>Antes de despegar, los pilotos recorren una lista en voz alta, aunque hayan volado mil veces. No es desconfianza en su memoria: es reconocer que el día que se olvida un punto es justo el día que hacía falta.</p></div><div class="prose"><div class="tbl"><table><thead><tr><th>Etapa</th><th>Pregunta</th><th>Evidencia</th><th>Dueño</th></tr></thead><tbody><tr><td>Problema</td><td>¿Qué decisión mejora y con qué métrica se sabrá?</td><td>Ficha con la métrica, el mínimo y el umbral</td><td>Dueña del caso</td></tr><tr><td>Datos</td><td>¿Los datos de entrenamiento tienen versión y pasan la validación?</td><td>Huella de los datos y reporte de validación</td><td>Científico de datos</td></tr><tr><td>Datos</td><td>¿Hay alguna variable que no exista en el momento de predecir?</td><td>Lista de variables prohibidas revisada</td><td>Científico de datos</td></tr><tr><td>Entrenar</td><td>¿El entrenamiento se repite con el mismo resultado?</td><td>Dos corridas con la misma métrica</td><td>Ingeniera de ML</td></tr><tr><td>Entrenar</td><td>¿Supera el mínimo, también por tramo de clientes?</td><td>Métricas por tramo en el experimento</td><td>Científico de datos</td></tr><tr><td>Servir</td><td>¿Cada predicción lleva su versión y queda registrada?</td><td>Una predicción rastreada hasta sus datos</td><td>Ingeniera de ML</td></tr><tr><td>Servir</td><td>¿La entrada se valida y hay tiempo límite?</td><td>Peticiones mal formadas con su 422</td><td>Ingeniera de ML</td></tr><tr><td>Desplegar</td><td>¿Hay sombra o canario con condiciones de reversión escritas?</td><td>Plan de despliegue y comando de reversión probado</td><td>Ingeniera de ML</td></tr><tr><td>Monitorear</td><td>¿Cada alerta tiene umbral, dueño y acción?</td><td>Alerta de prueba que llegó a su dueño</td><td>Operación</td></tr><tr><td>Reentrenar</td><td>¿Qué dispara un reentrenamiento y quién aprueba el retador?</td><td>Política escrita y registro de aprobación</td><td>Dueña del caso</td></tr><tr><td>Gobierno</td><td>¿Hay tarjeta de modelo y fecha de revisión?</td><td>Tarjeta publicada en el registro</td><td>Ingeniera de ML</td></tr><tr><td>Gobierno</td><td>¿Qué pasa si hay que apagar el modelo hoy?</td><td>Regla de respaldo sin modelo, acordada con el negocio</td><td>Dueña del caso</td></tr></tbody></table></div><p>La última pregunta es la que más se olvida. Si mañana el modelo tuviera que apagarse, ¿Cobranzas se queda sin lista o tiene una regla simple de respaldo, como «clientes con dos facturas tarde en el año»? Un modelo sin plan de apagado no está listo, aunque todo lo demás esté en verde.</p></div><div class="ml"><b>En la práctica</b><p><b>La plataforma del segundo modelo.</b> Con la v4 en producción, Cobranzas pidió un segundo modelo: qué acuerdo de pago ofrecer a cada cliente en mora. Valeria midió el éxito de la plataforma con una sola cifra: cuánto tardó el segundo modelo en llegar a producción. El de mora había tardado cinco meses; el de acuerdos, cinco semanas, porque los datos versionados, el pipeline, el registro, la plantilla del servicio y el monitoreo ya existían. Lo único nuevo fueron sus variables, su ficha y su política de reentrenamiento. Andrés lo resumió en la reunión de cierre: «El primer modelo construyó la cocina; el segundo solo trajo su receta».</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p>MLOps como un ciclo cerrado. Una plataforma no es un producto, sino las piezas que se pasan artefactos con identificador (datos con versión, modelos registrados, predicciones con su versión, alertas con dueño) para que el ciclo de vida dé la vuelta sin depender de una persona. Se arma con una mezcla de compra, código abierto y servicios gestionados según los modelos, las personas y los datos de cada organización, con los roles escritos, y se juzga por una sola pregunta: cuando el mundo cambia, ¿el modelo se entera, se renueva con control y vuelve a empezar?</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Qué tiene que pasar entre dos piezas de la plataforma para que el linaje no se corte?</summary><p>Que se pasen artefactos con identificador: una versión de datos, una versión de modelo, una predicción con su versión. Un archivo copiado a mano o «la tabla de siempre» corta el linaje.</p></details><details><summary>Un equipo tiene datos versionados, pipeline, registro y servicio impecables, pero ningún monitoreo. ¿Por qué su ciclo sigue abierto?</summary><p>Porque nadie ve cuándo el modelo se degrada, así que nada dispara el reentrenamiento: el modelo falla en silencio hasta que el negocio se queja.</p></details><details><summary>¿Cuándo conviene armar con código abierto en lugar de comprar una plataforma integral?</summary><p>Cuando hay personas para operar la infraestructura y se quiere evitar la dependencia de un proveedor o cambiar piezas por separado; el costo se mueve de la licencia a las horas del equipo.</p></details><details><summary>En el proyecto, ¿por qué el primer retador no le gana al campeón?</summary><p>Porque se entrenó con los meses 4 y 5, justo antes de que cambiara la relación entre el historial y la mora en el mes 6; después del cambio no predice mejor que el campeón.</p></details><details><summary>¿Por qué la decisión de reemplazar un modelo no la toma quien lo entrenó?</summary><p>Porque quien entrena tiene interés en su versión; la decisión la toma la dueña del caso con la evidencia de campeón contra retador, y queda registrada para auditoría.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Qué es una plataforma interna de desarrollo (<i>internal developer platform</i>) y qué tiene en común con una plataforma de MLOps?<small>Pista: busca «platform engineering».</small></li><li>¿Qué es OpenLineage y cómo se usa para registrar el linaje entre herramientas distintas?</li><li>¿Qué es el costo total de propiedad (<i>total cost of ownership</i>, TCO) y qué partidas suelen olvidarse al comparar una plataforma comprada con una armada?</li><li>¿Qué son las matrices RACI y cómo se usan para repartir responsabilidades en un proyecto?</li><li>¿Qué es un modelo de respaldo con reglas (<i>rule-based fallback</i>) y cómo se decide cuándo pasar a él de forma automática?</li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://www.uber.com/blog/michelangelo-machine-learning-platform/" target="_blank" rel="noopener">Meet Michelangelo: Uber's Machine Learning Platform <small>artículo de Uber Engineering, 2017, en inglés</small></a><a class="vid" href="https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning" target="_blank" rel="noopener">MLOps: continuous delivery and automation pipelines in machine learning <small>los niveles de madurez de Google, en inglés</small></a><a class="vid" href="https://mlflow.org/docs/latest/" target="_blank" rel="noopener">Documentación de MLflow <small>seguimiento de experimentos, registro de modelos y prompts, en inglés</small></a><a class="vid" href="https://docs.evidentlyai.com/" target="_blank" rel="noopener">Documentación de Evidently <small>monitoreo de modelos de código abierto, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const root=document.querySelector('[id="11-lab-1"]');
+  // pieza: id, nombre, color de etapa, opciones [nombre, US$ infra/mes, horas/mes]
+  const P=[
+    {id:'dat',n:'Datos versionados',c:'--c-fis',o:[['A mano',0,10],['DVC o lakeFS',20,4],['Gestionado',60,1]]},
+    {id:'var',n:'Almacén de variables',c:'--c-fis',o:[['A mano',0,6],['Feast',80,8],['Gestionado',250,2]]},
+    {id:'exp',n:'Experimentos',c:'--c-enl',o:[['A mano',0,8],['MLflow Tracking',40,3],['Gestionado',100,1]]},
+    {id:'reg',n:'Registro de modelos',c:'--c-enl',o:[['A mano',0,6],['MLflow Registry',0,1],['Gestionado',0,0.5]]},
+    {id:'pip',n:'Pipelines y orquestador',c:'--c-enl',o:[['A mano',0,16],['Airflow, Dagster o Kubeflow',120,10],['Gestionado',200,3]]},
+    {id:'ser',n:'Servicio y despliegue',c:'--c-red',o:[['A mano',0,12],['FastAPI o BentoML en contenedor',90,6],['Gestionado',250,2]]},
+    {id:'mon',n:'Monitoreo',c:'--c-tra',o:[['A mano',0,20],['Evidently, Prometheus y Grafana',40,5],['Gestionado',150,2]]}
+  ];
+  // etapas del anillo: nombre, color, piezas que necesita
+  const E=[['Datos','--c-fis',['dat']],['Entrenar','--c-enl',['exp','reg','pip']],['Servir y desplegar','--c-red',['ser','reg']],['Monitorear','--c-tra',['mon']],['Reentrenar','--c-apl',['pip','reg','mon']]];
+  const PERF={mano:[0,0,0,0,0,0,0],abierto:[1,1,1,1,1,1,1],gest:[2,2,2,2,2,2,2],sinmon:[1,1,1,1,1,1,0],mora:[1,0,1,1,1,1,1]};
+  let sel=PERF.mora.slice(),cicd=false;
+  const HORA=40;
+  $('#c11l1-piezas').innerHTML=P.map((p,i)=>'<div class="c11l1-p" style="border-left-color:var('+p.c+')"><b>'+p.n+'</b><div class="btns" role="group" aria-label="'+p.n+'">'+p.o.map((o,k)=>'<button type="button" data-i="'+i+'" data-k="'+k+'" aria-pressed="false">'+o[0]+'</button>').join('')+'</div></div>').join('');
+  const nf=(v,d)=>{d=d||0;const [e,f]=Math.abs(v).toFixed(d).split('.');return (v<0?'-':'')+e.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(f?','+f:'');};
+  function arco(cx,cy,r1,r2,a0,a1){
+    const p=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
+    const [x1,y1]=p(r2,a0),[x2,y2]=p(r2,a1),[x3,y3]=p(r1,a1),[x4,y4]=p(r1,a0);
+    return 'M'+x1+' '+y1+'A'+r2+' '+r2+' 0 0 1 '+x2+' '+y2+'L'+x3+' '+y3+'A'+r1+' '+r1+' 0 0 0 '+x4+' '+y4+'Z';
+  }
+  function pintar(){
+    root.querySelectorAll('[data-i]').forEach(b=>b.setAttribute('aria-pressed',sel[+b.dataset.i]===+b.dataset.k?'true':'false'));
+    const ok=id=>sel[P.findIndex(p=>p.id===id)]>0;
+    // anillo
+    let s='';const n=E.length,g=0.05;
+    E.forEach((e,i)=>{
+      const a0=-Math.PI/2+i*2*Math.PI/n+g,a1=-Math.PI/2+(i+1)*2*Math.PI/n-g,cub=e[2].every(ok);
+      s+='<path d="'+arco(130,130,62,112,a0,a1)+'" style="fill:'+(cub?'var('+e[1]+')':'var(--paper)')+';stroke:var('+e[1]+');stroke-width:2;'+(cub?'':'stroke-dasharray:4 3')+'"/>';
+      const am=(a0+a1)/2,tx=130+87*Math.cos(am),ty=130+87*Math.sin(am);
+      const pal=e[0].split(' ');
+      s+='<text x="'+tx+'" y="'+(ty-(pal.length-1)*6+4)+'" text-anchor="middle" style="'+(cub?'fill:var(--card)':'fill:var(--muted)')+'">'+pal.map((w,j)=>'<tspan x="'+tx+'" dy="'+(j?12:0)+'">'+w+'</tspan>').join('')+'</text>';
+    });
+    const todas=E.every(e=>e[2].every(ok));
+    s+='<text x="130" y="126" text-anchor="middle" style="font-size:12px">'+(todas?'Ciclo':'Ciclo')+'</text><text x="130" y="142" text-anchor="middle" style="font-size:12px;fill:'+(todas?'var(--good)':'var(--warm)')+'">'+(todas?'cerrado':'abierto')+'</text>';
+    $('#c11l1-anillo').innerHTML=s;
+    // costos
+    let infra=0,horas=0;P.forEach((p,i)=>{infra+=p.o[sel[i]][1];horas+=p.o[sel[i]][2];});
+    if(cicd){infra+=30;horas+=2;}
+    const nivel=(!ok('dat')||!ok('pip')||!ok('reg')||!ok('mon'))?0:(cicd?2:1);
+    const faltan=E.filter(e=>!e[2].every(ok)).map(e=>e[0]);
+    $('#c11l1-tar').innerHTML=
+      '<div class="c11l1-t"><span>Nivel de madurez</span><b>'+nivel+'</b><span>'+['manual','pipeline automático','CI/CD de modelos'][nivel]+'</span></div>'+
+      '<div class="c11l1-t"><span>Infraestructura al mes</span><b>US$ '+nf(infra)+'</b></div>'+
+      '<div class="c11l1-t"><span>Horas de personas al mes</span><b>'+nf(horas)+' h</b><span>≈ US$ '+nf(horas*HORA)+'</span></div>'+
+      '<div class="c11l1-t"><span>Costo total estimado</span><b>US$ '+nf(infra+horas*HORA)+'</b><span>al mes, para un modelo</span></div>';
+    let t='';
+    if(faltan.length)t+='<span class="warn">Queda sin cubrir: '+faltan.join(', ')+'.</span>';
+    else t+='<span class="ok">Las cinco etapas del ciclo quedan cubiertas.</span>';
+    if(!ok('mon'))t+='<span>Sin monitoreo nadie ve la deriva, y sin esa señal nada dispara el reentrenamiento: el modelo se degrada en silencio, como el de Andrés.</span>';
+    else if(!ok('pip'))t+='<span>Sin pipeline, reentrenar depende de que alguien repita a mano lo que hizo hace meses: la alerta llega y no hay cómo responder a tiempo.</span>';
+    else if(!ok('reg'))t+='<span>Sin registro no hay alias que mover ni versión que anotar en cada predicción: el servicio no sabe qué modelo responde.</span>';
+    if(!ok('var')&&!faltan.length)t+='<span>El almacén de variables quedó a mano y no abre ninguna etapa: para una lista mensual por lotes con una sola fuente puede esperar (capítulo 4). Cuando la API en línea y el lote compartan variables, deja de ser opcional.</span>';
+    if(nivel===1)t+='<span>Para el nivel 2 falta que el código del pipeline y del servicio pase por pruebas e integración continua antes de llegar a producción.</span>';
+    if(sel.every(v=>v===2))t+='<span>Todo gestionado reduce las horas al mínimo y sube la factura de infraestructura; además ata cada pieza a una sola nube.</span>';
+    if(sel.every(v=>v===0))t+='<span>Todo a mano no cuesta infraestructura, pero se paga en horas y en riesgo: el sistema existe mientras exista la persona.</span>';
+    t+='<span class="hint">Los costos son ilustrativos (horas a US$ '+HORA+'); lo que importa es su forma: la infraestructura y las horas se reemplazan una por otra, no desaparecen.</span>';
+    $('#c11l1-out').innerHTML=t;
+  }
+  root.querySelectorAll('[data-i]').forEach(b=>b.addEventListener('click',()=>{sel[+b.dataset.i]=+b.dataset.k;root.querySelectorAll('[data-p]').forEach(x=>x.setAttribute('aria-pressed','false'));pintar();}));
+  root.querySelectorAll('[data-p]').forEach(b=>b.addEventListener('click',()=>{sel=PERF[b.dataset.p].slice();root.querySelectorAll('[data-p]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));pintar();}));
+  $('#c11l1-cicd').addEventListener('click',e=>{cicd=!cicd;e.currentTarget.setAttribute('aria-pressed',cicd?'true':'false');pintar();});
+  pintar();
+})();
+</script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const root=document.querySelector('[id="11-lab-2"]');
+  const ET=[['Problema','--d-sis'],['Datos','--c-fis'],['Entrenar','--c-enl'],['Servir','--c-red'],['Monitorear','--c-tra'],['Reentrenar','--c-apl']];
+  // AUC del modelo en producción y PSI máximo por mes (0..12)
+  const AUC=[.79,.80,.80,.79,.79,.78,.73,.72,.72,.78,.78,.77,.78];
+  const PSI=[0,.01,.01,.02,.26,.54,.88,2.5,2.5,.09,.12,.13,.12];
+  // pasos: etapa, mes visible, título, texto, artefacto, versiones [nombre, estado]
+  const S=[
+    {e:0,m:0,t:'El problema y la ficha',p:'Cobranzas quiere, el día que se emite la factura, la lista de clientes con más riesgo de mora a 30 días. La ficha fija la métrica (AUC), el mínimo (0,75), el umbral (0,30) y la variable prohibida.',a:'ficha mora-30d · dueña: gerente de Cobranzas\nmétrica AUC ≥ 0,75 · umbral 0,30 · prohibida: gestion_cobranza',v:[]},
+    {e:1,m:0,t:'Datos del mes 0 con versión',p:'El generador produce los 20.000 clientes del mes de entrenamiento con semilla 42. La tabla se guarda como una versión con su huella: el modelo nunca lee «la tabla de siempre».',a:'datos/clientes-m00.csv · huella 9f2c… · semilla 42',v:[]},
+    {e:2,m:0,t:'Experimentos y registro: v1',p:'Andrés prueba alternativas y cada corrida queda en el seguimiento de experimentos. La mejor entra al registro como v1, con su linaje: datos, commit, parámetros y AUC 0,79.',a:'mlflow run 3a1e… · AUC 0,79\nmodels:/mora-30d/1',v:[['v1','reg']]},
+    {e:2,m:0,t:'El pipeline: v2',p:'Valeria convierte el cuaderno en un pipeline de cinco pasos. La validación rechaza la tabla si aparece gestion_cobranza. El pipeline deja la v2, idéntica en cada corrida con la misma semilla.',a:'python -m entrenamiento.pipeline --datos m00\nmodels:/mora-30d/2 · AUC 0,79',v:[['v1','reg'],['v2','reg']]},
+    {e:3,m:1,t:'Servir: la v2 en producción',p:'Una persona mueve el alias campeon a la v2. La lista mensual y la API del CRM la cargan del registro, y cada predicción queda con su versión.',a:'models:/mora-30d@campeon → 2\npredicciones_mora: cliente, prob_mora, version_modelo=2',v:[['v1','reg'],['v2','prod']]},
+    {e:3,m:3,t:'Desplegar: la v3 en sombra y en canario',p:'La v3, entrenada con el pipeline y más datos, corre en sombra un mes y después en canario, del 10 % al 100 % de los clientes, con reversión automática escrita. La v2 queda de reserva.',a:'canario: 10 % → 50 % → 100 % · sin reversión\nmodels:/mora-30d@campeon → 3',v:[['v1','reg'],['v2','reg'],['v3','prod']]},
+    {e:4,m:5,t:'Monitorear: la billetera móvil',p:'Desde el mes 4 crece un método de pago que el mes 0 no tenía. El PSI de metodo_pago cruza 0,2 y, al repetirse en el mes 5, salta la alerta. El AUC todavía aguanta: es deriva de datos que el modelo tolera.',a:'alerta deriva · metodo_pago PSI 0,26 (mes 4), 0,54 (mes 5)\ndueña: Valeria',v:[['v1','reg'],['v2','reg'],['v3','prod']]},
+    {e:4,m:7,t:'Monitorear: lo que solo ve la etiqueta',p:'En el mes 6 el historial deja de anunciar la mora como antes. Ninguna entrada se mueve por eso: el PSI no lo ve. Cuando llega la mora real del mes 6, 45 días después, el AUC está en 0,73, bajo el mínimo. Y en el mes 7 el alza de tarifas dispara el PSI de precio_plan.',a:'AUC mes 6 = 0,73 < 0,75 → tarea de reentrenamiento\nalerta deriva · precio_plan (alza del 15 %)',v:[['v1','reg'],['v2','reg'],['v3','prod']]},
+    {e:5,m:9,t:'Reentrenar: la v4 retadora',p:'El pipeline entrena la v4 con una ventana que ya incluye meses posteriores al cambio. Campeón contra retador sobre los meses más recientes, con la regla escrita antes de mirar: la v4 gana en los dos segmentos y con el intervalo lejos del cero (capítulo 8). La gerente de Cobranzas aprueba con la evidencia, y la v4 entra en canario.',a:'retador v4 contra campeón v3 · regla: AUC +0,01 o más\naprobación: gerente de Cobranzas, en decision-mora-v4.json',v:[['v1','reg'],['v2','reg'],['v3','prod'],['v4','ret']]},
+    {e:5,m:12,t:'Gobernar y volver a empezar',p:'La v4 queda con el alias campeon, la v3 de reserva y la v2 se retira con su tarjeta archivada. La referencia de la deriva se renueva con los datos de la v4. El ciclo vuelve a los datos: la próxima vuelta será la v5.',a:'models:/mora-30d@campeon → 4 · reserva: 3\nv2 retirada · tarjeta archivada en el registro',v:[['v1','fuera'],['v2','fuera'],['v3','reg'],['v4','prod']]}
+  ];
+  let i=0;
+  function ring(et){
+    let s='';const n=ET.length,cx=115,cy=115;
+    ET.forEach((e,k)=>{
+      const a0=-Math.PI/2+k*2*Math.PI/n+.05,a1=-Math.PI/2+(k+1)*2*Math.PI/n-.05,r1=54,r2=104;
+      const P=(r,a)=>(cx+r*Math.cos(a)).toFixed(1)+' '+(cy+r*Math.sin(a)).toFixed(1);
+      const on=k===et;
+      s+='<path d="M'+P(r2,a0)+'A'+r2+' '+r2+' 0 0 1 '+P(r2,a1)+'L'+P(r1,a1)+'A'+r1+' '+r1+' 0 0 0 '+P(r1,a0)+'Z" style="fill:'+(on?'var('+e[1]+')':'var(--paper)')+';stroke:var('+e[1]+');stroke-width:'+(on?3:1.5)+'"/>';
+      const am=(a0+a1)/2;
+      s+='<text x="'+(cx+79*Math.cos(am)).toFixed(1)+'" y="'+(cy+79*Math.sin(am)+4).toFixed(1)+'" text-anchor="middle" style="'+(on?'fill:var(--card)':'fill:var(--muted)')+'">'+e[0]+'</text>';
+    });
+    s+='<text x="115" y="111" text-anchor="middle" style="font-size:11px">Paso</text><text x="115" y="127" text-anchor="middle" style="font-size:13px">'+(i+1)+' de '+S.length+'</text>';
+    return s;
+  }
+  function graf(m){
+    const W=640,H=220,L=40,R=40,T=14,B=30,X=k=>L+(W-L-R)*k/12;
+    const Ya=v=>T+(H-T-B)*(1-(v-.65)/(.85-.65));
+    const Yp=v=>T+(H-T-B)*(1-Math.min(v,1)/1);
+    let s='';
+    for(let k=0;k<=12;k++)s+='<text x="'+X(k)+'" y="'+(H-12)+'" text-anchor="middle">'+k+'</text>';
+    s+='<text x="'+(W/2)+'" y="'+(H-1)+'" text-anchor="middle">mes</text>';
+    [.65,.75,.85].forEach(v=>s+='<text x="'+(L-6)+'" y="'+(Ya(v)+4)+'" text-anchor="end">'+v.toFixed(2).replace('.',',')+'</text>');
+    s+='<text x="'+(W-R+6)+'" y="'+(Yp(.2)+4)+'">0,2</text><text x="'+(W-R+6)+'" y="'+(Yp(1)+4)+'">≥1</text>';
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Ya(.75)+'" y2="'+Ya(.75)+'" style="stroke:var(--c-red);stroke-dasharray:4 4;opacity:.7"/>';
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Yp(.2)+'" y2="'+Yp(.2)+'" style="stroke:var(--c-tra);stroke-dasharray:4 4;opacity:.7"/>';
+    const pts=(arr,Y)=>arr.slice(0,m+1).map((v,k)=>X(k).toFixed(1)+','+Y(v).toFixed(1)).join(' ');
+    s+='<polyline points="'+pts(PSI,Yp)+'" style="fill:none;stroke:var(--c-tra);stroke-width:2"/>';
+    s+='<polyline points="'+pts(AUC,Ya)+'" style="fill:none;stroke:var(--c-red);stroke-width:2.5"/>';
+    for(let k=0;k<=m;k++)s+='<circle cx="'+X(k)+'" cy="'+Ya(AUC[k])+'" r="3" style="fill:'+(AUC[k]<.75?'var(--warm)':'var(--c-red)')+'"/>';
+    if(m>=9)s+='<text x="'+X(9)+'" y="'+(Ya(.78)-10)+'" text-anchor="middle" style="fill:var(--ink)">v4</text>';
+    return s;
+  }
+  function pintar(){
+    const st=S[i];
+    $('#c11l2-ring').innerHTML=ring(st.e);
+    $('#c11l2-paso').innerHTML='<span class="et" style="color:var('+ET[st.e][1]+')">'+ET[st.e][0]+' · mes '+st.m+'</span><h4>'+st.t+'</h4><p>'+st.p+'</p><div class="c11l2-art">'+st.a+'</div>';
+    $('#c11l2-vers').innerHTML='<span class="c11l2-v">registro mora-30d:</span>'+(st.v.length?st.v.map(v=>'<span class="c11l2-v '+v[1]+'">'+v[0]+(v[1]==='prod'?' @campeon':v[1]==='ret'?' @retador':v[1]==='fuera'?' retirada':'')+'</span>').join(''):'<span class="c11l2-v">vacío</span>');
+    $('#c11l2-graf').innerHTML=graf(st.m);
+    const R=[
+      'Antes de cualquier código: sin una decisión y una métrica, no hay forma de saber si el modelo sirve.',
+      'La versión de los datos es el primer eslabón del linaje: sin ella, nadie podrá repetir este modelo.',
+      'El registro guarda el modelo junto con todo lo necesario para reconstruirlo.',
+      'Del cuaderno al pipeline: el mismo resultado con cualquier persona y en cualquier mes.',
+      'Desde aquí, cada predicción se puede rastrear hasta la versión, los datos y el código que la hicieron.',
+      'El cambio de modelo se hizo por partes y con reversión escrita: nunca se apostó todo de una vez.',
+      'El PSI ve la deriva de datos en cuanto ocurre. No toda deriva obliga a reentrenar: el AUC sigue en su rango.',
+      'La deriva de concepto no mueve las entradas: solo la etiqueta la revela, y llega tarde. Por eso se vigilan las dos cosas.',
+      'El retador entra solo si gana en datos que ninguno vio, y lo aprueba la dueña del caso, no quien lo entrenó.',
+      'El ciclo se cerró: del dato a la alerta, de la alerta al retador y del retador a producción. MLOps como un ciclo cerrado.'
+    ];
+    $('#c11l2-out').innerHTML='<span>'+R[i]+'</span>';
+    $('#c11l2-ant').disabled=i===0;$('#c11l2-sig').disabled=i===S.length-1;
+  }
+  $('#c11l2-sig').addEventListener('click',()=>{if(i<S.length-1){i++;pintar();}});
+  $('#c11l2-ant').addEventListener('click',()=>{if(i>0){i--;pintar();}});
+  $('#c11l2-ini').addEventListener('click',()=>{i=0;pintar();});
+  pintar();
+})();
+</script>
+</body>
+</html>

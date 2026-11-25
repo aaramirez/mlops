@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Desplegar modelos · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="desplegar-modelos">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 06 DE 11</span><h1>Desplegar modelos: *shadow*, canario y pruebas A/B</h1><p class="lede">La v3 del modelo de mora tiene mejor AUC que la v2 en el conjunto de prueba, y aun así nadie la pone al 100 % un lunes. Este capítulo la lleva a producción por etapas: primero mira sin decidir, después decide para pocos clientes, se reparte al azar cuando hay que medir el efecto en el negocio y, si algo sale mal, vuelve a la v2 en segundos.</p></header>
+<section><div class="prose"><p>La v3 salió del pipeline un martes. Aprendió de meses más recientes de facturas, toma sus variables del <i>feature store</i> del <a href="04-feature-stores.html">capítulo 4</a>, sabe que hay clientes que pagan con la billetera móvil y, en el conjunto de prueba, su AUC es 0,80 frente a 0,79 de la v2: justo la mejora mínima de 0,01 que exige el registro. La tentación es obvia: cambiar la versión en el servicio y listo. El código del servicio ni siquiera cambia; solo cambia el artefacto que carga del registro.</p><p>La gerente de Cobranzas hizo una sola pregunta: «¿Y si se equivoca con mis clientes de siempre?». Nadie supo responderle con datos: el conjunto de prueba es una foto del pasado. Este capítulo es la respuesta: cómo cambiar el modelo que decide sobre 150.000 clientes sin apostarlo todo de una vez.</p></div></section>
+<section><h2>Por qué desplegar un modelo es distinto de desplegar código</h2><div class="analogia"><b>Imagínalo así</b><p>Cambiar el código de un sistema es como cambiar una pieza de un motor: si la pieza está mal, el motor hace ruido o no arranca, y te das cuenta enseguida. Cambiar un modelo es como cambiar al copiloto que lee el mapa. El auto sigue andando, suave y sin ruidos, pero quizá hacia otro lado, y lo descubres cuando ya recorriste muchos kilómetros.</p></div><div class="prose"><p><b>Desplegar</b> (<i>deploy</i>) es poner una versión nueva a funcionar donde la usan las personas y los sistemas. Las prácticas del código sirven también para un modelo, pero hay cuatro diferencias que obligan a ir más despacio.</p><ul><li><b>Falla en silencio.</b> Un servicio con un modelo malo responde 200 en 40 ms, con una probabilidad bien formada y equivocada. Los tableros de errores y latencia quedan en verde.</li><li><b>La verdad llega tarde.</b> Saber si la v3 acertó con un cliente exige esperar a que su factura venza y pasen 30 días. Durante ese tiempo, el modelo ya decidió sobre miles.</li><li><b>El conjunto de prueba es el pasado.</b> El AUC mejor se midió con datos que ya ocurrieron. La billetera, un alza de tarifas o una campaña comercial cambian a los clientes de la semana que viene.</li><li><b>Las decisiones no se deshacen.</b> Si la v3 hace que un agente ofrezca un plan de pago a quien no lo necesitaba, volver a la v2 no recupera esa conversación.</li></ul></div><figure class="fig fig-comparacion" id="06-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 430" style="min-width:680px" role="img" aria-label="Comparación entre desplegar código y desplegar un modelo en seis aspectos: qué cambia, cómo falla, cuándo se nota, qué se prueba antes, qué se vigila y qué significa revertir">
+<text x="20" y="30" class="t t-xs t-b t-m">ASPECTO</text>
+<rect x="190" y="12" width="330" height="30" rx="8" class="caja" style="stroke-dasharray:5 4"/>
+<text x="355" y="32" class="t t-b" text-anchor="middle">Desplegar código</text>
+<rect x="540" y="12" width="340" height="30" rx="8" class="c-red"/>
+<text x="710" y="32" class="t t-b k-red" text-anchor="middle">Desplegar un modelo</text>
+<line x1="20" y1="56" x2="880" y2="56" class="ln" style="stroke-width:.8"/>
+<text x="20" y="82" class="t t-b">Qué cambia</text>
+<text x="200" y="76" class="t" style="font-size:12px">líneas de código que se leen</text>
+<text x="200" y="93" class="t t-m" style="font-size:12px">en una revisión</text>
+<text x="550" y="76" class="t" style="font-size:12px">miles de números aprendidos de los datos;</text>
+<text x="550" y="93" class="t t-m" style="font-size:12px">el código que lo llama puede ser idéntico</text>
+<line x1="20" y1="108" x2="880" y2="108" class="ln" style="stroke-width:.8"/>
+<text x="20" y="134" class="t t-b">Cómo falla</text>
+<text x="200" y="128" class="t" style="font-size:12px">con ruido: errores 500,</text>
+<text x="200" y="145" class="t t-m" style="font-size:12px">excepciones, pantallas en blanco</text>
+<text x="550" y="128" class="t" style="font-size:12px">en silencio: responde 200 en 40 ms</text>
+<text x="550" y="145" class="t t-m" style="font-size:12px">con una probabilidad equivocada</text>
+<line x1="20" y1="160" x2="880" y2="160" class="ln" style="stroke-width:.8"/>
+<text x="20" y="186" class="t t-b">Cuándo se nota</text>
+<text x="200" y="180" class="t" style="font-size:12px">en minutos, en los tableros</text>
+<text x="200" y="197" class="t t-m" style="font-size:12px">de errores y latencia</text>
+<text x="550" y="180" class="t" style="font-size:12px">semanas después: la mora real se sabe</text>
+<text x="550" y="197" class="t t-m" style="font-size:12px">30 días después del vencimiento</text>
+<line x1="20" y1="212" x2="880" y2="212" class="ln" style="stroke-width:.8"/>
+<text x="20" y="238" class="t t-b">Qué se prueba</text>
+<text x="200" y="232" class="t" style="font-size:12px">pruebas unitarias e integración:</text>
+<text x="200" y="249" class="t t-m" style="font-size:12px">la respuesta correcta es una sola</text>
+<text x="550" y="232" class="t" style="font-size:12px">métricas contra la versión actual, por segmento,</text>
+<text x="550" y="249" class="t t-m" style="font-size:12px">sobre datos que ninguna de las dos vio</text>
+<line x1="20" y1="264" x2="880" y2="264" class="ln" style="stroke-width:.8"/>
+<text x="20" y="290" class="t t-b">Qué se vigila</text>
+<text x="200" y="284" class="t" style="font-size:12px">errores, latencia, saturación</text>
+<text x="550" y="284" class="t" style="font-size:12px">lo mismo, más la distribución de los puntajes,</text>
+<text x="550" y="301" class="t t-m" style="font-size:12px">los clientes marcados y las señales tempranas</text>
+<line x1="20" y1="316" x2="880" y2="316" class="ln" style="stroke-width:.8"/>
+<text x="20" y="342" class="t t-b">Revertir</text>
+<text x="200" y="336" class="t" style="font-size:12px">volver al artefacto anterior</text>
+<text x="200" y="353" class="t t-m" style="font-size:12px">y el problema desaparece</text>
+<text x="550" y="336" class="t" style="font-size:12px">volver a la versión anterior, pero las decisiones</text>
+<text x="550" y="353" class="t t-m" style="font-size:12px">ya tomadas (llamadas, ofertas) no se deshacen</text>
+<line x1="20" y1="368" x2="880" y2="368" class="ln" style="stroke-width:.8"/>
+<text x="450" y="398" class="t t-s t-m" text-anchor="middle">Por eso un modelo se despliega por etapas: primero mira sin decidir (sombra), después decide para pocos (canario)</text>
+<text x="450" y="416" class="t t-s t-m" text-anchor="middle">y, si hace falta medir el efecto en el negocio, se reparte al azar (prueba A/B).</text>
+</svg></div><figcaption><b>Desplegar código frente a desplegar un modelo.</b> Cada fila es un aspecto, y las dos columnas comparan qué pasa con un cambio de código (izquierda, recuadro punteado) y con un cambio de modelo (derecha, con el color de la etapa de servir y desplegar). Lee las filas de arriba abajo: cambia algo que no se lee en una revisión, falla sin ruido, se nota semanas después y se prueba contra la versión actual. La nota de abajo resume las tres herramientas del capítulo.</figcaption></figure><div class="prose"><p>Por eso un modelo se despliega por etapas, y cada etapa responde una pregunta distinta. El <b>modo sombra</b> pregunta si la versión nueva funciona y se parece a la anterior sin dejarla decidir. El <b>canario</b> pregunta si se porta bien cuando decide para unos pocos. La <b>prueba A/B</b> pregunta si mejora el negocio, con un reparto al azar y una métrica fijada de antemano. Las tres se apoyan en dos piezas que ya tienes: el registro de modelos del <a href="02-versionar.html">capítulo 2</a>, que guarda cada versión, y la versión que el servicio del <a href="05-servir-modelos.html">capítulo 5</a> devuelve en cada respuesta.</p></div></section>
+<section><h2>Modo sombra (<i>shadow</i>): el modelo nuevo predice sin decidir</h2><div class="analogia"><b>Imagínalo así</b><p>Un médico residente acompaña al médico de planta en la ronda. Revisa a cada paciente, anota su diagnóstico y su tratamiento, pero quien decide es el de planta. Al final de la semana comparan las notas: dónde coincidieron, dónde no y quién tenía razón. Nadie arriesgó a un paciente para saber si el residente estaba listo.</p></div><div class="prose"><p>En el <b>modo sombra</b> (<i>shadow mode</i>, también <i>shadow deployment</i>), la v3 recibe una copia de cada petición real y predice, pero su respuesta no llega a nadie: solo se guarda. Quien decide sigue siendo la v2. El servicio manda la petición a las dos versiones, devuelve al CRM la de la v2 y escribe las dos en el registro de predicciones.</p></div><figure class="fig fig-flujo" id="06-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 470" style="min-width:720px" role="img" aria-label="Diagrama de secuencia de una predicción con la v3 en sombra: el CRM pide el riesgo del cliente; el servicio decide por el hash del cliente que le toca la v2; la v2 predice y su respuesta vuelve al CRM; en paralelo, la v3 recibe una copia y predice sin que nadie use su respuesta; el registro guarda las dos predicciones">
+<defs>
+<marker id="c6d2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c6d2-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+<marker id="c6d2-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<rect x="20" y="16" width="120" height="44" rx="8" class="caja"/>
+<text x="80" y="36" class="t t-b" text-anchor="middle">CRM</text><text x="80" y="52" class="t t-s t-m" text-anchor="middle">ficha del cliente</text>
+<rect x="180" y="16" width="150" height="44" rx="8" class="c-red"/>
+<text x="255" y="36" class="t t-b" text-anchor="middle">Servicio de mora</text><text x="255" y="52" class="t t-s t-m" text-anchor="middle">/v1/predecir</text>
+<rect x="370" y="16" width="130" height="44" rx="8" class="c-red"/>
+<text x="435" y="36" class="t t-b" text-anchor="middle">v2</text><text x="435" y="52" class="t t-s t-m" text-anchor="middle">campeona: decide</text>
+<rect x="540" y="16" width="130" height="44" rx="8" class="caja" style="stroke:var(--warm);stroke-width:2;stroke-dasharray:5 3"/>
+<text x="605" y="36" class="t t-b" text-anchor="middle">v3</text><text x="605" y="52" class="t t-s t-m" text-anchor="middle">en sombra: mira</text>
+<rect x="710" y="16" width="170" height="44" rx="8" class="c-tra"/>
+<text x="795" y="36" class="t t-b" text-anchor="middle">Registro</text><text x="795" y="52" class="t t-s t-m" text-anchor="middle">de predicciones</text>
+<line x1="80" y1="60" x2="80" y2="420" class="vida"/><line x1="255" y1="60" x2="255" y2="420" class="vida"/>
+<line x1="435" y1="60" x2="435" y2="420" class="vida"/><line x1="605" y1="60" x2="605" y2="420" class="vida"/><line x1="795" y1="60" x2="795" y2="420" class="vida"/>
+<path d="M80 96 H251" class="ln s-red" style="stroke-width:2" marker-end="url(#c6d2-r)"/>
+<text x="90" y="88" class="t t-s">① POST cliente_id=20417</text>
+<rect x="190" y="112" width="130" height="34" rx="6" class="caja"/>
+<text x="255" y="127" class="t t-s" text-anchor="middle">② hash(20417) → 63,1</text><text x="255" y="141" class="t t-s t-m" text-anchor="middle">¿&lt; 5 %? no: grupo v2</text>
+<path d="M255 172 H431" class="ln s-red" style="stroke-width:2" marker-end="url(#c6d2-r)"/>
+<text x="265" y="165" class="t t-s">③ variables validadas</text>
+<path d="M435 200 H259" class="ln s-red" style="stroke-width:2" marker-end="url(#c6d2-r)"/>
+<text x="300" y="193" class="t t-s">p = 0,31</text>
+<path d="M255 232 H601" class="ln s-warm" style="stroke-width:2;stroke-dasharray:6 4" marker-end="url(#c6d2-w)"/>
+<text x="460" y="225" class="t t-s k-warm">④ copia (no se espera)</text>
+<path d="M255 262 H84" class="ln s-red" style="stroke-width:2" marker-end="url(#c6d2-r)"/>
+<text x="92" y="255" class="t t-s">⑤ p = 0,31 · mora-v2</text>
+<path d="M605 292 H791" class="ln s-warm" style="stroke-width:2;stroke-dasharray:6 4" marker-end="url(#c6d2-w)"/>
+<text x="615" y="285" class="t t-s k-warm">⑥ p = 0,44 · mora-v3</text>
+<path d="M255 330 H791" class="ln s-tra" style="stroke-width:2" marker-end="url(#c6d2-m)"/>
+<text x="470" y="323" class="t t-s">⑦ {cliente, v2: 0,31, v3: 0,44, decide: v2}</text>
+<rect x="20" y="360" width="860" height="58" rx="8" class="caja" style="stroke-dasharray:4 4"/>
+<text x="34" y="382" class="t t-s"><tspan class="t-b">Camino que decide</tspan> (línea continua): ①②③⑤, lo único que ve el agente. Si la v3 se cae o tarda, el CRM ni se entera.</text>
+<text x="34" y="402" class="t t-s"><tspan class="t-b k-warm">Camino en sombra</tspan> (punteado): ④⑥, en paralelo. Con el canario, el paso ② manda a la v3 al 5 % de los clientes y su respuesta sí decide.</text>
+<text x="450" y="448" class="t t-s t-m" text-anchor="middle">El registro con las dos predicciones del mismo cliente es lo que permite comparar las versiones sin arriesgar nada.</text>
+</svg></div><figcaption><b>Una predicción con la v3 en sombra.</b> Los participantes están arriba y el tiempo corre hacia abajo. ① El CRM pide el riesgo del cliente 20417; ② el servicio calcula el hash del cliente y decide su grupo (con la v3 en sombra, todos van a la v2); ③ la v2 recibe las variables validadas y responde 0,31; ④ en paralelo, la v3 recibe una copia, sin que el servicio la espere; ⑤ el CRM recibe 0,31 con la versión <code>mora-v2</code>; ⑥ la v3 responde 0,44, que va directo al registro; ⑦ el registro guarda las dos predicciones del mismo cliente. Las flechas continuas son el camino que decide; las punteadas, el camino en sombra.</figcaption></figure><div class="prose"><p>Tres detalles separan una sombra útil de una que hace daño:</p><ol class="steps"><li><span><b>La sombra no espera.</b> La copia se manda en paralelo o por una cola, y el servicio responde sin esperar a la v3. Si la v3 se cae o tarda 2 segundos, el agente no lo nota.</span></li><li><span><b>La sombra no actúa.</b> Si el modelo, además de predecir, dispara algo (un correo, una tarea en Cobranzas, un descuento), en sombra ese efecto se apaga. Un modelo en sombra que manda correos de verdad ya no está en sombra.</span></li><li><span><b>La sombra cuesta.</b> Cada petición se calcula dos veces. Con un modelo de mora barato no importa; con un modelo grande en GPU, la sombra duplica la factura mientras dure, y por eso se le pone fecha de fin.</span></li></ol><p>Con dos predicciones por cliente, el equipo compara lo que no necesita esperar la mora: la <b>distribución de los puntajes</b> (si la v3 marca de pronto el triple de clientes en riesgo alto, algo cambió), el <b>acuerdo</b> en la lista de los más riesgosos, los <b>casos de desacuerdo</b> (¿tienen sentido de negocio?) y la latencia y los errores con tráfico real.</p><p>Lo que la sombra no puede decir es qué habría pasado si la v3 hubiera decidido. Para eso hace falta que decida de verdad, aunque sea para pocos.</p></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>La v3 en sombra y en canario junto a la v2</h3></div><p>Vas a entrenar una v2 con el mes 0 y una v3 con los meses 2 a 4, repartir los 20.000 clientes del mes 5 con un canario por hash y comparar las dos versiones en sombra. Trabaja en la carpeta <code>mora-30d</code> del capítulo 1, con el entorno activado: el programa importa <code>generar_datos.py</code> y no necesita nada más que scikit-learn y pandas. Guárdalo como <code>sombra_canario.py</code>:</p><div class="code-copia"><pre><code>"""La v3 en sombra y en canario junto a la v2, con los clientes sintéticos del curso."""
+import hashlib, sys, time
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from generar_datos import generar
+
+CANARIO = float(sys.argv[1]) if len(sys.argv) &gt; 1 else 5.0   # % de clientes que decide la v3
+NUM = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
+       "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
+
+def receta(algoritmo):
+    columnas = ColumnTransformer([("num", StandardScaler(), NUM),
+                                  ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
+    return make_pipeline(columnas, algoritmo)
+
+# v2: la campeona, entrenada con el mes 0 (todavía no existía la billetera)
+mes0 = generar(0, 20000, 42)
+v2 = receta(LogisticRegression(max_iter=2000)).fit(mes0, mes0.mora_30d)
+# v3: la retadora, entrenada con los meses 2 a 4 (ya aparece la billetera)
+recientes = pd.concat([generar(m, 20000, 42) for m in (2, 3, 4)])
+v3 = receta(RandomForestClassifier(n_estimators=200, min_samples_leaf=50, random_state=42)).fit(recientes, recientes.mora_30d)
+
+def decide_v3(cliente_id, porcentaje):
+    """Canario por hash: el mismo cliente cae siempre en el mismo grupo."""
+    h = int(hashlib.sha256(f"canario-mora-v3:{cliente_id}".encode()).hexdigest(), 16)
+    return (h % 10000) / 100 &lt; porcentaje
+
+hoy = generar(5, 20000, 42)                                  # los clientes del mes 5
+t = time.perf_counter(); p2 = v2.predict_proba(hoy)[:, 1]; t2 = time.perf_counter() - t
+t = time.perf_counter(); p3 = v3.predict_proba(hoy)[:, 1]; t3 = time.perf_counter() - t
+grupo = ["v3" if decide_v3(c, CANARIO) else "v2" for c in hoy.cliente_id]
+# Sombra: se guardan las DOS predicciones de cada cliente; solo la de su grupo decide
+log = pd.DataFrame({"cliente_id": hoy.cliente_id, "grupo": grupo, "p_v2": p2, "p_v3": p3,
+                    "metodo_pago": hoy.metodo_pago, "mora_30d": hoy.mora_30d})
+
+lista2, lista3 = log.p_v2 &gt;= 0.30, log.p_v3 &gt;= 0.30          # el umbral de la lista
+print(f"Canario pedido {CANARIO}%: decide la v3 en {100 * (log.grupo == 'v3').mean():.1f}% de los clientes")
+print(f"El cliente 100245 cae en el mismo grupo dos veces: {decide_v3(100245, CANARIO) == decide_v3(100245, CANARIO)}")
+print("--- Sombra: las dos versiones sobre los mismos 20.000 clientes ---")
+print(f"Clientes en la lista         v2 {lista2.sum():&gt;5}   v3 {lista3.sum():&gt;5}")
+print(f"Coinciden en la decisión     {100 * (lista2 == lista3).mean():.1f}% de los clientes")
+bill = log.metodo_pago == "billetera"
+print(f"Puntaje medio con billetera  v2 {log.p_v2[bill].mean():.3f}   v3 {log.p_v3[bill].mean():.3f}")
+print(f"Tiempo para 20.000 clientes  v2 {1000 * t2:.0f} ms   v3 {1000 * t3:.0f} ms")
+print("--- Lo que se sabrá dentro de 45 días (aquí ya lo sabemos: los datos son sintéticos) ---")
+print(f"AUC                          v2 {roc_auc_score(log.mora_30d, log.p_v2):.3f}   v3 {roc_auc_score(log.mora_30d, log.p_v3):.3f}")
+print(f"Mora real en la lista        v2 {log.mora_30d[lista2].mean():.1%}   v3 {log.mora_30d[lista3].mean():.1%}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python sombra_canario.py 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python sombra_canario.py 25</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 sombra_canario.py 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 sombra_canario.py 25</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Compara el porcentaje pedido con el real en las dos corridas.</span></li><li><span>Mira cuántos clientes pone cada versión en la lista, cuánto coinciden y el puntaje de los clientes con billetera.</span></li><li><span>Compara el tiempo y, al final, el AUC de las dos.</span></li></ol><p><b>Qué observar:</b> el reparto por hash da un porcentaje cercano al pedido, no exacto, y el mismo cliente cae siempre en el mismo grupo. Las dos versiones coinciden en casi el 99 % de las decisiones; la v3 da más riesgo a los clientes con billetera, que la v2 nunca vio (su codificador los trata como si no tuvieran método de pago). El bosque de la v3 tarda bastante más que la regresión de la v2: un dato que la sombra entrega antes de que lo sufra un agente. Y la sorpresa: en el mes 5 la v3 no tiene mejor AUC que la v2, porque antes del mes 6 el mundo cambió poco. La sombra también sirve para eso: descubrir, sin arriesgar a ningún cliente, que la versión nueva no vale el cambio todavía.</p></div></section>
+<section><h2>Canario: un poco de tráfico y vigilar</h2><div class="analogia"><b>Imagínalo así</b><p>Los mineros bajaban con un canario en una jaula. El pájaro es más sensible que las personas a los gases de la mina: si dejaba de cantar, todos salían. Un canario de software es lo mismo, al revés: una parte pequeña de los clientes recibe la versión nueva, y si algo sale mal, lo sufren pocos y todos los demás siguen a salvo.</p></div><div class="prose"><p>En un <b>despliegue canario</b> (<i>canary release</i>), la v3 decide de verdad para un porcentaje pequeño de los clientes, por ejemplo el 5 %, mientras la v2 sigue con el resto. Si las señales se mantienen bien durante unos días, el porcentaje sube a 25 %, a 50 % y a 100 %. Si alguna se rompe, el tráfico vuelve a la v2. El canario genérico para cualquier servicio, con su reversión por errores, está en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>; aquí importa lo que cambia cuando lo que se despliega es un modelo.</p><p><b>El reparto es por cliente, no por petición.</b> Si cada petición se sorteara por separado, el mismo cliente vería un riesgo de 0,31 a las 10 y de 0,44 a las 11, según qué versión le tocó. Por eso el servicio calcula un <b>hash</b> (<i>hash</i>, resumen numérico) del identificador del cliente y una etiqueta del experimento, lo lleva a un número de 0 a 99,99 y manda a la v3 a quienes caen bajo el porcentaje. El mismo cliente cae siempre en el mismo grupo, y al subir de 5 % a 25 % los del 5 % siguen dentro. Como el hash se ve aleatorio, los grupos se parecen entre sí en todo lo demás.</p><p><b>Las señales son técnicas y del modelo.</b> Las técnicas son las de siempre: errores, latencia p95, uso de las réplicas. Las del modelo son las que vigila la sombra, ahora con decisiones reales: la distribución de los puntajes, el porcentaje de clientes marcados en riesgo alto y una <b>señal temprana</b> de acierto. Como la mora a 30 días tarda, el equipo usa la <b>precisión temprana</b>: de los clientes que el modelo marcó, qué parte seguía sin pagar 7 días después del vencimiento. No es la métrica final, pero llega a tiempo para revertir.</p><p><b>Las reglas se escriben antes.</b> Cuánto dura cada peldaño, qué señal hace subir y cuál hace volver se decide antes de empezar, no mirando el tablero. Por ejemplo: «se revierte si la precisión temprana de la v3 queda claramente por debajo de la de la v2, con al menos 30 clientes marcados».</p></div><div class="lab" id="06-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Un canario para la v3</h3></div><p class="hint">Elige qué trae de verdad la v3 (en la vida real no lo sabes), el porcentaje de tráfico y avanza día por día. La línea gris es la precisión temprana de la v2; la azul, la de la v3 con su banda de incertidumbre. Empieza con 1 % y mira cuánto tarda en decir algo; repite con 25 %. Prueba la reversión automática con «v3 falla con clientes nuevos» y mira cuántas decisiones malas costó detectarlo.</p><style>
+[id="06-lab-1"] .c6l1-g{display:grid;gap:4px}
+[id="06-lab-1"] .c6l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="06-lab-1"] .c6l1-chk{display:flex;align-items:center;gap:8px;font:500 .86rem var(--f-display)}
+[id="06-lab-1"] .c6l1-est{font:700 1rem var(--f-display);padding:8px 12px;border-radius:8px;border:2px solid var(--line)}
+[id="06-lab-1"] .c6l1-est.ok{border-color:var(--good);color:var(--good);background:var(--good-soft)}
+[id="06-lab-1"] .c6l1-est.no{border-color:var(--warm);color:var(--warm);background:var(--warm-soft)}
+[id="06-lab-1"] .c6l1-est.duda{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+</style>
+<div class="c6l1-g"><span>Qué trae de verdad el modelo nuevo (en la vida real no lo sabes)</span>
+<div class="btns" role="group" aria-label="Escenario del modelo nuevo">
+  <button type="button" data-esc="bueno" aria-pressed="false">v3 acierta más</button>
+  <button type="button" data-esc="igual" aria-pressed="false">v3 acierta igual</button>
+  <button type="button" data-esc="malo" aria-pressed="true">v3 falla con clientes nuevos</button>
+</div></div>
+<div class="c6l1-g"><span>Tráfico que va a la v3 desde hoy</span>
+<div class="btns" role="group" aria-label="Porcentaje de tráfico al modelo nuevo">
+  <button type="button" data-p="1" aria-pressed="true">1 %</button>
+  <button type="button" data-p="5" aria-pressed="false">5 %</button>
+  <button type="button" data-p="25" aria-pressed="false">25 %</button>
+  <button type="button" data-p="50" aria-pressed="false">50 %</button>
+  <button type="button" data-p="100" aria-pressed="false">100 %</button>
+</div></div>
+<label class="c6l1-chk"><input type="checkbox" id="c6l1-auto" checked> Reversión automática si la v3 queda claramente por debajo</label>
+<div class="btns">
+  <button type="button" class="primary" id="c6l1-dia">Avanzar un día</button>
+  <button type="button" id="c6l1-sem">Avanzar 7 días</button>
+  <button type="button" id="c6l1-rev">Revertir ahora</button>
+  <button type="button" id="c6l1-ini">Empezar de nuevo</button>
+</div>
+<canvas id="c6l1-c" role="img" aria-label="Precisión temprana acumulada de la versión actual y de la nueva, con la banda de incertidumbre de la nueva, y el tráfico de cada día en barras"></canvas>
+<div class="legend"><span><i style="background:var(--muted)"></i>v2, la versión actual</span><span><i style="background:var(--accent)"></i>v3 en canario (banda: margen del 95 %)</span><span><i style="background:var(--warm)"></i>tráfico de cada día a la v3</span></div>
+<div class="c6l1-est" id="c6l1-est" aria-live="polite"></div>
+<div class="readout texto" id="c6l1-out" aria-live="polite"></div></div><div class="prose"><p>El laboratorio muestra el dilema del canario: con poco tráfico, pocos clientes sufren una versión mala, pero pasan semanas sin poder distinguir nada; con mucho, la respuesta llega en días, pero más clientes reciben decisiones de una versión que no conoces. La escalera es el compromiso: empezar chico para atrapar lo grave y subir para medir lo fino.</p></div><figure class="fig fig-esquema" id="06-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 400" style="min-width:720px" role="img" aria-label="La escalera de despliegue de la v3: del registro pasa por la compuerta de la integración continua, el modo sombra, el canario al 5, 25 y 50 por ciento y llega al 100 por ciento como campeona; cada peldaño tiene su criterio para subir, y desde cualquier peldaño una flecha roja vuelve a la v2, que sigue encendida">
+<defs>
+<marker id="c6d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c6d3-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<rect x="20" y="236" width="118" height="54" rx="8" class="c-enl"/>
+<text x="79" y="258" class="t t-b" text-anchor="middle">Registro</text><text x="79" y="276" class="t t-s t-m" text-anchor="middle">v3 candidata</text>
+<rect x="160" y="206" width="118" height="54" rx="8" class="c-enl"/>
+<text x="219" y="228" class="t t-b" text-anchor="middle">Compuerta</text><text x="219" y="246" class="t t-s t-m" text-anchor="middle">CI: pruebas y AUC</text>
+<rect x="300" y="176" width="118" height="54" rx="8" class="caja" style="stroke:var(--warm);stroke-width:2;stroke-dasharray:5 3"/>
+<text x="359" y="198" class="t t-b" text-anchor="middle">Sombra</text><text x="359" y="216" class="t t-s t-m" text-anchor="middle">0 % decide</text>
+<rect x="440" y="146" width="100" height="54" rx="8" class="c-red"/>
+<text x="490" y="168" class="t t-b" text-anchor="middle">Canario</text><text x="490" y="186" class="t t-s t-m" text-anchor="middle">5 %</text>
+<rect x="560" y="116" width="100" height="54" rx="8" class="c-red"/>
+<text x="610" y="138" class="t t-b" text-anchor="middle">Canario</text><text x="610" y="156" class="t t-s t-m" text-anchor="middle">25 %</text>
+<rect x="680" y="86" width="90" height="54" rx="8" class="c-red"/>
+<text x="725" y="108" class="t t-b" text-anchor="middle">Mitad</text><text x="725" y="126" class="t t-s t-m" text-anchor="middle">50 %</text>
+<rect x="790" y="56" width="92" height="54" rx="8" class="c-red" style="stroke-width:2.5"/>
+<text x="836" y="78" class="t t-b" text-anchor="middle">Campeona</text><text x="836" y="96" class="t t-s t-m" text-anchor="middle">100 %</text>
+<path d="M138 252 H157" class="ln" marker-end="url(#c6d3-m)"/><path d="M278 222 H297" class="ln" marker-end="url(#c6d3-m)"/>
+<path d="M418 192 H437" class="ln" marker-end="url(#c6d3-m)"/><path d="M540 162 H557" class="ln" marker-end="url(#c6d3-m)"/>
+<path d="M660 132 H677" class="ln" marker-end="url(#c6d3-m)"/><path d="M770 102 H787" class="ln" marker-end="url(#c6d3-m)"/>
+<text x="20" y="30" class="t t-xs t-b t-m">PARA SUBIR UN PELDAÑO</text>
+<text x="20" y="50" class="t t-s">Sombra: 1 a 2 semanas, puntajes razonables, acuerdo con la v2, latencia p95 &lt; 150 ms.</text>
+<text x="20" y="68" class="t t-s">Canario: sin errores, % de clientes marcados parecido y precisión temprana no peor.</text>
+<text x="20" y="86" class="t t-s">Cada peldaño dura al menos unos días: lo justo para que el margen de error se achique.</text>
+<rect x="250" y="320" width="400" height="50" rx="8" class="c-red" style="stroke-dasharray:5 3"/>
+<text x="450" y="341" class="t t-b" text-anchor="middle">v2 sigue encendida y cargada</text>
+<text x="450" y="359" class="t t-s t-m" text-anchor="middle">una etiqueta del registro anota que es la versión de vuelta</text>
+<path d="M359 230 V316" class="ln s-warm" style="stroke-width:2" marker-end="url(#c6d3-w)"/>
+<path d="M490 200 V280 H470 V316" class="ln s-warm" style="stroke-width:2" marker-end="url(#c6d3-w)"/>
+<path d="M610 170 V290 H560 V316" class="ln s-warm" style="stroke-width:2" marker-end="url(#c6d3-w)"/>
+<path d="M725 140 V300 H630 V316" class="ln s-warm" style="stroke-width:2" marker-end="url(#c6d3-w)"/>
+<text x="740" y="230" class="t t-s t-b k-warm">revertir: un cambio</text>
+<text x="740" y="246" class="t t-s t-b k-warm">de configuración, en</text>
+<text x="740" y="262" class="t t-s t-b k-warm">segundos, sin reentrenar</text>
+<text x="450" y="392" class="t t-s t-m" text-anchor="middle">La v2 se apaga recién cuando la v3 lleva semanas de campeona; se retira en el capítulo 8.</text>
+</svg></div><figcaption><b>La escalera de despliegue de la v3.</b> De izquierda a derecha y de abajo arriba: la v3 sale del registro con el alias <code>candidata</code> (con el color de la etapa de entrenar), pasa la compuerta de la integración continua, entra en sombra (punteado: no decide) y sube por el canario al 5 %, 25 % y 50 % hasta el 100 %, donde se vuelve la campeona (con el color de servir y desplegar). Arriba, lo que pide cada peldaño para subir. Abajo, la v2 sigue encendida y lista; las flechas de reversión vuelven a ella desde cualquier peldaño con un cambio de configuración.</figcaption></figure></section>
+<section><h2>Pruebas A/B y bandidos multibrazo</h2><div class="analogia"><b>Imagínalo así</b><p>Para saber si un fertilizante nuevo funciona, un agricultor no lo echa en la mitad del campo que da al sol y compara con la mitad de la sombra: la diferencia sería el sol, no el fertilizante. Sortea las parcelas, pone el fertilizante en la mitad sorteada y espera la cosecha. Y antes de sembrar, calcula cuántas parcelas necesita para que una diferencia pequeña no se confunda con la suerte.</p></div><div class="prose"><p>El canario dice si la v3 es segura. No dice cuánto mejora el negocio, porque se apura a subir y sus grupos cambian de tamaño cada pocos días. Para medir el efecto se usa una <b>prueba A/B</b> (<i>A/B test</i>, también <i>experimento controlado aleatorio</i>): los clientes se reparten al azar, por el mismo hash, entre la v2 (grupo A, el de control) y la v3 (grupo B) durante un tiempo fijo, y al final se compara una <b>métrica decidida de antemano</b>. Para el modelo de mora, la métrica de negocio es la tasa de mora a 30 días de cada grupo: la v3 solo vale la pena si hace que se ofrezcan planes de pago a quienes de verdad los necesitan y la mora baja.</p><p>La pregunta que todos hacen tarde es: ¿cuántos clientes hacen falta? Depende de cuatro números:</p><ul><li>la <b>tasa base</b>: con la v2, la mora a 30 días es del 8 %;</li><li>el <b>efecto mínimo detectable</b> (<i>minimum detectable effect</i>): la mejora más pequeña que te importa ver, por ejemplo bajar a 7 %;</li><li>el <b>nivel de significancia</b> (<i>significance level</i>), la probabilidad que aceptas de declarar una mejora que no existe; casi siempre 5 %;</li><li>la <b>potencia</b> (<i>power</i>), la probabilidad de ver la mejora si de verdad existe; casi siempre 80 %.</li></ul><p>Con esos números, la fórmula clásica para comparar dos proporciones da unos 10.900 clientes por grupo. A 5.000 clientes por día, el reparto se completa en 5 días, y después hay que esperar 30 días más a que se sepa la mora. Como el número crece con el cuadrado de la diferencia, ver una mejora de solo 0,2 puntos exigiría unos 285.000 clientes por grupo: casi cuatro meses. La teoría de las pruebas de hipótesis detrás de la fórmula está en <a href="https://aaramirez.github.io/mate-inferencia/temario.html" target="_blank" rel="noopener">Inferencia estadística</a>.</p></div><div class="lab" id="06-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Una prueba A/B: cuántos clientes hacen falta</h3></div><p class="hint">Mueve la tasa base, la mejora que quieres ver y los clientes que entran por día, y mira cuántos clientes y días exige la prueba. Después simula 20 experimentos en los que la v3 sí mejora justo esa cantidad: con los clientes calculados, unos 16 de 20 la detectan; con la mitad, la mayoría «no encuentra diferencia» aunque la diferencia existe.</p><style>
+[id="06-lab-2"] .c6l2-g{display:grid;gap:4px}
+[id="06-lab-2"] .c6l2-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="06-lab-2"] .c6l2-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}
+[id="06-lab-2"] .c6l2-kpi div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper)}
+[id="06-lab-2"] .c6l2-kpi small{display:block;font:600 .72rem var(--f-display);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+[id="06-lab-2"] .c6l2-kpi b{font:700 1.15rem var(--f-mono);color:var(--accent)}
+</style>
+<div class="ctls">
+  <label class="ctl">Mora a 30 días con la v2 (tasa base) <output id="c6l2-base-o"></output>
+    <input id="c6l2-base" type="range" min="2" max="20" step="0.5" value="8"></label>
+  <label class="ctl">Mejora mínima que quieres poder ver <output id="c6l2-ef-o"></output>
+    <input id="c6l2-ef" type="range" min="0.2" max="4" step="0.1" value="1"></label>
+  <label class="ctl">Clientes que entran al experimento por día <output id="c6l2-dia-o"></output>
+    <input id="c6l2-dia" type="range" min="500" max="10000" step="500" value="5000"></label>
+</div>
+<div class="c6l2-g"><span>Potencia: probabilidad de ver la mejora si de verdad existe</span>
+<div class="btns" role="group" aria-label="Potencia">
+  <button type="button" data-pot="0.7" aria-pressed="false">70 %</button>
+  <button type="button" data-pot="0.8" aria-pressed="true">80 %</button>
+  <button type="button" data-pot="0.9" aria-pressed="false">90 %</button>
+</div></div>
+<div class="c6l2-kpi" aria-live="polite">
+  <div><small>Clientes por grupo</small><b id="c6l2-n">–</b></div>
+  <div><small>Total en el experimento</small><b id="c6l2-tot">–</b></div>
+  <div><small>Días para reunirlos</small><b id="c6l2-d">–</b></div>
+  <div><small>Días hasta tener la respuesta</small><b id="c6l2-dr">–</b></div>
+</div>
+<div class="c6l2-g"><span>Simula 20 experimentos en los que la v3 sí mejora justo esa cantidad</span>
+<div class="btns" role="group" aria-label="Tamaño de la simulación">
+  <button type="button" data-f="0.25" aria-pressed="false">¼ de los clientes</button>
+  <button type="button" data-f="0.5" aria-pressed="false">la mitad</button>
+  <button type="button" data-f="1" aria-pressed="true">los calculados</button>
+  <button type="button" data-f="2" aria-pressed="false">el doble</button>
+  <button type="button" class="primary" id="c6l2-sim">Simular otra vez</button>
+</div></div>
+<canvas id="c6l2-c" role="img" aria-label="Veinte experimentos simulados: la diferencia de mora medida en cada uno con su intervalo de confianza; en verde los que detectan la mejora"></canvas>
+<div class="legend"><span><i style="background:var(--good)"></i>detecta la mejora (intervalo no toca el cero)</span><span><i style="background:var(--muted)"></i>no concluye nada</span><span><i style="background:var(--accent)"></i>la mejora verdadera</span></div>
+<div class="readout texto" id="c6l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Calcula el tamaño de la prueba A/B</h3></div><p>Con la biblioteca estándar de Python vas a calcular cuántos clientes por grupo exige cada mejora. No hace falta instalar nada. Guarda este programa como <code>tamano_ab.py</code>:</p><div class="code-copia"><pre><code>from statistics import NormalDist
+import sys
+
+def clientes_por_grupo(p1, p2, alfa=0.05, potencia=0.80):
+    z_a = NormalDist().inv_cdf(1 - alfa / 2)     # 1,96 para alfa = 5 %
+    z_b = NormalDist().inv_cdf(potencia)         # 0,84 para potencia = 80 %
+    pm = (p1 + p2) / 2
+    n = (z_a * (2 * pm * (1 - pm)) ** 0.5 + z_b * (p1 * (1 - p1) + p2 * (1 - p2)) ** 0.5) ** 2 / (p1 - p2) ** 2
+    return int(n) + 1
+
+base = float(sys.argv[1]) if len(sys.argv) &gt; 1 else 0.08    # mora a 30 días con la v2
+por_dia = 5000                                                # clientes que entran por día
+for mejora in (0.03, 0.02, 0.01, 0.005, 0.002):
+    n = clientes_por_grupo(base, base - mejora)
+    dias = -(-2 * n // por_dia)
+    print(f"bajar la mora {mejora * 100:.1f} puntos: {n:&gt;9,} por grupo, {dias:&gt;4} días + 30 de espera")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python tamano_ab.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python tamano_ab.py 0.15</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 tamano_ab.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 tamano_ab.py 0.15</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Compara el número para 1 punto con el del laboratorio.</span></li><li><span>Mira cómo crece el número cuando la mejora se reduce a la mitad.</span></li><li><span>Repite con una tasa base de 15 %.</span></li></ol><p><b>Qué observar:</b> para 1 punto salen unos 10.890 clientes por grupo, casi lo mismo que el laboratorio (la diferencia es el redondeo de los valores z). Cuando la mejora se reduce a la mitad, el número se multiplica por cuatro: va con el cuadrado de la diferencia. Con una tasa base más alta hacen falta más clientes para la misma mejora en puntos, porque la variación de una proporción crece hacia el 50 %. Los 30 días de espera no cambian: en un modelo de mora, la etiqueta manda el calendario.</p></div><div class="prose"><p>Dos errores arruinan más pruebas A/B que la falta de clientes: <b>mirar todos los días y parar cuando se ve bien</b> (<i>peeking</i>), porque con suficientes miradas el azar siempre ofrece un día favorable, y <b>cambiar de métrica al final</b>, porque entonces el experimento se vuelve una búsqueda de algo que mostrar.</p><p>Cuando hay muchas variantes y poco que perder, existe una alternativa: los <b>bandidos multibrazo</b> (<i>multi-armed bandits</i>). El nombre viene de las máquinas tragamonedas, «bandidos de un brazo»: frente a varias máquinas, ¿cuánto juegas en cada una para aprender cuál paga más sin perder demasiado mientras aprendes? Un bandido le da más tráfico a la variante que va ganando, con algoritmos como <b>épsilon codicioso</b> (<i>epsilon-greedy</i>) o el <b>muestreo de Thompson</b> (<i>Thompson sampling</i>). Pierde menos mientras experimenta, pero mide peor el efecto y necesita que la recompensa llegue rápido: sirve para elegir el texto de un recordatorio de pago, no para un modelo cuya recompensa tarda 30 días.</p><p>El diseño de pruebas A/B para un asistente con modelos de lenguaje, donde la métrica es una respuesta corregida o un caso resuelto, está en <a href="https://aaramirez.github.io/aplicaciones-con-ia/16-evaluar.html" target="_blank" rel="noopener">Evaluar una aplicación con IA</a>; la versión para un chatbot de cara al cliente, en <a href="https://aaramirez.github.io/chatbots-empresariales/15-pruebas-versiones-y-gobierno.html" target="_blank" rel="noopener">Pruebas, versiones de flujos y gobierno de cambios</a>.</p></div></section>
+<section><h2>Volver a la versión anterior</h2><div class="analogia"><b>Imagínalo así</b><p>Un trapecista nuevo practica con red. No porque vaya a caerse, sino porque la red le permite intentar el salto. Y la red no se arma cuando ya está cayendo: se tiende antes de subir.</p></div><div class="prose"><p><b>Revertir</b> (<i>rollback</i>) es volver a la versión anterior. Con un modelo bien desplegado, revertir es un cambio de configuración que tarda segundos, no un reentrenamiento ni un despliegue nuevo. Eso exige preparar cuatro cosas antes de subir el primer porcentaje:</p><ol class="steps"><li><span><b>La anterior sigue viva.</b> La v2 sigue cargada en sus réplicas durante todo el despliegue de la v3, y unas semanas más. Si hay que construirla de nuevo, ya no es una reversión: es otro despliegue.</span></li><li><span><b>El servicio apunta a un alias, no a un número.</b> Como en el <a href="02-versionar.html">capítulo 2</a>, el servicio carga <code>models:/mora-30d@campeon</code>. Durante el despliegue, la v3 lleva el alias <code>retador</code> y <code>campeon</code> sigue en la v2; al llegar al 100 %, <code>campeon</code> pasa a la v3 y una etiqueta de la versión anota a cuál se vuelve. Revertir es mover el alias de vuelta, como ya practicaste en ese capítulo.</span></li><li><span><b>Las variables siguen siendo compatibles.</b> Si la v3 necesita una categoría o una variable nueva y para eso cambia el esquema de la petición, la v2 tiene que seguir funcionando con el esquema nuevo. Un cambio de variables que rompe a la versión anterior quita la red.</span></li><li><span><b>La regla de reversión está escrita y automatizada.</b> «Si la precisión temprana cae, se revierte» es una intención; un monitor que mueve el tráfico a la v2 sin esperar a que alguien lea un correo es una red.</span></li></ol><p>Revertir no deshace lo hecho. Por eso el registro de predicciones guarda la versión de cada decisión: después de una reversión, el equipo sabe qué clientes decidió la v3 y puede revisarlos con Cobranzas.</p></div></section>
+<section><h2>CI/CD para modelos</h2><div class="prose"><p>La <b>integración continua y entrega continua</b> (<i>continuous integration / continuous delivery</i>, CI/CD) automatiza el camino de un cambio desde el repositorio hasta producción. Sus fundamentos, los ambientes y las herramientas están en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>. En un sistema de aprendizaje automático, el camino tiene más disparadores y más compuertas, porque además del código cambian los datos y el modelo.</p><ul><li><b>La CI prueba más que código.</b> Con cada cambio corren las pruebas unitarias y, además, las pruebas de datos y del modelo del <a href="03-entrenamiento-reproducible.html">capítulo 3</a>: el esquema de las variables, las pruebas direccionales y una <b>compuerta de calidad</b> (<i>quality gate</i>) que compara la candidata con la campeona sobre el mismo conjunto de evaluación. Si la v3 no supera a la v2, no se registra como candidata.</li><li><b>El artefacto que se promueve es el del registro.</b> El pipeline no vuelve a entrenar en cada ambiente: la misma versión del registro, con su linaje, pasa de pruebas a sombra, a canario y a producción. Entrenar dos veces es tener dos modelos.</li><li><b>La CD es la escalera.</b> La entrega continua de un modelo no termina en «desplegado»: termina cuando el alias <code>campeon</code> apunta a la versión nueva después de pasar la sombra y el canario, con cada peldaño automatizado y sus reglas de reversión.</li><li><b>Aparece un disparador nuevo.</b> Además del cambio de código, un modelo puede necesitar entrenarse otra vez porque cambiaron los datos. A eso se le llama <b>entrenamiento continuo</b> (<i>continuous training</i>, CT), y cuándo dispararlo es el tema del <a href="08-reentrenamiento.html">capítulo 8</a>.</li></ul><p>En los niveles de madurez del <a href="01-por-que-falla.html">capítulo 1</a>, este es el último salto: también el camino a producción es un pipeline.</p></div><div class="caso"><b>Un caso real</b><p><b>El modelo mejor que nadie vio fallar.</b> Un equipo de una empresa de servicios cambió de golpe su modelo de riesgo de pago por una versión con mejor AUC en la prueba. La versión nueva usaba una variable de método de pago que en producción llegaba con otro nombre; el servicio la recibía vacía, la completaba con un valor por defecto y respondía sin errores. Durante tres semanas, la lista de cobranza dejó fuera a casi todos los que pagaban con tarjeta, y nadie lo notó hasta que subió la mora del mes. Una semana en sombra habría mostrado el primer día una distribución de puntajes que no se parecía a nada conocido.</p></div><div class="ml"><b>En la práctica</b><p><b>La v3 llega a campeona.</b> La v3 pasó la compuerta de la CI con un AUC de 0,80 frente a 0,79 de la v2 en el mismo conjunto. Estuvo diez días en sombra: la distribución de puntajes subió un poco, como se esperaba por la billetera, el acuerdo en la lista de los más riesgosos fue del 93 % y la latencia p95 pasó de 40 a 55 ms, dentro del límite. Después subió al 5 % del tráfico del CRM y de la lista mensual por tres días, al 25 % por una semana y al 50 % por otra. Una prueba A/B de seis semanas con los clientes de la lista confirmó una baja de la mora de 8,1 % a 7,4 %. El alias <code>campeon</code> apunta hoy a la v3, y una etiqueta del registro anota que la v2 es la versión a la que se vuelve; la v2 sigue cargada como respaldo hasta su retiro, en el capítulo 8.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p><i>Shadow</i> y canario para modelos. Un modelo falla en silencio, su verdad llega tarde y sus decisiones no se deshacen, así que se despliega por etapas: en sombra, predice sin decidir y se compara con la versión actual sobre los mismos clientes; en canario, decide para pocos, repartidos por un hash del cliente, con señales técnicas, del modelo y tempranas, y con reglas escritas antes; en una prueba A/B, con un tamaño calculado y una métrica fijada, mide el efecto en el negocio. Y en todo momento la versión anterior sigue viva y un alias permite volver a ella en segundos.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>Nombra dos razones por las que un modelo malo puede pasar los tableros de errores y latencia sin que nadie lo note.</summary><p>Porque responde 200 rápido con una probabilidad bien formada pero equivocada (falla en silencio), y porque la etiqueta real, la mora, llega 30 días después del vencimiento.</p></details><details><summary>¿Qué puede medir el modo sombra y qué no?</summary><p>Puede medir la distribución de los puntajes, el acuerdo con la versión actual, los casos de desacuerdo, la latencia y los errores con tráfico real. No puede medir el efecto de las decisiones de la versión nueva, porque esas decisiones nunca se toman.</p></details><details><summary>¿Por qué el canario reparte por un hash del cliente y no sorteando cada petición?</summary><p>Para que el mismo cliente reciba siempre la misma versión (no vea dos riesgos distintos en el día), para que al subir el porcentaje los clientes ya incluidos sigan dentro y para que los grupos se parezcan entre sí.</p></details><details><summary>La prueba A/B de la v3 necesitaba 10.900 clientes por grupo, pero se paró con la mitad y «no encontró diferencia». ¿Qué se puede concluir?</summary><p>Casi nada: con la mitad de los clientes, la potencia es baja y la mayoría de los experimentos no detecta una mejora que sí existe. «No hay diferencia significativa» no prueba que no haya diferencia.</p></details><details><summary>¿Qué cuatro cosas hay que preparar para que revertir tome segundos?</summary><p>Que la versión anterior siga cargada, que el servicio cargue un alias (<code>mora-30d@campeon</code>) y no un número de versión, que las variables y el esquema sigan siendo compatibles con la versión anterior, y que la regla de reversión esté escrita y automatizada.</p></details><details><summary>¿Cuándo conviene un bandido multibrazo en lugar de una prueba A/B?</summary><p>Cuando hay varias variantes, la recompensa se conoce rápido y importa más perder poco mientras se aprende que medir con precisión el efecto; por ejemplo, el texto de un recordatorio de pago. No para un modelo cuya etiqueta tarda 30 días.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Qué es la prueba secuencial (<i>sequential testing</i>) y cómo permite mirar los resultados de un experimento cada día sin inflar los falsos positivos?<small>Pista: busca «always valid p-values» o «sequential probability ratio test».</small></li><li>¿Qué es la evaluación fuera de política (<i>off-policy evaluation</i>) y cómo intenta estimar qué habría pasado si otro modelo hubiera decidido?<small>Pista: busca «counterfactual evaluation inverse propensity scoring».</small></li><li>¿Qué es un grupo de control permanente (<i>holdout</i>) y por qué algunas empresas dejan a una parte de los clientes sin ningún modelo durante meses?</li><li>¿Cómo hacen un canario las mallas de servicios (<i>service mesh</i>) como Istio, que reparten el tráfico por porcentaje sin tocar el código del servicio?<small>Pista: busca «Istio traffic shifting» o «weighted routing».</small></li><li>¿Qué es el efecto novedad en una prueba A/B y por qué los primeros días de un experimento pueden engañar?</li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://developers.google.com/machine-learning/guides/rules-of-ml" target="_blank" rel="noopener">Rules of Machine Learning, de Google <small>las reglas sobre lanzar, medir y cambiar modelos, en inglés</small></a><a class="vid" href="https://mlflow.org/docs/latest/ml/model-registry/" target="_blank" rel="noopener">Registro de modelos de MLflow: alias y versiones <small>documentación, en inglés</small></a><a class="vid" href="https://experimentguide.com/" target="_blank" rel="noopener">Trustworthy Online Controlled Experiments, de Kohavi, Tang y Xu <small>el libro de referencia sobre pruebas A/B, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$,tok,canvasWidget}=window.Lab;
+  const root=document.querySelector('[id="06-lab-1"]');
+  const MARCADOS=500;            // clientes que el modelo marca en riesgo cada día
+  const BASE=0.42;               // precisión temprana real de la v2
+  const VERDAD={bueno:0.46,igual:0.42,malo:0.35};
+  const DIAS=14;
+  let esc='malo',p=1,auto=true,dia=0,hist=[],revertido=null,semilla=7;
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  let r=rng(semilla);
+  function binom(n,q){if(n<=60){let k=0;for(let i=0;i<n;i++)if(r()<q)k++;return k;}
+    const u=Math.max(1e-9,r()),v=r();const z=Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+    return Math.max(0,Math.min(n,Math.round(n*q+z*Math.sqrt(n*q*(1-q)))));}
+  function acum(){let nb=0,kb=0,nc=0,kc=0;hist.forEach(h=>{nb+=h.nb;kb+=h.kb;nc+=h.nc;kc+=h.kc;});return{nb,kb,nc,kc};}
+  function est(k,n){if(!n)return null;const q=k/n;return{q,m:1.96*Math.sqrt(Math.max(q*(1-q),0.01)/n)};}
+  function paso(){
+    if(dia>=DIAS)return;
+    const pp=revertido!==null?0:p;
+    const nc=Math.round(MARCADOS*pp/100),nb=MARCADOS-nc;
+    hist.push({p:pp,nc,kc:binom(nc,VERDAD[esc]),nb,kb:binom(nb,BASE)});
+    dia++;
+    if(auto&&revertido===null){const a=acum(),c=est(a.kc,a.nc),b=est(a.kb,a.nb)||{q:BASE,m:0};
+      if(c&&a.nc>=30&&c.q+c.m<b.q-0.01)revertido=dia;}
+  }
+  const dibujar=canvasWidget($('#c6l1-c'),w=>w<520?0.95:0.5,(ctx,w,h)=>{
+    ctx.clearRect(0,0,w,h);
+    const L=42,R=12,T=12,B=26,barH=Math.round(h*0.2),ph=h-T-B-barH-10;
+    const X=d=>L+d/DIAS*(w-L-R),Y=q=>T+(0.65-q)/(0.65-0.15)*ph;
+    ctx.font='11px '+tok('--f-mono');ctx.textBaseline='middle';
+    ctx.strokeStyle=tok('--grid');ctx.lineWidth=1;ctx.fillStyle=tok('--muted');ctx.textAlign='right';
+    for(let q=0.2;q<=0.61;q+=0.1){ctx.beginPath();ctx.moveTo(L,Y(q));ctx.lineTo(w-R,Y(q));ctx.stroke();ctx.fillText(Math.round(q*100)+' %',L-5,Y(q));}
+    ctx.textAlign='center';ctx.textBaseline='top';
+    for(let d=0;d<=DIAS;d+=2)ctx.fillText('d'+d,X(d),h-B+8);
+    // barras de tráfico
+    const y0=h-B;
+    hist.forEach((hh,i)=>{const bw=(w-L-R)/DIAS*0.7;const bh=hh.p/100*barH;ctx.fillStyle=tok('--warm');ctx.globalAlpha=.75;ctx.fillRect(X(i+0.5)-bw/2,y0-bh,bw,Math.max(hh.p?2:0,bh));ctx.globalAlpha=1;});
+    ctx.fillStyle=tok('--muted');ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText('tráfico a la v3',L+2,y0-barH-1);
+    // series acumuladas
+    let nb=0,kb=0,nc=0,kc=0;const sb=[],sc=[];
+    hist.forEach((hh,i)=>{nb+=hh.nb;kb+=hh.kb;nc+=hh.nc;kc+=hh.kc;sb.push([i+1,est(kb,nb)]);sc.push([i+1,est(kc,nc)]);});
+    const scv=sc.filter(s=>s[1]);
+    if(scv.length){ctx.beginPath();scv.forEach(([d,e],i)=>{const yy=Y(Math.min(0.65,e.q+e.m));i?ctx.lineTo(X(d),yy):ctx.moveTo(X(d),yy);});
+      for(let i=scv.length-1;i>=0;i--){const [d,e]=scv[i];ctx.lineTo(X(d),Y(Math.max(0.15,e.q-e.m)));}
+      ctx.closePath();ctx.fillStyle=tok('--accent');ctx.globalAlpha=.18;ctx.fill();ctx.globalAlpha=1;}
+    function linea(s,color,lw){const v=s.filter(x=>x[1]);if(!v.length)return;ctx.beginPath();v.forEach(([d,e],i)=>{i?ctx.lineTo(X(d),Y(e.q)):ctx.moveTo(X(d),Y(e.q));});ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();v.forEach(([d,e])=>{ctx.beginPath();ctx.arc(X(d),Y(e.q),3,0,7);ctx.fillStyle=color;ctx.fill();});}
+    linea(sb,tok('--muted'),2);linea(sc,tok('--accent'),2.5);
+    if(revertido!==null){ctx.strokeStyle=tok('--warm');ctx.setLineDash([5,4]);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(revertido),T);ctx.lineTo(X(revertido),y0);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=tok('--warm');ctx.font='600 12px '+tok('--f-display');ctx.textAlign=revertido>DIAS*0.7?'right':'left';ctx.textBaseline='top';ctx.fillText('reversión',X(revertido)+(revertido>DIAS*0.7?-6:6),T+2);}
+    if(!hist.length){ctx.fillStyle=tok('--muted');ctx.font='13px '+tok('--f-body');ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Elige el tráfico y avanza un día',L+(w-L-R)/2,T+ph/2);}
+  });
+  function pct(x){return (x*100).toFixed(1).replace('.',',')+' %';}
+  function pintar(){
+    dibujar();
+    const a=acum(),c=est(a.kc,a.nc),b=est(a.kb,a.nb)||{q:BASE,m:0};
+    const e=$('#c6l1-est'),o=$('#c6l1-out');
+    if(!hist.length){e.className='c6l1-est';e.textContent='Día 0: la v3 todavía no recibe tráfico.';
+      o.innerHTML='<span>Cada día el CRM pide a la API el riesgo de unos 5.000 clientes, y el modelo marca unos 500 en riesgo alto: a ellos el agente les ofrece un plan de pago. La «precisión temprana» es la parte de esos clientes que a los 7 días del vencimiento todavía no pagó: es la primera señal de acierto que llega, mucho antes que la mora a 30 días.</span>';return;}
+    const malos=esc==='malo'?Math.round(a.nc*(BASE-VERDAD.malo)):0;
+    let h='<span>Día '+dia+' de '+DIAS+' · la v3 ya marcó '+a.nc.toLocaleString('es')+' clientes; la v2, '+a.nb.toLocaleString('es')+'.</span>';
+    if(c)h+='<span>v3: '+pct(c.q)+' ± '+pct(c.m)+' · v2: '+pct(b.q)+'.</span>';
+    if(revertido!==null){e.className='c6l1-est no';e.textContent='Revertido el día '+revertido+': todo el tráfico vuelve a la v2.';
+      h+='<span>'+(esc==='malo'?'Bien detectado: la v3 era peor. ':esc==='igual'?'Falsa alarma o decisión apresurada: la v3 era igual de buena. ':'Se revirtió un modelo que era mejor: con pocos datos, la banda engaña. ')+'Revertir es barato porque la v2 seguía encendida y el registro conserva su versión.</span>';}
+    else if(!c||a.nc<30){e.className='c6l1-est duda';e.textContent='Todavía no se puede decir nada: muy pocos clientes en la v3.';
+      h+='<span>Con '+a.nc+' clientes, el margen es enorme. Un canario del 1 % expone a muy pocos, pero tarda semanas en mostrar algo.</span>';}
+    else if(c.q+c.m<b.q-0.01){e.className='c6l1-est no';e.textContent='La v3 está claramente por debajo: hay que revertir.';
+      h+='<span class="warn">Activa la reversión automática o pulsa «Revertir ahora».</span>';}
+    else if(c.q-c.m>b.q+0.01){e.className='c6l1-est ok';e.textContent='La v3 está claramente por encima: se puede subir el tráfico.';}
+    else{e.className='c6l1-est duda';e.textContent='No se distingue de la v2 todavía: la banda cruza la línea gris.';
+      h+='<span>Que no se vea diferencia no prueba que no la haya. Sube el tráfico o espera más días si la v3 se porta bien en lo técnico.</span>';}
+    if(malos>0)h+='<span>Costo del experimento: unas '+malos.toLocaleString('es')+' ofertas de plan de pago mal dirigidas por la v3. Cuanto más tráfico, más rápido se ve el problema y más clientes lo sufren.</span>';
+    o.innerHTML=h;
+  }
+  function grupo(attr,set){root.querySelectorAll('['+attr+']').forEach(bt=>bt.addEventListener('click',()=>{set(bt.getAttribute(attr));root.querySelectorAll('['+attr+']').forEach(x=>x.setAttribute('aria-pressed',x===bt?'true':'false'));pintar();}));}
+  function reiniciar(){dia=0;hist=[];revertido=null;semilla++;r=rng(semilla);pintar();}
+  grupo('data-esc',x=>{esc=x;reiniciar();});
+  grupo('data-p',x=>{p=+x;});
+  $('#c6l1-auto').addEventListener('change',ev=>{auto=ev.target.checked;});
+  $('#c6l1-dia').addEventListener('click',()=>{paso();pintar();});
+  $('#c6l1-sem').addEventListener('click',()=>{for(let i=0;i<7;i++)paso();pintar();});
+  $('#c6l1-rev').addEventListener('click',()=>{if(revertido===null&&dia>0)revertido=dia;pintar();});
+  $('#c6l1-ini').addEventListener('click',reiniciar);
+  pintar();
+})();
+</script>
+<script>
+(function(){
+  const {$,tok,canvasWidget,bindOut}=window.Lab;
+  const root=document.querySelector('[id="06-lab-2"]');
+  const ZA=1.96,ZB={0.7:0.524,0.8:0.842,0.9:1.282};
+  let pot=0.8,f=1,sem=11,res=[];
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function normal(r){const u=Math.max(1e-9,r()),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  const v=id=>parseFloat($(id).value);
+  function tam(){const p1=v('#c6l2-base')/100,p2=p1-v('#c6l2-ef')/100;const pm=(p1+p2)/2;
+    const n=Math.pow(ZA*Math.sqrt(2*pm*(1-pm))+ZB[pot]*Math.sqrt(p1*(1-p1)+p2*(1-p2)),2)/Math.pow(p1-p2,2);return{p1,p2,n:Math.ceil(n)};}
+  function simular(){const t=tam(),n=Math.max(20,Math.round(t.n*f)),r=rng(sem);res=[];
+    for(let i=0;i<20;i++){
+      const a=Math.max(0,Math.round(n*t.p1+normal(r)*Math.sqrt(n*t.p1*(1-t.p1))))/n;
+      const b=Math.max(0,Math.round(n*t.p2+normal(r)*Math.sqrt(n*t.p2*(1-t.p2))))/n;
+      const d=a-b,se=Math.sqrt(a*(1-a)/n+b*(1-b)/n);res.push({d,lo:d-ZA*se,hi:d+ZA*se});}
+    return{n,t};}
+  let ult=null;
+  const dibujar=canvasWidget($('#c6l2-c'),w=>w<520?1.0:0.5,(ctx,w,h)=>{
+    ctx.clearRect(0,0,w,h);if(!ult)return;
+    const L=14,R=14,T=22,B=26;const ef=ult.t.p1-ult.t.p2;
+    let lo=Math.min(-ef*0.5,...res.map(x=>x.lo)),hi=Math.max(ef*2,...res.map(x=>x.hi));const pad=(hi-lo)*0.05;lo-=pad;hi+=pad;
+    const X=x=>L+(x-lo)/(hi-lo)*(w-L-R),rowH=(h-T-B)/20;
+    ctx.strokeStyle=tok('--ink');ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(X(0),T-6);ctx.lineTo(X(0),h-B);ctx.stroke();
+    ctx.strokeStyle=tok('--accent');ctx.setLineDash([5,4]);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(ef),T-6);ctx.lineTo(X(ef),h-B);ctx.stroke();ctx.setLineDash([]);
+    ctx.font='11px '+tok('--f-mono');ctx.fillStyle=tok('--muted');ctx.textBaseline='bottom';
+    ctx.textAlign=X(0)<X(ef)-60?'right':'center';ctx.fillText('sin diferencia',X(0)-(X(0)<X(ef)-60?4:0),T-8);
+    ctx.fillStyle=tok('--accent');ctx.textAlign='left';ctx.fillText('mejora real',X(ef)+4,T-8);
+    res.forEach((x,i)=>{const y=T+rowH*(i+0.5),sig=x.lo>0;const c=sig?tok('--good'):tok('--muted');
+      ctx.strokeStyle=c;ctx.lineWidth=sig?2.5:1.6;ctx.beginPath();ctx.moveTo(X(x.lo),y);ctx.lineTo(X(x.hi),y);ctx.stroke();
+      ctx.beginPath();ctx.arc(X(x.d),y,3.5,0,7);ctx.fillStyle=c;ctx.fill();});
+    ctx.fillStyle=tok('--muted');ctx.textAlign='center';ctx.textBaseline='top';
+    const raw=(hi-lo)*100/(w<520?3:5),m=Math.pow(10,Math.floor(Math.log10(raw))),nn=raw/m;
+    const paso=(nn<1.5?1:nn<3?2:nn<7?5:10)*m/100;
+    for(let x=Math.ceil(lo/paso)*paso;x<=hi+1e-12;x+=paso){ctx.fillText((Math.abs(x)<1e-9?0:x*100).toFixed(paso<0.0099?1:0).replace('.',',')+' pt',X(x),h-B+6);}
+  });
+  const fmtN=n=>Math.round(n).toLocaleString('es');
+  function pintar(nueva){
+    if(nueva)sem++;
+    ult=simular();const t=ult.t,dia=v('#c6l2-dia');
+    const tot=t.n*2,dias=Math.ceil(tot/dia);
+    $('#c6l2-n').textContent=fmtN(t.n);$('#c6l2-tot').textContent=fmtN(tot);$('#c6l2-d').textContent=dias;$('#c6l2-dr').textContent=dias+30;
+    dibujar();
+    const det=res.filter(x=>x.lo>0).length;
+    let h='<span>Para pasar de '+(t.p1*100).toFixed(1).replace('.',',')+' % a '+(t.p2*100).toFixed(1).replace('.',',')+' % de mora con una potencia de '+Math.round(pot*100)+' % y un nivel de significancia del 5 %, cada grupo necesita '+fmtN(t.n)+' clientes. Después de reunirlos hay que esperar 30 días más: la mora se sabe cuando la factura vence.</span>';
+    h+='<span>En la simulación, con '+fmtN(ult.n)+' clientes por grupo, <b>'+det+' de 20</b> experimentos detectan la mejora'+(f===1?' (se espera cerca de '+Math.round(pot*20)+')':'')+'.</span>';
+    if(f<1)h+='<span class="warn">Con menos clientes de los necesarios, la mayoría de los experimentos «no encuentra diferencia» aunque la v3 sí es mejor. Ese «no hay diferencia» no prueba nada.</span>';
+    if(f>1)h+='<span class="ok">Con el doble, casi todos la ven, pero el experimento dura el doble y más clientes se quedan con la versión peor mientras tanto.</span>';
+    if(v('#c6l2-ef')<0.5)h+='<span>Mejoras de unas décimas exigen cientos de miles de clientes: a veces no vale la pena medirlas con una prueba A/B.</span>';
+    $('#c6l2-out').innerHTML=h;
+  }
+  bindOut('#c6l2-base',x=>String(x).replace('.',',')+' %');
+  bindOut('#c6l2-ef',x=>x.toFixed(1).replace('.',',')+' pt');
+  bindOut('#c6l2-dia',x=>x.toLocaleString('es'));
+  ['#c6l2-base','#c6l2-ef','#c6l2-dia'].forEach(id=>$(id).addEventListener('input',()=>pintar(false)));
+  function grupo(attr,set){root.querySelectorAll('['+attr+']').forEach(bt=>bt.addEventListener('click',()=>{set(parseFloat(bt.getAttribute(attr)));root.querySelectorAll('['+attr+']').forEach(x=>x.setAttribute('aria-pressed',x===bt?'true':'false'));pintar(true);}));}
+  grupo('data-pot',x=>pot=x);grupo('data-f',x=>f=x);
+  $('#c6l2-sim').addEventListener('click',()=>pintar(true));
+  pintar(false);
+})();
+</script>
+</body>
+</html>

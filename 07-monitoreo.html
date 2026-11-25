@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Monitoreo y deriva · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="monitoreo">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 07 DE 11</span><h1>Monitoreo: deriva de datos y de concepto</h1><p class="lede">La v3 llegó a campeona y su servicio responde en 55 ms sin un solo error. Mientras tanto, los clientes empiezan a pagar con una billetera móvil, el historial deja de anunciar la mora como antes y la empresa sube las tarifas. Este capítulo vigila lo que un tablero de servidores no ve: las entradas, las predicciones y el acierto del modelo, con el PSI y Kolmogorov-Smirnov, señales tempranas para cuando la mora tarda y alertas que el equipo no aprende a ignorar.</p></header>
+<section><div class="prose"><p>Cuando la v3 llegó a campeona, el tablero del servicio de mora era perfecto: dos réplicas sanas, latencia p95 de 55 ms, cero errores. Seis meses después seguía igual de perfecto. Lo que el tablero no mostraba era que la lista de gestión preventiva acertaba cada vez menos: llamaba a clientes que pagaban y dejaba fuera a otros que caían en mora. Cuando llegó la mora del mes 7, el AUC de la v3, que era 0,80 al desplegarse, había bajado a 0,74, por debajo del mínimo de 0,75 de la ficha.</p><p>Nada se rompió. Los clientes cambiaron. Desde el mes 4, cada vez más pagan con la billetera móvil; en el mes 6, el historial de atrasos dejó de anunciar la mora como antes, y desde el mes 7 la empresa subió las tarifas un 15 %. El modelo seguía aplicando lo que aprendió de un mundo que ya no existía. Este capítulo arma el sistema que habría avisado a tiempo. Son las mismas tres derivas que traen los datos sintéticos de <code>generar_datos.py</code> desde el <a href="01-por-que-falla.html">capítulo 1</a>.</p></div></section>
+<section><h2>Monitorear el servicio frente a monitorear el modelo</h2><div class="analogia"><b>Imagínalo así</b><p>Un piloto mira dos clases de instrumentos. Unos dicen si el avión funciona: motores, combustible, presión. Otros dicen si va hacia donde debe: rumbo, altitud, posición. Un avión puede tener los motores perfectos y volar hacia la montaña. Monitorear el servidor es mirar los motores; monitorear el modelo es mirar el rumbo.</p></div><div class="prose"><p><b>Monitorear</b> (<i>monitoring</i>) es medir de forma continua un sistema en producción y avisar cuando algo se sale de lo esperado. Para cualquier servicio se miden la infraestructura y el servicio: memoria, CPU, latencia, errores, peticiones por segundo. Cómo se instrumentan esas métricas, los registros y las trazas está en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>. Un modelo necesita eso y cuatro capas más, porque puede fallar sin que ninguna de las dos primeras se mueva.</p></div><figure class="fig fig-capas" id="07-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 430" style="min-width:700px" role="img" aria-label="Las seis capas que se vigilan en un modelo en producción, de abajo arriba: infraestructura, servicio, datos de entrada, predicciones, desempeño y negocio; las dos de abajo son las del monitoreo de cualquier servicio y las cuatro de arriba son propias del modelo; a la derecha, cuándo llega la señal de cada capa, de segundos a meses">
+<text x="20" y="26" class="t t-xs t-b t-m">CAPA</text>
+<text x="230" y="26" class="t t-xs t-b t-m">QUÉ SE MIDE EN EL MODELO DE MORA</text>
+<text x="700" y="26" class="t t-xs t-b t-m">CUÁNDO LLEGA LA SEÑAL</text>
+<rect x="20" y="40" width="660" height="52" rx="8" class="c-tra"/>
+<text x="36" y="62" class="t t-b">6 · Negocio</text><text x="36" y="80" class="t t-s t-m">la razón de existir</text>
+<text x="230" y="62" class="t t-s">tasa de mora, dinero recuperado,</text><text x="230" y="80" class="t t-s">llamadas de cobranza por cliente salvado</text>
+<rect x="20" y="100" width="660" height="52" rx="8" class="c-tra"/>
+<text x="36" y="122" class="t t-b">5 · Desempeño</text><text x="36" y="140" class="t t-s t-m">¿acierta?</text>
+<text x="230" y="122" class="t t-s">AUC, precisión de la lista, calibración,</text><text x="230" y="140" class="t t-s">por segmento (billetera y otros pagos)</text>
+<rect x="20" y="160" width="660" height="52" rx="8" class="c-tra"/>
+<text x="36" y="182" class="t t-b">4 · Predicciones</text><text x="36" y="200" class="t t-s t-m">¿qué responde?</text>
+<text x="230" y="182" class="t t-s">distribución de las probabilidades,</text><text x="230" y="200" class="t t-s">% de clientes marcados en riesgo alto</text>
+<rect x="20" y="220" width="660" height="52" rx="8" class="c-tra"/>
+<text x="36" y="242" class="t t-b">3 · Datos de entrada</text><text x="36" y="260" class="t t-s t-m">¿qué recibe?</text>
+<text x="230" y="242" class="t t-s">esquema, nulos, rangos, categorías nuevas</text><text x="230" y="260" class="t t-s">y deriva de cada variable (PSI, KS)</text>
+<rect x="20" y="280" width="660" height="52" rx="8" class="caja"/>
+<text x="36" y="302" class="t t-b">2 · Servicio</text><text x="36" y="320" class="t t-s t-m">¿responde?</text>
+<text x="230" y="302" class="t t-s">latencia p95, errores, peticiones por segundo,</text><text x="230" y="320" class="t t-s">tiempo de la tarea por lotes</text>
+<rect x="20" y="340" width="660" height="52" rx="8" class="caja"/>
+<text x="36" y="362" class="t t-b">1 · Infraestructura</text><text x="36" y="380" class="t t-s t-m">¿hay máquina?</text>
+<text x="230" y="362" class="t t-s">CPU, memoria, disco, réplicas vivas</text>
+<text x="700" y="70" class="t t-s">meses</text>
+<text x="700" y="130" class="t t-s">30 a 60 días</text><text x="700" y="146" class="t t-s t-m">(la mora tarda)</text>
+<text x="700" y="190" class="t t-s">minutos u horas</text>
+<text x="700" y="250" class="t t-s">minutos u horas</text>
+<text x="700" y="310" class="t t-s">segundos</text>
+<text x="700" y="370" class="t t-s">segundos</text>
+<path d="M880 384 V48" class="ln" style="stroke-width:2"/>
+<path d="M874 56 L880 44 L886 56" class="ln" style="stroke-width:2"/>
+<text x="20" y="416" class="t t-s"><tspan class="t-b k-tra">Capas 3 a 6:</tspan> propias de un modelo; un servidor sano no dice nada de ellas.   <tspan class="t-b">Capas 1 y 2:</tspan> las de cualquier servicio (en DevOps).</text>
+</svg></div><figcaption><b>Las seis capas que se vigilan en un modelo.</b> Se leen de abajo arriba, de lo más técnico a lo más cercano al negocio. Las dos de abajo, en recuadro neutro, son las de cualquier servicio. Las cuatro de arriba, con el color de la etapa de monitorear, son propias del modelo: qué datos recibe, qué responde, si acierta y si mueve el negocio. A la derecha, cuándo llega la señal de cada capa: la de abajo en segundos, la de desempeño entre 30 y 60 días después, cuando se conoce la mora.</figcaption></figure><div class="prose"><p>La flecha de la derecha es el problema central del capítulo. Las capas que más importan son las que más tardan. Por eso el monitoreo del modelo se apoya en las capas intermedias, los datos de entrada y las predicciones, que se pueden medir el mismo día, y las usa como aviso adelantado de lo que el desempeño confirmará semanas después. Para eso hace falta lo que el servicio del <a href="05-servir-modelos.html">capítulo 5</a> ya guarda: cada predicción con sus variables, su probabilidad y su versión.</p></div></section>
+<section><h2>Deriva de datos: las entradas cambian</h2><div class="analogia"><b>Imagínalo así</b><p>Una tienda de ropa calcula cuántas tallas de cada número pedir según lo que vendió el año pasado. Si abre una sucursal cerca de una universidad, de pronto llegan muchos más clientes jóvenes. Las reglas para elegir talla siguen siendo buenas; lo que cambió es quién entra por la puerta, y el pedido calculado con los clientes viejos ya no sirve.</p></div><div class="prose"><p>La <b>deriva de datos</b> (<i>data drift</i>, también <i>covariate shift</i>, cambio de covariables) es un cambio en la distribución de las entradas del modelo: los clientes que llegan ya no se parecen a los del entrenamiento. En la notación de probabilidad, cambia P(x), la distribución de las variables. En el modelo de mora pasó de tres maneras:</p><ul><li><b>Un valor nuevo que crece.</b> La billetera móvil no existía en el mes 0. Desde el mes 4 crece cada mes, hasta ser uno de cada cuatro pagos.</li><li><b>Un corrimiento.</b> Con el alza del mes 7, todos los precios de los planes subieron un 15 %. El plan de US$ 60 pasó a US$ 69, un valor que el modelo nunca vio.</li><li><b>Un error que parece deriva.</b> Una semana, la exportación de facturación mandó los días de atraso en cero para todos. La distribución cambió de golpe, pero no porque cambiaran los clientes: se rompió un sistema de origen.</li></ul><p>El tercer caso enseña algo: la deriva y la calidad de datos se vigilan juntas. Primero se valida el esquema, los nulos y los rangos, como en el pipeline del <a href="03-entrenamiento-reproducible.html">capítulo 3</a>; lo que pasa esa validación se compara con la distribución de referencia. Un cambio brusco en una sola variable, de un día para otro, casi siempre es un error de datos; un cambio gradual en varias variables relacionadas, casi siempre es el mundo.</p><p>La deriva de datos no siempre daña al modelo. Si los clientes nuevos caen en zonas donde el modelo ya aprendía bien, la métrica no se mueve. Por eso una alerta de deriva es una pregunta («¿esto le importa al modelo?»), no un veredicto.</p></div></section>
+<section><h2>Deriva de concepto: cambia la relación entre las entradas y el resultado</h2><div class="analogia"><b>Imagínalo así</b><p>Durante años, en tu ciudad, las nubes negras por la tarde anunciaban lluvia. Aprendiste la regla y siempre salías con paraguas. Un año cambia el clima y las nubes negras pasan sin dejar caer una gota, mientras la lluvia llega con el cielo gris claro. Ves las mismas nubes de siempre; lo que cambió es lo que anuncian.</p></div><div class="prose"><p>La <b>deriva de concepto</b> (<i>concept drift</i>) es un cambio en la relación entre las entradas y el resultado: con el mismo historial, la probabilidad de mora ya no es la misma. Cambia P(mora | x), aunque P(x) no se mueva. En los datos del curso pasa en el mes 6: el historial de atrasos pesa mucho menos y el precio del plan pesa más, así que clientes con buen historial empiezan a caer en mora. Un cliente con 2 días de atraso promedio, que antes tenía un 5 % de probabilidad de mora, ahora tiene un 9 %. El modelo ve al mismo cliente y le asigna el riesgo de antes. Ninguna entrada cambió: solo cambió lo que anuncian.</p></div><figure class="fig fig-comparacion" id="07-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 470" style="min-width:720px" role="img" aria-label="Dos paneles. Deriva de datos: la distribución de los días de atraso se corre hacia la derecha pero la curva que une los días de atraso con la probabilidad de mora sigue igual. Deriva de concepto: los clientes son los mismos, pero la curva de probabilidad de mora sube desde el mes 6. Abajo, cuatro formas en que llega la deriva: brusca, gradual, estacional y recurrente">
+<text x="20" y="26" class="t t-xs t-b k-tra">DERIVA DE DATOS</text>
+<text x="20" y="46" class="t t-b">Cambian las entradas: P(x)</text>
+<text x="470" y="26" class="t t-xs t-b k-tra">DERIVA DE CONCEPTO</text>
+<text x="470" y="46" class="t t-b">Cambia la relación: P(mora | x)</text>
+
+<line x1="40" y1="230" x2="420" y2="230" class="ln"/>
+<path d="M50 230 C90 228 110 120 150 110 C190 100 220 200 280 226 L300 230 Z" class="caja" style="fill:var(--grid)"/>
+<path d="M120 230 C160 228 190 130 230 118 C270 108 300 200 360 226 L380 230" class="ln s-tra" style="stroke-width:2.5"/>
+<text x="120" y="96" class="t t-s t-m">antes</text>
+<text x="250" y="106" class="t t-s k-tra">ahora</text>
+<path d="M40 210 C140 205 240 150 400 70" class="ln ln-d" style="stroke-width:1.6"/>
+<text x="40" y="70" class="t t-s t-m">punteada, P(mora | x): igual</text>
+<text x="40" y="250" class="t t-s t-m">días de atraso promedio →</text>
+<text x="40" y="276" class="t t-s">Ejemplo: más clientes pagan con billetera y</text>
+<text x="40" y="292" class="t t-s">se atrasan unos días al principio.</text>
+
+<line x1="490" y1="230" x2="870" y2="230" class="ln"/>
+<path d="M500 230 C540 228 560 120 600 110 C640 100 670 200 730 226 L750 230 Z" class="caja" style="fill:var(--grid)"/>
+<text x="560" y="96" class="t t-s t-m">clientes: los mismos</text>
+<path d="M490 214 C590 210 690 165 860 100" class="ln ln-d" style="stroke-width:1.6"/>
+<path d="M490 196 C570 186 650 120 860 60" class="ln s-tra" style="stroke-width:2.5"/>
+<text x="770" y="176" class="t t-s t-m">antes</text>
+<text x="636" y="66" class="t t-s k-tra">desde el mes 6</text>
+<text x="490" y="250" class="t t-s t-m">días de atraso promedio →</text>
+<text x="490" y="276" class="t t-s">Ejemplo: desde el mes 6, con el mismo</text>
+<text x="490" y="292" class="t t-s">historial hay más mora que antes.</text>
+<line x1="20" y1="314" x2="880" y2="314" class="ln" style="stroke-width:.8"/>
+<text x="20" y="338" class="t t-xs t-b t-m">CÓMO LLEGA</text>
+
+<g>
+<rect x="20" y="350" width="200" height="90" rx="8" class="caja"/>
+<path d="M34 420 H110 V380 H206" class="ln s-tra" style="stroke-width:2.2"/>
+<text x="34" y="368" class="t t-s t-b">Brusca</text><text x="114" y="434" class="t t-s t-m">un sistema cambia</text>
+</g>
+<g>
+<rect x="240" y="350" width="200" height="90" rx="8" class="caja"/>
+<path d="M254 420 L426 380" class="ln s-tra" style="stroke-width:2.2"/>
+<text x="254" y="368" class="t t-s t-b">Gradual</text><text x="320" y="434" class="t t-s t-m">la billetera crece</text>
+</g>
+<g>
+<rect x="460" y="350" width="200" height="90" rx="8" class="caja"/>
+<path d="M474 410 C494 380 514 380 534 410 C554 440 574 380 594 410 C614 440 634 380 646 400" class="ln s-tra" style="stroke-width:2.2"/>
+<text x="474" y="368" class="t t-s t-b">Estacional</text><text x="520" y="434" class="t t-s t-m">diciembre, feriados</text>
+</g>
+<g>
+<rect x="680" y="350" width="200" height="90" rx="8" class="caja"/>
+<path d="M694 420 H740 V385 H790 V420 H836 V385 H866" class="ln s-tra" style="stroke-width:2.2"/>
+<text x="694" y="368" class="t t-s t-b">Recurrente</text><text x="744" y="434" class="t t-s t-m">vuelve lo de antes</text>
+</g>
+<text x="450" y="462" class="t t-s t-m" text-anchor="middle">La deriva de datos se ve sin etiquetas; la de concepto, solo cuando llega la mora real.</text>
+</svg></div><figcaption><b>Deriva de datos frente a deriva de concepto.</b> En el panel izquierdo, la distribución de los días de atraso se corre hacia la derecha (de la zona gris «antes» a la línea «ahora»), pero la curva punteada que relaciona los días de atraso con la probabilidad de mora no cambia. En el panel derecho, los clientes son los mismos, pero la curva cambia en el mes 6: con el mismo historial, más mora. Abajo, las cuatro formas en que suele llegar una deriva: brusca, gradual, estacional y recurrente.</figcaption></figure><div class="prose"><p>Las dos derivas se detectan de forma muy distinta. La de datos se ve con las entradas, el mismo día. La de concepto solo se ve cuando llega la etiqueta, porque hace falta saber qué pasó para notar que la relación cambió. Hay un caso intermedio útil: la <b>deriva de las predicciones</b> (<i>prediction drift</i>), un cambio en la distribución de las probabilidades que da el modelo. Se ve el mismo día, como la de datos, y resume en una sola variable el efecto de todas las entradas.</p></div></section>
+<section><h2>Medir la deriva: PSI, Kolmogorov-Smirnov y distancias entre distribuciones</h2><div class="prose"><p>Para decir que una distribución «cambió» hace falta un número. Se compara una <b>ventana de referencia</b> (<i>reference window</i>), normalmente los datos con que se entrenó el modelo, con una <b>ventana actual</b> (<i>current window</i>), por ejemplo las facturas de la última semana. Hay varias medidas; tres son las más usadas.</p><p>El <b>índice de estabilidad poblacional</b> (<i>Population Stability Index</i>, PSI) nació en la banca para vigilar modelos de riesgo crediticio. Se parten los valores de la referencia en 10 tramos con la misma cantidad de clientes (deciles), se cuenta qué parte de la ventana actual cae en cada tramo y se suma, tramo por tramo, (actual − referencia) × ln(actual ÷ referencia). Si nada cambió, cada tramo tiene cerca del 10 % y el PSI queda cerca de cero. La regla práctica, heredada de la banca: menos de 0,1 es estable; entre 0,1 y 0,25, un cambio moderado que se vigila; más de 0,25, un cambio importante. Son convenciones, no leyes: cada equipo las ajusta con su historia.</p><p>La <b>prueba de Kolmogorov-Smirnov</b> (KS) compara las dos <b>distribuciones acumuladas</b> (<i>cumulative distribution functions</i>): para cada monto, qué parte de las facturas está por debajo. Su estadístico D es la mayor distancia vertical entre las dos curvas, y la prueba da un <b>valor p</b> (<i>p-value</i>): qué tan raro sería ver esa distancia si las dos muestras vinieran de la misma distribución. Tiene una trampa que el laboratorio muestra: con decenas de miles de facturas, cualquier diferencia minúscula da un valor p diminuto. El valor p dice si hay diferencia, no si importa.</p><p>Para variables categóricas, como el método de pago, se usan la <b>prueba ji cuadrado</b> (<i>chi-squared test</i>) o el mismo PSI con las categorías como tramos. Y hay distancias sin prueba de hipótesis, como la <b>distancia de Jensen-Shannon</b> o la <b>distancia de Wasserstein</b>, que miden cuánto se separaron las distribuciones en una escala fija. La teoría de las pruebas y las distribuciones está en <a href="https://aaramirez.github.io/mate-inferencia/temario.html" target="_blank" rel="noopener">Inferencia estadística</a>.</p></div><div class="lab" id="07-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>El detector de deriva</h3></div><p class="hint">Mueve el monto de todas las facturas, su dispersión y la parte de clientes nuevos del plan de US$ 45, y mira cómo responden el PSI y KS. Después, sin mover nada más, sube el desplazamiento a +2 % y cambia el tamaño de la muestra de 2.000 a 50.000 facturas: mira qué medida da la alarma y cuál no.</p><style>
+[id="07-lab-1"] .c7l1-g{display:grid;gap:4px}
+[id="07-lab-1"] .c7l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="07-lab-1"] .c7l1-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px}
+[id="07-lab-1"] .c7l1-kpi div{border:2px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper)}
+[id="07-lab-1"] .c7l1-kpi small{display:block;font:600 .72rem var(--f-display);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+[id="07-lab-1"] .c7l1-kpi b{font:700 1.1rem var(--f-mono)}
+[id="07-lab-1"] .c7l1-kpi em{display:block;font:600 .82rem var(--f-display);font-style:normal}
+[id="07-lab-1"] .c7l1-kpi .ok{border-color:var(--good)} [id="07-lab-1"] .c7l1-kpi .ok em{color:var(--good)}
+[id="07-lab-1"] .c7l1-kpi .ojo{border-color:var(--accent)} [id="07-lab-1"] .c7l1-kpi .ojo em{color:var(--accent)}
+[id="07-lab-1"] .c7l1-kpi .mal{border-color:var(--warm)} [id="07-lab-1"] .c7l1-kpi .mal em{color:var(--warm)}
+</style>
+<div class="ctls">
+  <label class="ctl">Todas las facturas suben o bajan <output id="c7l1-mu-o"></output>
+    <input id="c7l1-mu" type="range" min="-20" max="40" step="1" value="0"></label>
+  <label class="ctl">Dispersión de los montos <output id="c7l1-sd-o"></output>
+    <input id="c7l1-sd" type="range" min="0.6" max="1.8" step="0.05" value="1"></label>
+  <label class="ctl">Clientes nuevos del plan de US$ 45 <output id="c7l1-nw-o"></output>
+    <input id="c7l1-nw" type="range" min="0" max="40" step="1" value="0"></label>
+</div>
+<div class="c7l1-g"><span>Facturas de la semana que se comparan con la referencia</span>
+<div class="btns" role="group" aria-label="Tamaño de la muestra actual">
+  <button type="button" data-n="500" aria-pressed="false">500</button>
+  <button type="button" data-n="2000" aria-pressed="true">2.000</button>
+  <button type="button" data-n="10000" aria-pressed="false">10.000</button>
+  <button type="button" data-n="50000" aria-pressed="false">50.000</button>
+</div></div>
+<canvas id="c7l1-c" role="img" aria-label="Arriba, la distribución del monto de la factura en la referencia y en la semana actual. Abajo, la parte de las facturas que cae en cada uno de los diez tramos de la referencia, que debería ser 10 % en cada uno"></canvas>
+<div class="legend"><span><i style="background:var(--muted)"></i>referencia: los datos con que se entrenó la v3</span><span><i style="background:var(--accent)"></i>la semana actual</span><span><i style="background:var(--warm)"></i>tramo que más aporta al PSI</span></div>
+<div class="c7l1-kpi" aria-live="polite">
+  <div id="c7l1-k1"><small>PSI (índice de estabilidad)</small><b id="c7l1-psi">–</b><em id="c7l1-psi-e"></em></div>
+  <div id="c7l1-k2"><small>Kolmogorov-Smirnov: D y valor p</small><b id="c7l1-ks">–</b><em id="c7l1-ks-e"></em></div>
+</div>
+<div class="readout texto" id="c7l1-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Calcula el PSI y Kolmogorov-Smirnov sobre los meses del curso</h3></div><p>Vas a comparar el mes 0, con el que se entrenó el modelo, con los meses 3, 6, 9 y 12, y a ver qué medida detecta cada una de las tres derivas. Trabaja en la carpeta <code>mora-30d</code>, con el entorno activado; agrega SciPy:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install scipy</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>deriva.py</code> (importa <code>generar_datos.py</code>, así que no hace falta generar los archivos antes):</p><div class="code-copia"><pre><code>"""PSI y Kolmogorov-Smirnov del mes 0 (referencia) contra los meses de producción."""
+import numpy as np
+import pandas as pd
+from scipy.stats import ks_2samp
+from generar_datos import generar
+
+def psi_numerica(ref, act, tramos=10):
+    cortes = np.unique(np.quantile(ref, np.linspace(0, 1, tramos + 1)[1:-1]))
+    e = np.bincount(np.searchsorted(cortes, ref, side="right"), minlength=len(cortes) + 1) / len(ref)
+    a = np.bincount(np.searchsorted(cortes, act, side="right"), minlength=len(cortes) + 1) / len(act)
+    return psi(e, a)
+
+def psi_categorica(ref, act):
+    cats = sorted(set(ref) | set(act))
+    e = ref.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()
+    a = act.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()
+    return psi(e, a)
+
+def psi(e, a):
+    e, a = np.clip(e, 1e-4, None), np.clip(a, 1e-4, None)
+    return float(np.sum((a - e) * np.log(a / e)))
+
+ref = generar(0, 20000, 42)
+filas = []
+for mes in (3, 6, 9, 12):
+    act = generar(mes, 20000, 42)
+    ks = ks_2samp(ref.dias_atraso_prom_6m, act.dias_atraso_prom_6m)
+    filas.append({"mes": mes,
+                  "PSI metodo_pago": psi_categorica(ref.metodo_pago, act.metodo_pago),
+                  "KS D precio_plan": ks_2samp(ref.precio_plan, act.precio_plan).statistic,
+                  "PSI dias_atraso": psi_numerica(ref.dias_atraso_prom_6m, act.dias_atraso_prom_6m),
+                  "KS p dias_atraso": ks.pvalue, "mora real": act.mora_30d.mean()})
+print(pd.DataFrame(filas).round(4).to_string(index=False))
+
+print("\nEl mismo cambio pequeño (días de atraso un 3 % más altos), con muestras de distinto tamaño:")
+for n in (500, 2000, 20000):
+    act = ref.dias_atraso_prom_6m.sample(n, random_state=1).to_numpy() * 1.03
+    print(f"  n = {n:&gt;6}:  PSI {psi_numerica(ref.dias_atraso_prom_6m, act):.3f}   "
+          f"KS p {ks_2samp(ref.dias_atraso_prom_6m, act).pvalue:.2g}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python deriva.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 deriva.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Busca en qué mes salta el PSI del método de pago y en cuál el KS del precio del plan.</span></li><li><span>Mira el PSI de los días de atraso y la mora real del mes 9 frente al mes 3.</span></li><li><span>En la segunda tabla, compara el PSI y el valor p de KS para el mismo cambio con 500 y con 20.000 clientes.</span></li></ol><p><b>Qué observar:</b> la billetera dispara el PSI del método de pago desde el mes 6 (una categoría que no existía da un PSI enorme, y su valor exacto depende del número chico que reemplaza al cero), y el alza del mes 7 aparece en el KS del precio desde el mes 9. Los días de atraso no se mueven nunca, y aun así la mora real pasa de 7,6 % a más de 10 %: esa es la deriva de concepto, invisible en las entradas. En la segunda tabla, con 20.000 clientes KS da un valor p diminuto por un cambio de 3 % mientras el PSI dice «estable»: el valor p dice si hay diferencia, no si importa.</p></div><div class="prose"><p>Herramientas de código abierto como Evidently o NannyML calculan estas medidas para todas las variables, arman informes y guardan la historia. Antes de adoptar una, conviene escribir la propia en veinte líneas, como en la práctica, para saber qué está midiendo.</p></div></section>
+<section><h2>Cuando la etiqueta llega tarde: métricas aproximadas</h2><div class="analogia"><b>Imagínalo así</b><p>Un agricultor no sabe cuánto va a cosechar hasta el final de la temporada, pero no espera de brazos cruzados. Mira la humedad del suelo, la altura de las plantas, cuántas flores salieron. Ninguna de esas señales es la cosecha, pero todas la anuncian, y le dan tiempo para regar o fertilizar mientras todavía sirve.</p></div><div class="prose"><p>En el modelo de mora, la <b>etiqueta</b> (<i>label</i>), el dato de si el cliente cayó o no en mora, llega mucho después de la predicción. A eso se le llama <b>retraso de la etiqueta</b> (<i>label delay</i>). Durante ese tiempo, el desempeño real es desconocido, y el equipo vigila <b>métricas aproximadas</b> (<i>proxy metrics</i>).</p></div><figure class="fig fig-esquema" id="07-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 360" style="min-width:700px" role="img" aria-label="Línea de tiempo de una predicción de mora: el día 0 se emite la factura y el modelo predice; el día 15 vence; el día 22 llega la señal temprana; el día 45 se sabe si cayó en mora a 30 días; el día 60 la etiqueta está madura para entrenar. Debajo, qué se puede vigilar en cada tramo: entradas y predicciones desde el día 0, señales tempranas desde el 22 y desempeño real desde el 45">
+<defs><marker id="c7d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker></defs>
+<path d="M40 120 H870" class="ln" style="stroke-width:2.5" marker-end="url(#c7d3-m)"/>
+<g>
+<circle cx="60" cy="120" r="8" class="c-red"/><text x="60" y="96" class="t t-b" text-anchor="middle">día 0</text>
+<text x="60" y="150" class="t t-s" text-anchor="middle">factura emitida;</text><text x="60" y="166" class="t t-s" text-anchor="middle">el modelo predice</text>
+</g>
+<g>
+<circle cx="230" cy="120" r="8" class="caja"/><text x="230" y="96" class="t t-b" text-anchor="middle">día 15</text>
+<text x="230" y="150" class="t t-s" text-anchor="middle">vence la factura</text>
+</g>
+<g>
+<circle cx="372" cy="120" r="8" class="c-tra"/><text x="372" y="96" class="t t-b" text-anchor="middle">día 22</text>
+<text x="372" y="150" class="t t-s" text-anchor="middle">7 días de atraso:</text><text x="372" y="166" class="t t-s" text-anchor="middle">señal temprana</text>
+</g>
+<g>
+<circle cx="620" cy="120" r="8" class="c-tra"/><text x="620" y="96" class="t t-b" text-anchor="middle">día 45</text>
+<text x="620" y="150" class="t t-s" text-anchor="middle">30 días de atraso:</text><text x="620" y="166" class="t t-s" text-anchor="middle">la etiqueta «mora»</text>
+</g>
+<g>
+<circle cx="800" cy="120" r="8" class="c-apl"/><text x="800" y="96" class="t t-b" text-anchor="middle">día 60</text>
+<text x="800" y="150" class="t t-s" text-anchor="middle">etiqueta madura,</text><text x="800" y="166" class="t t-s" text-anchor="middle">lista para entrenar</text>
+</g>
+<text x="20" y="34" class="t t-xs t-b t-m">UNA PREDICCIÓN DEL MODELO DE MORA, DEL DÍA 0 A LA VERDAD</text>
+<text x="20" y="54" class="t t-s t-m">Las fechas son de ejemplo: factura a 15 días y mora definida como 30 días de atraso.</text>
+<rect x="60" y="196" width="810" height="34" rx="6" class="c-tra" style="opacity:.55"/>
+<text x="72" y="218" class="t t-s"><tspan class="t-b">Entradas y predicciones:</tspan> deriva de datos, distribución de los puntajes, % de marcados</text>
+<rect x="372" y="240" width="498" height="34" rx="6" class="c-tra" style="opacity:.75"/>
+<text x="384" y="262" class="t t-s"><tspan class="t-b">Señales tempranas:</tspan> precisión temprana, promesas de pago cumplidas</text>
+<rect x="620" y="284" width="250" height="34" rx="6" class="c-tra"/>
+<text x="632" y="306" class="t t-s"><tspan class="t-b">Desempeño real:</tspan> AUC, calibración</text>
+<text x="450" y="344" class="t t-s t-m" text-anchor="middle">Durante 45 días, todo lo que se sabe del modelo es indirecto: por eso se vigilan las entradas y las predicciones.</text>
+</svg></div><figcaption><b>De la predicción a la verdad.</b> La línea de tiempo sigue una predicción del modelo de mora: el día 0 se emite la factura y el modelo predice; el día 15 vence; el día 22, con 7 días de atraso, llega la señal temprana; el día 45, con 30 días de atraso, se sabe si es mora; el día 60, la etiqueta está madura para entrenar. Las tres barras de abajo dicen qué se puede vigilar en cada tramo: entradas y predicciones desde el día 0, señales tempranas desde el día 22 y desempeño real desde el día 45.</figcaption></figure><div class="prose"><p>Las métricas aproximadas del modelo de mora son cuatro, de la más rápida a la más fiel:</p><ol class="steps"><li><span><b>La deriva de las entradas y de las predicciones</b>, desde el día 0. No dice si el modelo acierta, pero avisa que el mundo que ve ya no es el del entrenamiento.</span></li><li><span><b>El porcentaje de clientes marcados</b>: si la lista de los clientes en riesgo alto pasa de 10 % a 16 % sin que haya cambiado el umbral, algo cambió en las entradas o en el mundo.</span></li><li><span><b>La precisión temprana</b>, desde el día 22: de los clientes marcados, cuántos seguían sin pagar 7 días después del vencimiento. Es la misma señal que usó el canario del <a href="06-desplegar-modelos.html">capítulo 6</a>.</span></li><li><span><b>El desempeño estimado</b>: hay métodos que estiman el AUC sin etiquetas a partir de la confianza del propio modelo, siempre que esté bien calibrado. Sirven como pista, nunca como prueba.</span></li></ol><p>El desempeño real se calcula después, cuando la etiqueta llega, y se guarda por <b>cohorte</b> (<i>cohort</i>): las facturas del mes 3 con la mora del mes 3. Así se ve la curva verdadera del modelo, con su retraso, y se compara con lo que anunciaban las métricas aproximadas.</p></div></section>
+<section><h2>Alertas que sirven y alertas que cansan</h2><div class="analogia"><b>Imagínalo así</b><p>La alarma de un auto que suena cada vez que pasa un camión termina ignorada por todo el barrio, incluido el dueño. La noche que de verdad entran a robarlo, nadie se asoma. Una alarma no vale por lo sensible que es, sino por lo que la gente hace cuando suena.</p></div><div class="prose"><p>Una <b>alerta</b> (<i>alert</i>) convierte una medida en un aviso a una persona. Diseñarla mal tiene dos costos: si es muy sensible, produce <b>falsas alarmas</b> (<i>false positives</i>) que entrenan al equipo a ignorarla; si es muy tolerante, deja escapar derivas reales hasta que el negocio las nota. Al cansancio de recibir avisos que no importan se le llama <b>fatiga de alertas</b> (<i>alert fatigue</i>).</p><p>Con muchas variables, el problema crece solo. Si se vigilan 30 variables cada semana con un umbral que da una falsa alarma el 2 % de las veces, el equipo recibe unas 30 falsas alarmas al año sin que pase nada. Se agregan además los cambios inocuos: diciembre cambia los montos y los métodos de pago todos los años, y el modelo lo aprendió.</p></div><div class="lab" id="07-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Ajusta el umbral de alerta</h3></div><p class="hint">Un año del modelo de mora con 30 variables y tres derivas reales: el alza de tarifas, un error en un sistema de origen y la billetera móvil. Mueve el umbral del PSI y el número de variables vigiladas, y elige si la alerta suena la primera semana o con dos semanas seguidas. Cuenta las falsas alarmas y las derivas que se escapan, y busca una combinación que detecte las tres con pocas falsas.</p><style>
+[id="07-lab-2"] .c7l2-g{display:grid;gap:4px}
+[id="07-lab-2"] .c7l2-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="07-lab-2"] .c7l2-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px}
+[id="07-lab-2"] .c7l2-kpi div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper)}
+[id="07-lab-2"] .c7l2-kpi small{display:block;font:600 .72rem var(--f-display);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+[id="07-lab-2"] .c7l2-kpi b{font:700 1.15rem var(--f-mono)}
+[id="07-lab-2"] .c7l2-kpi .mal b{color:var(--warm)} [id="07-lab-2"] .c7l2-kpi .bien b{color:var(--good)}
+</style>
+<div class="ctls">
+  <label class="ctl">Umbral de alerta del PSI <output id="c7l2-u-o"></output>
+    <input id="c7l2-u" type="range" min="0.02" max="0.4" step="0.01" value="0.1"></label>
+  <label class="ctl">Variables vigiladas (de la más importante a la menos) <output id="c7l2-v-o"></output>
+    <input id="c7l2-v" type="range" min="1" max="30" step="1" value="12"></label>
+</div>
+<div class="c7l2-g"><span>Cuándo suena la alerta</span>
+<div class="btns" role="group" aria-label="Regla de la alerta">
+  <button type="button" data-r="1" aria-pressed="true">La primera semana que pasa el umbral</button>
+  <button type="button" data-r="2" aria-pressed="false">Dos semanas seguidas sobre el umbral</button>
+</div></div>
+<canvas id="c7l2-c" role="img" aria-label="Un año del modelo: cada fila es una variable vigilada y cada columna una semana; los puntos son alertas, en color las que coinciden con una deriva real y en gris las falsas alarmas; arriba, las tres derivas reales del año"></canvas>
+<div class="legend"><span><i style="background:var(--warm)"></i>alerta en una deriva real</span><span><i style="background:var(--muted)"></i>falsa alarma</span><span><i style="background:var(--accent-soft);border:1px solid var(--accent)"></i>semanas con deriva real</span></div>
+<div class="c7l2-kpi" aria-live="polite">
+  <div id="c7l2-k1"><small>Alertas en el año</small><b id="c7l2-tot">–</b></div>
+  <div id="c7l2-k2"><small>Falsas alarmas</small><b id="c7l2-fa">–</b></div>
+  <div id="c7l2-k3"><small>Derivas detectadas</small><b id="c7l2-det">–</b></div>
+  <div id="c7l2-k4"><small>Retraso promedio</small><b id="c7l2-ret">–</b></div>
+</div>
+<div class="readout texto" id="c7l2-out" aria-live="polite"></div></div><div class="prose"><p>Cinco prácticas separan una alerta que sirve de una que cansa:</p><ul><li><b>Vigilar primero lo que importa.</b> Las variables más importantes para el modelo, las predicciones y la precisión temprana. Las demás, en un informe semanal sin aviso.</li><li><b>Exigir persistencia.</b> Dos ventanas seguidas sobre el umbral eliminan los picos de una semana, a cambio de una semana más de retraso.</li><li><b>Conocer la estación.</b> Comparar diciembre con el diciembre anterior, o marcar las fechas conocidas, evita alarmas que se repiten cada año.</li><li><b>Graduar la gravedad.</b> Un PSI moderado va a un informe; un PSI alto en una variable clave, o un salto brusco que huele a error de datos, despierta a alguien.</li><li><b>Cada alerta con dueño y receta.</b> Quién la recibe, qué revisa primero (¿error de datos o cambio real?), cuándo se escala y qué decisión puede tomar: esperar, ajustar el umbral de la lista o reentrenar. Esa receta se llama <b>guía de actuación</b> (<i>runbook</i>).</li></ul><p>La revisión de las alertas también se mide: cuántas hubo, cuántas llevaron a una acción y cuántas derivas se encontraron tarde. Una alerta que nunca lleva a nada se ajusta o se borra. Vigilar una aplicación con modelos de lenguaje, con sus trazas y sus señales de calidad, es otro problema y está en <a href="https://aaramirez.github.io/aplicaciones-con-ia/17-observabilidad.html" target="_blank" rel="noopener">Observabilidad y KPIs</a>.</p></div><div class="caso"><b>Un caso real</b><p><b>Los modelos que la pandemia dejó sin mundo.</b> En 2020, muchos modelos de riesgo de crédito, de demanda y de fraude en todo el mundo se degradaron en semanas: los patrones de compra, de pago y de movilidad cambiaron de golpe. Los equipos que vigilaban la deriva de las entradas vieron los PSI dispararse en marzo, mucho antes de que llegaran las etiquetas, y pudieron poner reglas de respaldo, ajustar umbrales y revisar a mano las decisiones dudosas mientras juntaban datos nuevos. Los que solo miraban el AUC mensual se enteraron cuando la mora o las pérdidas ya estaban en los estados financieros. La lección se repite a menor escala con cada alza de precios, cada producto nuevo y cada cambio de un sistema de origen.</p></div><div class="ml"><b>En la práctica</b><p><b>El monitor de la v3.</b> Cada mañana, una tarea lee las predicciones del día anterior y calcula el PSI de las variables más importantes y de la probabilidad contra la referencia del entrenamiento. Las alertas suenan con un PSI de 0,2 durante dos semanas seguidas, y un salto de más de 0,5 de un día para otro abre de inmediato una revisión de calidad de datos. El tablero muestra además el porcentaje de clientes sobre el umbral de 0,30, la precisión temprana de cada semana y el AUC real por cohorte, con su retraso de 45 días. La alerta de la billetera sonó en el mes 5 y Valeria la anotó como deriva de datos que el modelo tolera. En el mes 6 no sonó ninguna alerta de entradas, pero la precisión temprana bajó de 42 % a 36 %: era la deriva de concepto. Cuando la mora del mes 6 confirmó un AUC de 0,74, la decisión de reentrenar, del capítulo siguiente, ya estaba tomada.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p>Monitorear el modelo, no solo el servidor. Un modelo se degrada con el servicio en verde, porque cambian los clientes (deriva de datos) o lo que su historia anuncia (deriva de concepto). Se vigilan seis capas, y como el desempeño real llega 30 a 60 días tarde, se usan señales adelantadas: la deriva de las entradas y de las predicciones con el PSI o Kolmogorov-Smirnov, el porcentaje de marcados y la precisión temprana. Las alertas se diseñan para que el equipo actúe: pocas variables, persistencia, estacionalidad, gravedad y una guía de actuación con dueño.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Por qué el tablero del servicio puede estar perfecto mientras el modelo empeora?</summary><p>Porque mide la infraestructura y el servicio (latencia, errores, CPU), y un modelo degradado responde igual de rápido y sin errores: lo que cambió son las entradas o la relación entre las entradas y la mora.</p></details><details><summary>¿Cuál es la diferencia entre deriva de datos y deriva de concepto, con un ejemplo de cada una en el modelo de mora?</summary><p>En la deriva de datos cambia la distribución de las entradas, como el crecimiento de la billetera móvil o los precios más altos tras el alza; en la de concepto cambia la relación entre las entradas y la mora, como clientes con el mismo historial que desde el mes 6 caen más en mora.</p></details><details><summary>Con 50.000 facturas, KS da un valor p de 10⁻¹¹ y el PSI da 0,004. ¿Hay que alarmarse?</summary><p>No necesariamente: con muestras grandes, KS declara significativa cualquier diferencia minúscula. El PSI de 0,004 indica que el cambio es pequeño; el valor p dice si hay diferencia, no si importa.</p></details><details><summary>¿Por qué un salto brusco en una sola variable de un día para otro suele investigarse primero como un problema de datos?</summary><p>Porque los clientes rara vez cambian todos en un día; un salto así suele venir de un error en un sistema de origen o en una exportación, como los días de atraso en cero.</p></details><details><summary>Nombra tres métricas aproximadas para vigilar el modelo de mora antes de que llegue la etiqueta.</summary><p>La deriva de las entradas y de las predicciones, el porcentaje de clientes marcados en riesgo alto y la precisión temprana a los 7 días del vencimiento.</p></details><details><summary>¿Qué es la fatiga de alertas y cómo se combate?</summary><p>Es el cansancio de recibir avisos que no importan, que lleva a ignorarlos. Se combate vigilando primero lo importante, exigiendo persistencia, conociendo la estacionalidad, graduando la gravedad y dando a cada alerta un dueño y una guía de actuación.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Por qué el PSI usa un logaritmo y qué relación tiene con la divergencia de Kullback-Leibler?<small>Pista: busca «PSI symmetric Kullback-Leibler divergence».</small></li><li>¿Qué es el desplazamiento de la prevalencia (<i>label shift</i>) y en qué se diferencia de las dos derivas del capítulo?</li><li>¿Por qué la estimación del desempeño basada en la confianza (CBPE) no detecta una deriva de concepto?<small>Pista: busca «confidence-based performance estimation NannyML».</small></li><li>¿Qué es la corrección de Bonferroni y por qué aparece cuando se prueban muchas variables a la vez?</li><li>¿Qué son los detectores de cambio en flujos de datos como ADWIN o la prueba de Page-Hinkley?<small>Pista: busca «concept drift detection ADWIN».</small></li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://docs.evidentlyai.com/" target="_blank" rel="noopener">Documentación de Evidently: deriva de datos <small>biblioteca de código abierto, en inglés</small></a><a class="vid" href="https://nannyml.readthedocs.io/" target="_blank" rel="noopener">Documentación de NannyML: desempeño sin etiquetas <small>biblioteca de código abierto, en inglés</small></a><a class="vid" href="https://developers.google.com/machine-learning/guides/rules-of-ml" target="_blank" rel="noopener">Rules of Machine Learning, de Google <small>las reglas sobre vigilar un modelo en producción, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$,tok,canvasWidget,bindOut}=window.Lab;
+  const root=document.querySelector('[id="07-lab-1"]');
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function normal(r){const u=Math.max(1e-12,r()),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  const MED=32,SIG=0.32,NREF=20000;
+  // Referencia fija
+  const rr=rng(2026);const REF=[];for(let i=0;i<NREF;i++)REF.push(MED*Math.exp(SIG*normal(rr)));
+  REF.sort((a,b)=>a-b);
+  const CORTES=[];for(let k=1;k<10;k++)CORTES.push(REF[Math.floor(NREF*k/10)]);
+  let n=2000;
+  const val=id=>parseFloat($(id).value);
+  function actual(){const r=rng(77+n),mu=val('#c7l1-mu')/100,sd=val('#c7l1-sd'),nw=val('#c7l1-nw')/100;const out=[];
+    for(let i=0;i<n;i++){if(r()<nw)out.push(45+normal(r)*1.5);else out.push(MED*(1+mu)*Math.exp(SIG*sd*normal(r)));}
+    return out.sort((a,b)=>a-b);}
+  function tramos(xs){const c=new Array(10).fill(0);xs.forEach(x=>{let k=0;while(k<9&&x>=CORTES[k])k++;c[k]++;});return c.map(v=>v/xs.length);}
+  function ks(a,b){let i=0,j=0,d=0;while(i<a.length&&j<b.length){if(a[i]<=b[j])i++;else j++;d=Math.max(d,Math.abs(i/a.length-j/b.length));}
+    const ne=a.length*b.length/(a.length+b.length),l=(Math.sqrt(ne)+0.12+0.11/Math.sqrt(ne))*d;let p=0;
+    for(let k=1;k<=100;k++){const t=2*Math.pow(-1,k-1)*Math.exp(-2*k*k*l*l);p+=t;if(Math.abs(t)<1e-10)break;}
+    return{d,p:Math.max(0,Math.min(1,p))};}
+  let est=null;
+  const dibujar=canvasWidget($('#c7l1-c'),w=>w<520?1.05:0.6,(ctx,w,h)=>{
+    ctx.clearRect(0,0,w,h);if(!est)return;
+    const L=40,R=10,T=8,gap=50,h1=Math.round((h-T-gap-24)*0.5),h2=h-T-gap-24-h1;
+    const x0=10,x1=80,X=x=>L+(x-x0)/(x1-x0)*(w-L-R);
+    // densidades
+    const NB=56,bw=(x1-x0)/NB;
+    function dens(xs){const c=new Array(NB).fill(0);xs.forEach(x=>{const k=Math.floor((x-x0)/bw);if(k>=0&&k<NB)c[k]++;});return c.map(v=>v/xs.length/bw);}
+    const dr=dens(REF),da=dens(est.xs);const ym=Math.max(...dr,...da)*1.08;
+    const Y1=y=>T+h1-y/ym*h1;
+    ctx.fillStyle=tok('--muted');ctx.globalAlpha=.28;
+    dr.forEach((v,k)=>ctx.fillRect(X(x0+k*bw),Y1(v),X(x0+(k+1)*bw)-X(x0+k*bw)-0.5,T+h1-Y1(v)));ctx.globalAlpha=1;
+    ctx.beginPath();da.forEach((v,k)=>{const xa=X(x0+k*bw),xb=X(x0+(k+1)*bw);k?ctx.lineTo(xa,Y1(v)):ctx.moveTo(xa,Y1(v));ctx.lineTo(xb,Y1(v));});
+    ctx.strokeStyle=tok('--accent');ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle=tok('--line');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(L,T+h1);ctx.lineTo(w-R,T+h1);ctx.stroke();
+    ctx.font='11px '+tok('--f-mono');ctx.fillStyle=tok('--muted');ctx.textAlign='center';ctx.textBaseline='top';
+    for(let x=20;x<=80;x+=10)ctx.fillText('$'+x,X(x),T+h1+4);
+    ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('monto de la factura',L+2,T);
+    // tramos
+    const t2=T+h1+gap,Y2=v=>t2+h2-v/0.4*h2,cw=(w-L-R)/10;
+    ctx.strokeStyle=tok('--grid');ctx.fillStyle=tok('--muted');ctx.textAlign='right';ctx.textBaseline='middle';
+    [0,0.1,0.2,0.3,0.4].forEach(v=>{ctx.beginPath();ctx.moveTo(L,Y2(v));ctx.lineTo(w-R,Y2(v));ctx.stroke();ctx.fillText(Math.round(v*100)+'%',L-4,Y2(v));});
+    const maxC=Math.max(...est.contrib);
+    est.a.forEach((v,k)=>{const xa=L+k*cw+cw*0.15,ww=cw*0.7,vv=Math.min(v,0.4);
+      const fuerte=est.contrib[k]===maxC&&maxC>0.02;ctx.fillStyle=fuerte?tok('--warm'):tok('--accent');ctx.globalAlpha=.8;
+      ctx.fillRect(xa,Y2(vv),ww,t2+h2-Y2(vv));ctx.globalAlpha=1;});
+    ctx.strokeStyle=tok('--muted');ctx.setLineDash([5,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(L,Y2(0.1));ctx.lineTo(w-R,Y2(0.1));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=tok('--muted');ctx.textAlign='center';ctx.textBaseline='top';
+    for(let k=0;k<10;k++)ctx.fillText((w<520?'':'T')+(k+1),L+k*cw+cw/2,t2+h2+4);
+    ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText('parte de las facturas en cada tramo de la referencia (debería ser 10 %)',L+2,t2-4);
+  });
+  const coma=(x,d)=>x.toFixed(d).replace('.',',');
+  function pintar(){
+    const xs=actual(),a=tramos(xs),e=0.1;
+    const contrib=a.map(v=>{const q=Math.max(v,1e-4);return (q-e)*Math.log(q/e);});
+    const psi=contrib.reduce((s,v)=>s+v,0),k=ks(REF,xs);
+    est={xs,a,contrib};dibujar();
+    const k1=$('#c7l1-k1'),k2=$('#c7l1-k2');
+    $('#c7l1-psi').textContent=coma(psi,3);
+    let pe,pc;if(psi<0.1){pe='estable (menos de 0,1)';pc='ok';}else if(psi<0.25){pe='cambio moderado: vigilar';pc='ojo';}else{pe='deriva importante: alerta';pc='mal';}
+    k1.className=pc;$('#c7l1-psi-e').textContent=pe;
+    const pv=k.p<0.0001?'< 0,0001':coma(k.p,4);
+    $('#c7l1-ks').textContent='D = '+coma(k.d,3)+' · p = '+pv;
+    const ksal=k.p<0.01;k2.className=ksal?'mal':'ok';$('#c7l1-ks-e').textContent=ksal?'diferencia significativa: alerta':'sin diferencia significativa';
+    const sinCambio=val('#c7l1-mu')===0&&val('#c7l1-sd')===1&&val('#c7l1-nw')===0;
+    let h='';
+    if(sinCambio)h+='<span>Sin ningún cambio, las dos medidas quedan tranquilas: lo que se ve es solo el azar de tomar '+n.toLocaleString('es')+' facturas.</span>';
+    if(ksal&&psi<0.1)h+='<span class="warn">KS da alerta y el PSI no: con '+n.toLocaleString('es')+' facturas, KS detecta como «significativa» una diferencia tan pequeña que no cambia nada en el modelo. El valor p mide si hay diferencia, no si importa.</span>';
+    if(!ksal&&psi>=0.1)h+='<span class="warn">El PSI se movió pero KS no lo ve: con pocas facturas el azar es grande y KS es prudente. Mira D, no solo el valor p.</span>';
+    if(val('#c7l1-nw')>=10)h+='<span>Los clientes del plan nuevo se amontonan en US$ 45: los tramos altos se llenan de más (el tramo en color es el que más aporta al PSI). La v3 nunca vio tantos clientes en ese punto.</span>';
+    if(val('#c7l1-sd')!==1&&val('#c7l1-mu')===0&&val('#c7l1-nw')===0)h+='<span>Cambiar solo la dispersión no mueve el promedio: un tablero que mira el promedio no lo vería. El PSI y KS sí, porque comparan la distribución entera.</span>';
+    h+='<span>PSI = Σ (actual − referencia) × ln(actual ÷ referencia), sumado en los 10 tramos. KS mira la mayor distancia entre las dos curvas acumuladas.</span>';
+    $('#c7l1-out').innerHTML=h;
+  }
+  bindOut('#c7l1-mu',x=>(x>0?'+':'')+x+' %');
+  bindOut('#c7l1-sd',x=>'× '+coma(x,2));
+  bindOut('#c7l1-nw',x=>x+' %');
+  ['#c7l1-mu','#c7l1-sd','#c7l1-nw'].forEach(id=>$(id).addEventListener('input',pintar));
+  root.querySelectorAll('[data-n]').forEach(bt=>bt.addEventListener('click',()=>{n=+bt.getAttribute('data-n');root.querySelectorAll('[data-n]').forEach(x=>x.setAttribute('aria-pressed',x===bt?'true':'false'));pintar();}));
+  pintar();
+})();
+</script>
+<script>
+(function(){
+  const {$,tok,canvasWidget,bindOut}=window.Lab;
+  const root=document.querySelector('[id="07-lab-2"]');
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function normal(r){const u=Math.max(1e-12,r()),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  const S=52,VMAX=30;
+  // Tres derivas reales: [nombre, variable, semana inicio, semana fin, forma, PSI máximo]
+  const EV=[
+    {nom:'billetera móvil: método de pago',v:3,a:16,b:51,forma:'rampa',max:0.3},
+    {nom:'alza de tarifas: precio del plan',v:0,a:29,b:51,forma:'salto',max:0.3},
+    {nom:'error en un sistema de origen: días de atraso en cero',v:7,a:40,b:42,forma:'salto',max:0.6}
+  ];
+  // PSI simulado de cada variable cada semana (fijo, con semilla)
+  const r=rng(52);const PSI=[];
+  for(let v=0;v<VMAX;v++){const fila=[];const ruido=v%6===5?0.05:0.012;const estac=v%4===1;
+    for(let s=0;s<S;s++){let x=Math.abs(ruido*(0.6+0.7*Math.abs(normal(r))));
+      if(estac&&s>=47)x+=0.07+0.06*r();                 // diciembre: cambio de temporada, inocuo
+      if(v%9===4&&(s===13||s===14))x+=0.09+0.05*r();     // feriado largo, inocuo
+      EV.forEach(e=>{if(e.v===v&&s>=e.a&&s<=e.b){const t=(s-e.a+1)/(e.b-e.a+1);x+=e.forma==='salto'?e.max:e.max*Math.min(1,t*1.3);}});
+      fila.push(x);}PSI.push(fila);}
+  let regla=1,res=null;
+  const val=id=>parseFloat($(id).value);
+  function calcular(){const u=val('#c7l2-u'),V=val('#c7l2-v');const al=[];let fa=0,ok=0;
+    const det=EV.map(()=>null);
+    for(let v=0;v<V;v++)for(let s=0;s<S;s++){
+      const sobre=PSI[v][s]>=u&&(regla===1||(s>0&&PSI[v][s-1]>=u));if(!sobre)continue;
+      let real=-1;EV.forEach((e,i)=>{if(e.v===v&&s>=e.a&&s<=e.b+1)real=i;});
+      al.push({v,s,real});if(real<0)fa++;else{ok++;if(det[real]===null)det[real]=s;}}
+    return{al,fa,ok,det,V,u};}
+  const dibujar=canvasWidget($('#c7l2-c'),w=>w<520?1.0:0.5,(ctx,w,h)=>{
+    ctx.clearRect(0,0,w,h);if(!res)return;
+    const L=30,R=8,T=26,B=20,cw=(w-L-R)/S,rh=(h-T-B)/VMAX;
+    EV.forEach(e=>{ctx.fillStyle=tok('--accent-soft');ctx.fillRect(L+e.a*cw,T,(e.b-e.a+1)*cw,h-T-B);
+      ctx.strokeStyle=tok('--accent');ctx.lineWidth=1;ctx.strokeRect(L+e.a*cw+0.5,T+e.v*rh,(e.b-e.a+1)*cw-1,rh);});
+    ctx.fillStyle=tok('--grid');
+    for(let v=res.V;v<VMAX;v++){ctx.globalAlpha=.5;ctx.fillRect(L,T+v*rh,w-L-R,rh);}ctx.globalAlpha=1;
+    ctx.strokeStyle=tok('--line');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(L,T+res.V*rh);ctx.lineTo(w-R,T+res.V*rh);ctx.stroke();
+    res.al.forEach(a=>{ctx.beginPath();ctx.arc(L+(a.s+0.5)*cw,T+(a.v+0.5)*rh,Math.max(2,Math.min(cw,rh)*0.42),0,7);ctx.fillStyle=a.real>=0?tok('--warm'):tok('--muted');ctx.fill();});
+    ctx.font='11px '+tok('--f-mono');ctx.fillStyle=tok('--muted');ctx.textAlign='center';ctx.textBaseline='top';
+    const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    meses.forEach((m,i)=>{if(w<520&&i%2)return;ctx.fillText(m,L+(i*52/12+2.2)*cw,h-B+5);});
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    [1,10,20,30].forEach(v=>ctx.fillText('v'+v,L-4,T+(v-0.5)*rh));
+    ctx.textAlign='left';ctx.textBaseline='bottom';
+    EV.forEach((e,i)=>{ctx.fillStyle=res.det[i]!==null?tok('--warm'):tok('--muted');ctx.fillText((i+1)+(res.det[i]!==null?' ✓':' ✗'),L+e.a*cw+2,T-6);});
+    if(res.V<VMAX){ctx.fillStyle=tok('--muted');ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('variables sin vigilar',L+4,T+res.V*rh+3);}
+  });
+  function pintar(){
+    res=calcular();dibujar();
+    const det=res.det.filter(x=>x!==null).length;
+    const rets=res.det.map((s,i)=>s===null?null:s-EV[i].a).filter(x=>x!==null);
+    const ret=rets.length?rets.reduce((a,b)=>a+b,0)/rets.length:null;
+    $('#c7l2-tot').textContent=res.al.length;$('#c7l2-fa').textContent=res.fa;$('#c7l2-det').textContent=det+' de 3';
+    $('#c7l2-ret').textContent=ret===null?'–':(ret.toFixed(1).replace('.',',')+' sem');
+    $('#c7l2-k2').className=res.fa>15?'mal':res.fa<=3?'bien':'';$('#c7l2-k3').className=det===3?'bien':'mal';
+    let h='<span>Con un umbral de '+res.u.toFixed(2).replace('.',',')+' y '+res.V+' variables, el equipo recibe '+res.al.length+' alertas en el año: '+(res.al.length/52).toFixed(1).replace('.',',')+' por semana, y '+res.fa+' son falsas.</span>';
+    EV.forEach((e,i)=>{if(e.v>=res.V)h+='<span class="warn">Deriva '+(i+1)+' ('+e.nom+'): nadie vigila esa variable.</span>';
+      else if(res.det[i]===null)h+='<span class="warn">Deriva '+(i+1)+' ('+e.nom+'): se escapó, el umbral es muy alto para ella.</span>';
+      else h+='<span>Deriva '+(i+1)+' ('+e.nom+'): detectada '+(res.det[i]-e.a)+' semana(s) después de empezar.</span>';});
+    if(res.fa>15)h+='<span class="warn">Demasiadas falsas alarmas: diciembre y los feriados mueven variables sin dañar el modelo. Con tantas, el equipo deja de mirar, y la próxima alerta verdadera se pierde entre las demás.</span>';
+    if(regla===2)h+='<span>Pedir dos semanas seguidas elimina avisos de una sola semana, pero cada deriva se detecta una semana más tarde.</span>';
+    $('#c7l2-out').innerHTML=h;
+  }
+  bindOut('#c7l2-u',x=>x.toFixed(2).replace('.',','));
+  bindOut('#c7l2-v',x=>String(x));
+  ['#c7l2-u','#c7l2-v'].forEach(id=>$(id).addEventListener('input',pintar));
+  root.querySelectorAll('[data-r]').forEach(bt=>bt.addEventListener('click',()=>{regla=+bt.getAttribute('data-r');root.querySelectorAll('[data-r]').forEach(x=>x.setAttribute('aria-pressed',x===bt?'true':'false'));pintar();}));
+  pintar();
+})();
+</script>
+</body>
+</html>

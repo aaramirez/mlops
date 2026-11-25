@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Servir modelos · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="servir-modelos">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 05 DE 11</span><h1>Servir modelos: por lotes, en línea y en el borde</h1><p class="lede">Un modelo registrado todavía no ayuda a nadie: alguien tiene que pedirle predicciones y recibirlas a tiempo. Este capítulo pone a responder la v2 del modelo de mora de dos maneras, una lista mensual por lotes y una API en línea para el CRM, y compara esas formas con el streaming y el borde en latencia, frescura y dinero.</p></header>
+<section><div class="prose"><p>La v2 del modelo de mora salió del pipeline con su semilla, su validación y su versión en el registro. Ese día, dos personas le pidieron cosas distintas a Valeria. La gerente de Cobranzas quería «la lista»: los clientes con probabilidad de 0,30 o más, el día que se emite la factura, para llamarlos antes del vencimiento. Hasta ese mes, la lista era el Excel que Andrés mandaba por correo. La líder de atención quería otra cosa: que el agente vea el riesgo del cliente en el CRM mientras habla con él, para ofrecerle un plan de pago antes de que pida la baja.</p><p>Es el mismo modelo con dos formas de servirlo. La primera es una tarea que corre una vez al mes sobre 150.000 clientes; la segunda, un servicio que tiene que responder en menos de un segundo, a cualquier hora, a un cliente a la vez. <b>Servir</b> (<i>serving</i>) un modelo es entregar sus predicciones a quien las usa, y la forma correcta depende de cuándo se necesita la respuesta.</p></div></section>
+<section><h2>Por lotes: predicciones programadas</h2><div class="prose"><p>La <b>inferencia por lotes</b> (<i>batch inference</i>) calcula las predicciones de muchos casos a la vez, en un horario, y las guarda en una tabla o un archivo para que otro sistema las lea después.</p></div><div class="analogia"><b>Imagínalo así</b><p>Es la panadería que hornea de madrugada. A las 6 de la mañana el pan ya está en los estantes, y cada cliente lo recibe al instante. Pero es el pan de la madrugada: si alguien quiere uno recién salido a las 5 de la tarde, tendrá que esperar al día siguiente.</p></div><div class="prose"><p>Para la lista de Cobranzas, la tarea corre el día de emisión de la factura: lee las variables de toda la cartera, carga la v2 desde el registro, calcula la probabilidad de mora de cada cliente y escribe una tabla con el cliente, la probabilidad, si entra en la lista, la versión del modelo y la fecha. El sistema de cobranza lee esa tabla. En un computador común, puntuar los 150.000 clientes tarda menos de un segundo; en producción, con la lectura de datos y la escritura, unos minutos.</p><p>Las ventajas son grandes: es barato (la máquina se enciende solo durante la tarea), fácil de reintentar si falla y fácil de auditar, porque toda la lista queda guardada. La desventaja es la <b>frescura</b> (<i>freshness</i>): la predicción tiene la edad de la última corrida. Si un cliente paga al día siguiente, la lista no se entera hasta el mes próximo.</p></div></section>
+<section><h2>En línea: el modelo como servicio con su API</h2><div class="prose"><p>La <b>inferencia en línea</b> (<i>online inference</i>) calcula la predicción en el momento en que alguien la pide. El modelo vive dentro de un servicio que recibe peticiones por la red, casi siempre por una <b>API REST</b> (<i>Representational State Transfer</i>, un estilo de API sobre HTTP), y responde en milisegundos.</p></div><div class="analogia"><b>Imagínalo así</b><p>Es la cocina de un restaurante a la carta. Cada plato se prepara cuando alguien lo pide, con lo que hay en la heladera en ese momento. Es más fresco y más flexible que el pan de la madrugada, pero la cocina tiene que estar encendida y con gente todo el día, haya clientes o no.</p></div><div class="prose"><p>Para el CRM, el servicio expone <code>POST /v1/predecir</code>. El CRM manda el identificador del cliente, el servicio pide sus variables (al almacén en línea del capítulo anterior, o las recibe en la petición), las valida, llama al modelo y responde con la probabilidad y <b>la versión del modelo que la calculó</b>. Esa versión en cada respuesta no es un adorno: es lo que permite, semanas después, saber qué modelo tomó cada decisión.</p></div><figure class="fig fig-flujo" id="05-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 500" style="min-width:740px" role="img" aria-label="Diagrama de secuencia de una predicción en línea: el agente abre la ficha, el CRM llama a POST /v1/predecir, el servicio valida la petición, pide las variables al almacén en línea, el modelo calcula la probabilidad, el servicio responde con la probabilidad y la versión v2 y escribe el registro de la predicción; a la derecha, el tiempo de cada fase">
+<defs>
+<marker id="c5d1-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c5d1-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+<marker id="c5d1-f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-fis"/></marker>
+<marker id="c5d1-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-tra"/></marker>
+</defs>
+<rect x="14" y="14" width="96" height="50" rx="10" class="caja"/>
+<text x="62" y="36" class="t t-b" text-anchor="middle" style="font-size:12px">Agente</text>
+<text x="62" y="53" class="t t-s t-m" text-anchor="middle">de atención</text>
+<line x1="62" y1="64" x2="62" y2="484" class="vida"/>
+<rect x="124" y="14" width="96" height="50" rx="10" class="caja"/>
+<text x="172" y="36" class="t t-b" text-anchor="middle" style="font-size:12px">CRM</text>
+<text x="172" y="53" class="t t-s t-m" text-anchor="middle">la ficha</text>
+<line x1="172" y1="64" x2="172" y2="484" class="vida"/>
+<rect x="234" y="14" width="110" height="50" rx="10" class="c-red"/>
+<text x="289" y="36" class="t t-b" text-anchor="middle" style="font-size:12px">Servicio</text>
+<text x="289" y="53" class="t t-s t-m" text-anchor="middle">de mora</text>
+<line x1="289" y1="64" x2="289" y2="484" class="vida"/>
+<rect x="358" y="14" width="110" height="50" rx="10" class="c-fis"/>
+<text x="413" y="36" class="t t-b" text-anchor="middle" style="font-size:12px">Almacén</text>
+<text x="413" y="53" class="t t-s t-m" text-anchor="middle">en línea</text>
+<line x1="413" y1="64" x2="413" y2="484" class="vida"/>
+<rect x="482" y="14" width="96" height="50" rx="10" class="c-enl"/>
+<text x="530" y="36" class="t t-b" text-anchor="middle" style="font-size:12px">Modelo</text>
+<text x="530" y="53" class="t t-s t-m" text-anchor="middle">v2 en memoria</text>
+<line x1="530" y1="64" x2="530" y2="484" class="vida"/>
+<rect x="592" y="14" width="110" height="50" rx="10" class="c-tra"/>
+<text x="647" y="36" class="t t-b" text-anchor="middle" style="font-size:12px">Registro de</text>
+<text x="647" y="53" class="t t-s t-m" text-anchor="middle">predicciones</text>
+<line x1="647" y1="64" x2="647" y2="484" class="vida"/>
+
+
+<line x1="62" y1="96" x2="168" y2="96" class="ln" marker-end="url(#c5d1-m)"/>
+<text x="70" y="88" class="t t-s">① abre la ficha</text>
+
+<line x1="172" y1="140" x2="285" y2="140" class="ln s-red" marker-end="url(#c5d1-r)"/>
+<text x="180" y="124" class="t t-s">② POST /v1/predecir</text>
+<text x="180" y="156" class="t t-xs t-mono t-m">cliente_id 20417</text>
+
+<path d="M289 172 h34 v24 h-30" class="ln s-red" marker-end="url(#c5d1-r)"/>
+<text x="330" y="188" class="t t-s">③ valida el esquema</text>
+
+<line x1="289" y1="232" x2="409" y2="232" class="ln s-fis" marker-end="url(#c5d1-f)"/>
+<text x="296" y="224" class="t t-s">④ pide variables</text>
+<line x1="413" y1="256" x2="293" y2="256" class="ln s-fis ln-d" marker-end="url(#c5d1-f)"/>
+<text x="300" y="272" class="t t-s t-m">5 variables · ≈ 5 ms</text>
+
+<line x1="289" y1="306" x2="526" y2="306" class="ln s-red" marker-end="url(#c5d1-r)"/>
+<text x="420" y="298" class="t t-s">⑤ predict_proba</text>
+<line x1="530" y1="328" x2="293" y2="328" class="ln ln-d" marker-end="url(#c5d1-m)"/>
+<text x="420" y="344" class="t t-s t-m">0,31 · ≈ 3 ms</text>
+
+<line x1="289" y1="374" x2="176" y2="374" class="ln s-red" marker-end="url(#c5d1-r)"/>
+<text x="180" y="366" class="t t-s">⑥ responde</text>
+<text x="180" y="390" class="t t-xs t-mono t-m">prob 0,31 · mora-v2</text>
+<line x1="172" y1="404" x2="66" y2="404" class="ln" marker-end="url(#c5d1-m)"/>
+<text x="70" y="420" class="t t-s">en la lista</text>
+
+<line x1="289" y1="452" x2="643" y2="452" class="ln s-tra ln-d" marker-end="url(#c5d1-t)"/>
+<text x="420" y="444" class="t t-s">⑦ registra entradas, salida y versión</text>
+
+
+<rect x="730" y="80" width="150" height="76" rx="8" class="caja"/>
+<text x="742" y="100" class="t t-xs t-b t-m">RED Y HTTP</text>
+<text x="742" y="120" class="t t-s">ida y vuelta</text>
+<text x="742" y="140" class="t t-b">≈ 20 ms</text>
+<rect x="730" y="166" width="150" height="56" rx="8" class="caja"/>
+<text x="742" y="186" class="t t-xs t-b t-m">VALIDAR</text>
+<text x="742" y="208" class="t t-b">&lt; 1 ms</text>
+<rect x="730" y="232" width="150" height="56" rx="8" class="c-fis"/>
+<text x="742" y="252" class="t t-xs t-b k-fis">VARIABLES</text>
+<text x="742" y="274" class="t t-b">≈ 5 ms</text>
+<rect x="730" y="298" width="150" height="56" rx="8" class="c-enl"/>
+<text x="742" y="318" class="t t-xs t-b k-enl">MODELO</text>
+<text x="742" y="340" class="t t-b">≈ 3 ms</text>
+<rect x="730" y="364" width="150" height="76" rx="8" class="caja"/>
+<text x="742" y="384" class="t t-xs t-b t-m">TOTAL</text>
+<text x="742" y="404" class="t t-b">≈ 30 ms p50</text>
+<text x="742" y="424" class="t t-s t-m">límite: 300 ms</text>
+<rect x="730" y="448" width="150" height="40" rx="8" class="c-tra"/>
+<text x="742" y="472" class="t t-s">asíncrono: no suma</text>
+</svg></div><figcaption><b>Una predicción en línea, paso a paso.</b> Los participantes están arriba y el tiempo corre hacia abajo. ① El agente abre la ficha del cliente en el CRM; ② el CRM llama a <code>POST /v1/predecir</code> con el <code>cliente_id</code>; ③ el servicio valida la petición contra su esquema; ④ pide las variables al almacén en línea y las recibe en unos 5 ms; ⑤ el modelo calcula la probabilidad en unos 3 ms; ⑥ el servicio responde con la probabilidad (0,31: entra en la lista), la versión <code>mora-v2</code> y el tiempo; ⑦ escribe un registro de la predicción para el monitoreo. A la derecha, el presupuesto de tiempo de cada fase: casi todo se va en la red y en buscar variables, no en el modelo.</figcaption></figure><div class="prose"><p>Un servicio de modelos en producción hace mucho más que llamar a <code>predict</code>:</p><ul><li><b>Valida la entrada</b> con un esquema: tipos, rangos y columnas obligatorias. Si llega una columna con otro nombre o un valor imposible, responde con un error claro en vez de predecir con basura.</li><li><b>Tiene un tiempo límite</b> (<i>timeout</i>): si el almacén de variables tarda demasiado, responde con un valor por defecto acordado y lo registra, para no colgar la pantalla del agente.</li><li><b>Expone su salud</b>: un punto como <code>/salud</code> que el balanceador consulta para saber si la réplica está viva y con el modelo cargado.</li><li><b>Registra cada predicción</b> con sus entradas, su salida y su versión, que es la materia prima del monitoreo del capítulo 7.</li></ul><p>En Python, <b>FastAPI</b> con <b>uvicorn</b> es la combinación más común para escribirlo; <b>BentoML</b>, <b>Ray Serve</b>, <b>KServe</b> y <b>Seldon Core</b> son ejemplos de plataformas que agregan empaquetado, escalado y despliegue. Cómo se diseña una API en general (versiones, errores, autenticación) es tema de <a href="https://aaramirez.github.io/backend/temario.html" target="_blank" rel="noopener">Backend y APIs</a>.</p></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>El modelo de mora como servicio</h3></div><p>Vas a servir la v2 que dejó el pipeline del capítulo 3 con una API de FastAPI, enviarle una petición buena y tres malas, y medir su latencia frente a la de puntuar toda la cartera por lotes. Trabaja en la carpeta <code>mora-30d</code>, con el entorno activado y con <code>registro/mora-30d-v2.joblib</code> ya creado por <code>pipeline.py</code>. En producción el servicio carga <code>models:/mora-30d@campeon</code> del registro de MLflow, como en el capítulo 2; aquí lee el archivo que dejó el pipeline para que la práctica no dependa de un servidor. Agrega FastAPI:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install fastapi uvicorn</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>servicio.py</code>:</p><div class="code-copia"><pre><code>"""API de mora.
+
+Valida la entrada y responde con la probabilidad y la versión.
+"""
+import json, time
+from pathlib import Path
+from typing import Literal
+import joblib, pandas as pd
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+
+MODELO = joblib.load("registro/mora-30d-v2.joblib")
+LINAJE = json.loads(Path("registro/mora-30d-v2.json").read_text())
+app = FastAPI(title="Servicio del modelo de mora")
+
+class Cliente(BaseModel):
+    antiguedad_meses: int = Field(ge=1, le=120)
+    precio_plan: float = Field(ge=10, le=100)
+    metodo_pago: Literal["debito", "tarjeta", "efectivo", "transferencia", "billetera"]
+    dias_atraso_prom_6m: float = Field(ge=0, le=60)
+    facturas_tarde_12m: int = Field(ge=0)
+    reclamos_90d: int = Field(ge=0, le=10)
+    bajo_plan_3m: Literal[0, 1]
+    pago_parcial_3m: Literal[0, 1]
+
+@app.post("/v1/predecir")
+def predecir(c: Cliente):
+    t0 = time.perf_counter()
+    p = float(MODELO.predict_proba(pd.DataFrame([c.model_dump()]))[0, 1])
+    return {"prob_mora": round(p, 4), "en_lista": p &gt;= 0.30,
+            "version_modelo": f"mora-{LINAJE['version']}",
+            "ms": round((time.perf_counter() - t0) * 1000, 2)}
+
+@app.get("/salud")
+def salud():
+    return {"estado": "ok", "version_modelo": f"mora-{LINAJE['version']}", "auc": LINAJE["auc"]}</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Guarda también <code>probar.py</code>, que manda cuatro peticiones:</p><div class="code-copia"><pre><code>import json, urllib.request, urllib.error
+
+URL = "http://127.0.0.1:8000/v1/predecir"
+BIEN = {"antiguedad_meses": 14, "precio_plan": 30.0, "metodo_pago": "efectivo",
+        "dias_atraso_prom_6m": 9.5, "facturas_tarde_12m": 3, "reclamos_90d": 1,
+        "bajo_plan_3m": 0, "pago_parcial_3m": 1}
+PEDIDOS = {"bien": BIEN,
+           "días en horas": {**BIEN, "dias_atraso_prom_6m": 228},
+           "método nuevo": {**BIEN, "metodo_pago": "cripto"},
+           "columna cambió": {k if k != "precio_plan" else "precio": v for k, v in BIEN.items()}}
+if __name__ == "__main__":
+    for nombre, cuerpo in PEDIDOS.items():
+        pedido = urllib.request.Request(URL, data=json.dumps(cuerpo).encode(),
+                                        headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(pedido) as r:
+                print(f"{nombre:15} {r.status} {r.read().decode()}")
+        except urllib.error.HTTPError as e:
+            print(f"{nombre:15} {e.code} {json.loads(e.read())['detail'][0]['msg']}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Y <code>medir.py</code>, que compara 200 peticiones en línea con un lote del tamaño de la cartera:</p><div class="code-copia"><pre><code>import json, statistics, time, urllib.request
+import joblib, pandas as pd
+from probar import URL, BIEN
+
+def llamar():
+    pedido = urllib.request.Request(URL, data=json.dumps(BIEN).encode(),
+                                    headers={"Content-Type": "application/json"})
+    t0 = time.perf_counter()
+    urllib.request.urlopen(pedido).read()
+    return (time.perf_counter() - t0) * 1000
+
+tiempos = sorted(llamar() for _ in range(200))
+print(f"en línea, de a una: p50 {statistics.median(tiempos):.1f} ms · p95 {tiempos[189]:.1f} ms")
+
+cartera = pd.concat([pd.read_csv("datos/clientes-m00.csv")] * 8).head(150_000)  # 150.000 clientes
+modelo = joblib.load("registro/mora-30d-v2.joblib")
+t0 = time.perf_counter()
+p = modelo.predict_proba(cartera)[:, 1]
+print(f"por lotes, 150.000 clientes de una vez: {(time.perf_counter() - t0) * 1000:.0f} ms en total")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Levanta el servicio en una terminal y déjalo corriendo:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>python -m uvicorn servicio:app --port 8000</code><button type="button" class="copiar">Copiar</button></div></div></div><p>En otra terminal, en la misma carpeta y con el entorno activado:</p><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python probar.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python medir.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 probar.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 medir.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Mira las cuatro respuestas de <code>probar.py</code>: el código HTTP y el mensaje.</span></li><li><span>Abre <code>http://127.0.0.1:8000/docs</code> en el navegador: FastAPI arma la documentación con el esquema. Prueba <code>/salud</code> desde ahí.</span></li><li><span>Corre <code>medir.py</code> y compara el p95 en línea con el total del lote.</span></li><li><span>Detén el servicio con Ctrl+C en su terminal.</span></li></ol><p><b>Qué observar:</b> la petición buena responde 200 con la probabilidad, si el cliente entra en la lista (umbral 0,30) y <code>mora-v2</code>. Las tres malas responden 422 sin predecir: los días en horas pasan de 60, <code>cripto</code> no es un método de pago conocido y falta <code>precio_plan</code> porque llegó con otro nombre. Sin el esquema, la primera habría dado una probabilidad absurda sin ningún error, y la última habría fallado con un error 500 poco claro. En <code>medir.py</code>, cada petición en línea tarda unos pocos milisegundos, casi todo de red y de HTTP, mientras el lote puntúa 150.000 clientes en menos de un segundo. Los números dependen de tu computador, pero la proporción se repite: por lotes, el costo por predicción es mínimo; en línea, pagas por la respuesta inmediata.</p></div></section>
+<section><h2>En streaming: predecir sobre eventos</h2><div class="prose"><p>Entre el lote mensual y la petición en línea hay una tercera forma: la <b>inferencia en streaming</b> (<i>streaming inference</i>). El modelo no espera a que alguien le pregunte ni a que llegue el horario: escucha un flujo de eventos y predice con cada uno que importa.</p><p>Para el modelo de mora, el evento útil es un <b>pago rechazado</b>. Cuando el débito automático de un cliente falla, el evento llega a un tema de Kafka; un consumidor lo lee, pide las variables del cliente, recalcula su probabilidad y, si pasa el umbral, publica un evento nuevo, «riesgo alto», que dispara un mensaje con un enlace de pago. Nadie tuvo que abrir una ficha ni esperar a fin de mes.</p><p>El streaming tiene la frescura de la inferencia en línea sin que haya una persona esperando la respuesta, y por eso tolera unos segundos de demora. A cambio, exige operar el flujo de eventos y pensar en lo que en un lote no pasa: eventos repetidos, eventos fuera de orden y qué hacer si el consumidor se cae una hora. Kafka y el procesamiento de flujos están en <a href="https://aaramirez.github.io/ingenieria-de-datos/temario.html" target="_blank" rel="noopener">Ingeniería de datos</a>.</p></div></section>
+<section><h2>En el borde: el modelo dentro del teléfono o del equipo</h2><div class="prose"><p>La <b>inferencia en el borde</b> (<i>edge inference</i>) corre el modelo en el dispositivo donde se usa: un teléfono, una cámara, un router, una máquina de una fábrica. La predicción no viaja por la red.</p><p>Se elige por cuatro razones: <b>latencia</b> (un teclado predictivo no puede esperar a un servidor), <b>conexión</b> (el técnico en una zona sin señal), <b>privacidad</b> (los datos no salen del dispositivo) y <b>costo</b> (millones de predicciones sin pagar servidores). Para el modelo de mora, una versión pequeña podría vivir en la aplicación del cliente y sugerir un plan de pago aunque no haya conexión; con un modelo tabular tan liviano, y con datos que de todas formas están en el servidor, la ganancia es pequeña. El borde brilla con modelos de visión, voz y texto en el teléfono.</p><p>El precio del borde es el control. Actualizar el modelo exige publicar una versión nueva de la aplicación o descargar un archivo a millones de dispositivos, y siempre habrá teléfonos con la versión de hace seis meses. Las predicciones no se registran solas: si quieres monitorearlas, el dispositivo tiene que mandarlas de vuelta.</p></div><figure class="fig fig-comparacion" id="05-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 470" style="min-width:740px" role="img" aria-label="Tabla que compara cuatro formas de servir el mismo modelo, por lotes, en línea, en streaming y en el borde, en siete aspectos: qué dispara la predicción, dónde corre, latencia, frescura, cómo crece el costo, cómo se actualiza el modelo y el uso en el modelo de mora">
+<text x="20" y="34" class="t t-xs t-b t-m">ASPECTO</text>
+<rect x="170" y="14" width="168" height="32" rx="8" class="c-red"/>
+<text x="254" y="35" class="t t-b k-red" text-anchor="middle">Por lotes</text>
+<rect x="348" y="14" width="168" height="32" rx="8" class="c-red"/>
+<text x="432" y="35" class="t t-b k-red" text-anchor="middle">En línea</text>
+<rect x="526" y="14" width="168" height="32" rx="8" class="c-red"/>
+<text x="610" y="35" class="t t-b k-red" text-anchor="middle">En streaming</text>
+<rect x="704" y="14" width="176" height="32" rx="8" class="c-red"/>
+<text x="792" y="35" class="t t-b k-red" text-anchor="middle">En el borde</text>
+
+<line x1="20" y1="58" x2="880" y2="58" class="ln" style="stroke-width:.8"/>
+<text x="20" y="84" class="t t-b" style="font-size:12px">Qué la dispara</text>
+<text x="178" y="80" class="t t-s">un horario</text><text x="178" y="96" class="t t-s t-m">día de emisión</text>
+<text x="356" y="80" class="t t-s">una petición</text><text x="356" y="96" class="t t-s t-m">alguien espera</text>
+<text x="534" y="80" class="t t-s">un evento</text><text x="534" y="96" class="t t-s t-m">nadie espera</text>
+<text x="712" y="80" class="t t-s">la app o el equipo</text><text x="712" y="96" class="t t-s t-m">sin pasar por la red</text>
+
+<line x1="20" y1="110" x2="880" y2="110" class="ln" style="stroke-width:.8"/>
+<text x="20" y="136" class="t t-b" style="font-size:12px">Dónde corre</text>
+<text x="178" y="132" class="t t-s">una tarea que se</text><text x="178" y="148" class="t t-s">enciende y se apaga</text>
+<text x="356" y="132" class="t t-s">un servicio con</text><text x="356" y="148" class="t t-s">réplicas siempre encendidas</text>
+<text x="534" y="132" class="t t-s">un consumidor del</text><text x="534" y="148" class="t t-s">flujo de eventos</text>
+<text x="712" y="132" class="t t-s">el teléfono, la cámara,</text><text x="712" y="148" class="t t-s">el router</text>
+
+<line x1="20" y1="162" x2="880" y2="162" class="ln" style="stroke-width:.8"/>
+<text x="20" y="188" class="t t-b" style="font-size:12px">Latencia</text>
+<text x="178" y="188" class="t t-s">≈ 5 ms al leer la tabla</text>
+<text x="356" y="188" class="t t-s">decenas de ms</text>
+<text x="534" y="188" class="t t-s">de ms a segundos</text>
+<text x="712" y="188" class="t t-s">pocos ms</text>
+
+<line x1="20" y1="206" x2="880" y2="206" class="ln" style="stroke-width:.8"/>
+<text x="20" y="232" class="t t-b" style="font-size:12px">Frescura</text>
+<text x="178" y="228" class="t t-s t-b k-warm">la de la última corrida</text><text x="178" y="244" class="t t-s t-m">horas o días</text>
+<text x="356" y="228" class="t t-s">al momento</text>
+<text x="534" y="228" class="t t-s">al momento</text>
+<text x="712" y="228" class="t t-s">datos al momento;</text><text x="712" y="244" class="t t-s t-b k-warm">modelo de hace meses</text>
+
+<line x1="20" y1="258" x2="880" y2="258" class="ln" style="stroke-width:.8"/>
+<text x="20" y="284" class="t t-b" style="font-size:12px">Costo</text>
+<text x="178" y="280" class="t t-s">crece con la cartera</text><text x="178" y="296" class="t t-s t-m">y la frecuencia</text>
+<text x="356" y="280" class="t t-s t-b k-warm">réplicas todo el mes,</text><text x="356" y="296" class="t t-s t-m">crece con la hora pico</text>
+<text x="534" y="280" class="t t-s t-b k-warm">flujo y consumidor</text><text x="534" y="296" class="t t-s t-m">siempre encendidos</text>
+<text x="712" y="280" class="t t-s">casi cero por predicción;</text><text x="712" y="296" class="t t-s t-m">pagas la distribución</text>
+
+<line x1="20" y1="310" x2="880" y2="310" class="ln" style="stroke-width:.8"/>
+<text x="20" y="336" class="t t-b" style="font-size:12px">Actualizar</text>
+<text x="20" y="352" class="t t-b" style="font-size:12px">el modelo</text>
+<text x="178" y="336" class="t t-s">la próxima corrida</text><text x="178" y="352" class="t t-s t-m">usa la versión nueva</text>
+<text x="356" y="336" class="t t-s">desplegar el servicio</text><text x="356" y="352" class="t t-s t-m">(capítulo 6)</text>
+<text x="534" y="336" class="t t-s">desplegar el</text><text x="534" y="352" class="t t-s t-m">consumidor</text>
+<text x="712" y="336" class="t t-s t-b k-warm">publicar la app;</text><text x="712" y="352" class="t t-s t-m">conviven versiones viejas</text>
+
+<line x1="20" y1="366" x2="880" y2="366" class="ln" style="stroke-width:.8"/>
+<text x="20" y="392" class="t t-b" style="font-size:12px">En el modelo</text>
+<text x="20" y="408" class="t t-b" style="font-size:12px">de mora</text>
+<text x="178" y="392" class="t t-s">la lista mensual</text><text x="178" y="408" class="t t-s t-m">de cobranza</text>
+<text x="356" y="392" class="t t-s">el riesgo en el CRM</text><text x="356" y="408" class="t t-s t-m">mientras se atiende</text>
+<text x="534" y="392" class="t t-s">un pago rechazado</text><text x="534" y="408" class="t t-s t-m">dispara un aviso</text>
+<text x="712" y="392" class="t t-s">un plan de pago en</text><text x="712" y="408" class="t t-s t-m">la app, sin conexión</text>
+<line x1="20" y1="422" x2="880" y2="422" class="ln" style="stroke-width:.8"/>
+<text x="20" y="450" class="t t-s t-m">En rojo, lo que más cuesta de cada forma. Ninguna gana en todas las filas.</text>
+</svg></div><figcaption><b>Cuatro formas de servir el mismo modelo.</b> Las columnas son por lotes, en línea, en streaming y en el borde. Las filas comparan qué dispara la predicción, dónde corre el modelo, la latencia típica, la frescura de la predicción, cómo crece el costo, cómo se actualiza el modelo y el uso en el modelo de mora. En rojo, lo que más cuesta de cada forma. Ninguna columna gana en todas las filas: se elige por la decisión que hay que tomar y cuándo.</figcaption></figure></section>
+<section><h2>Modelo como servicio o como librería</h2><div class="prose"><p>Hay una decisión más, de arquitectura: ¿el modelo vive en su propio servicio, o se carga como una <b>librería</b> (<i>library</i>) dentro de la aplicación que lo usa?</p><ul><li><b>Como servicio</b> (<i>model as a service</i>): el modelo tiene su propia API, su propio despliegue y su propio equipo. El CRM, la app y cobranza lo llaman por la red. Se actualiza sin tocar a quienes lo usan, se escala por separado y se monitorea en un solo lugar. Cuesta un salto de red en cada predicción y un servicio más que operar.</li><li><b>Como librería</b> (<i>embedded model</i>): el archivo del modelo se empaqueta dentro de la aplicación y se llama como una función. No hay salto de red ni servicio extra, pero cada cambio de modelo obliga a desplegar la aplicación completa, y si tres aplicaciones lo usan, puede haber tres versiones distintas en producción.</li></ul><p>La regla práctica: como servicio cuando lo usan varios sistemas o cambia seguido; como librería cuando lo usa un solo sistema, la latencia de red importa mucho o el modelo corre en el borde. El modelo de mora es un servicio, porque lo usan el CRM, cobranza y, pronto, la aplicación.</p></div></section>
+<section><h2>Optimizar: ONNX, cuantización y lotes dinámicos</h2><div class="prose"><p>Cuando el servicio es lento o caro, antes de agregar máquinas conviene hacer el modelo más eficiente. Tres técnicas son las más comunes:</p><ul><li><b>ONNX</b> (<i>Open Neural Network Exchange</i>, intercambio abierto de redes neuronales): un formato estándar para guardar modelos. Un modelo de scikit-learn, PyTorch o TensorFlow se convierte a ONNX (con <code>skl2onnx</code>, por ejemplo) y se ejecuta con <b>ONNX Runtime</b>, un motor optimizado que no necesita la librería original. El servicio queda más liviano y, muchas veces, más rápido.</li><li><b>Cuantización</b> (<i>quantization</i>): guardar los pesos del modelo con menos bits, por ejemplo enteros de 8 bits en lugar de decimales de 32. El modelo ocupa hasta cuatro veces menos y corre más rápido, con una pérdida de exactitud pequeña que hay que medir. Es clave en el borde y en los modelos grandes; cómo funciona por dentro está en <a href="https://aaramirez.github.io/modelos-de-ia/temario.html" target="_blank" rel="noopener">Modelos de IA</a>.</li><li><b>Lotes dinámicos</b> (<i>dynamic batching</i>): el servidor junta las peticiones que llegan en una ventana de pocos milisegundos y las pasa al modelo de una vez. Una GPU procesa 32 casos casi en el mismo tiempo que uno, así que el rendimiento se multiplica a cambio de unos milisegundos de espera. Servidores como NVIDIA Triton, TorchServe y BentoML lo traen incorporado.</li></ul></div></section>
+<section><h2>Escalar y medir: latencia, rendimiento y costo</h2><div class="prose"><p>Un servicio en línea se mide con tres números, y conviene no mezclarlos:</p><ul><li><b>Latencia</b> (<i>latency</i>): cuánto tarda una petición. No se reporta el promedio, sino los <b>percentiles</b>: el p50 (la mitad de las peticiones tarda menos), el p95 y el p99. Un p50 de 20 ms con un p99 de 900 ms significa que uno de cada cien agentes espera casi un segundo.</li><li><b>Rendimiento</b> (<i>throughput</i>): cuántas peticiones por segundo atiende el servicio sin degradarse.</li><li><b>Costo</b>: lo que cuesta mantenerlo encendido, que conviene expresar por cada mil predicciones para compararlo con el lote.</li></ul></div><div class="analogia"><b>Imagínalo así</b><p>Piensa en las cajas de un supermercado. La latencia es cuánto esperas tú en la fila; el rendimiento, cuántos clientes por hora atiende el supermercado. Abrir más cajas sube el rendimiento y baja la espera, pero cada caja abierta cuesta un cajero, haya clientes o no.</p></div><div class="prose"><p>Cada copia del servicio es una <b>réplica</b> (<i>replica</i>), y un <b>balanceador de carga</b> (<i>load balancer</i>) reparte las peticiones entre ellas. Cuando una réplica se acerca a su capacidad, las peticiones empiezan a hacer fila y la latencia se dispara mucho antes de llegar al 100 %. Por eso se escala antes: un <b>autoescalador</b> (<i>autoscaler</i>), como el de Kubernetes, agrega réplicas cuando el uso pasa de un objetivo, por ejemplo el 70 %, y las quita cuando baja. La orquestación de contenedores y su autoescalado están en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>.</p></div><figure class="fig fig-arquitectura" id="05-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 400" style="min-width:720px" role="img" aria-label="El servicio de mora escalado: el CRM y la app llaman a un balanceador que reparte las peticiones entre tres réplicas con la v2 cargada desde el registro de modelos; un autoescalador mira el uso y agrega o quita réplicas con un objetivo de 70 %; abajo, el almacén de variables en línea y el registro de predicciones; a la derecha, los tres números que se vigilan">
+<defs>
+<marker id="c5d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c5d3-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+</defs>
+<rect x="20" y="110" width="120" height="56" rx="10" class="caja"/>
+<text x="80" y="134" class="t t-b" text-anchor="middle">CRM</text>
+<text x="80" y="152" class="t t-s t-m" text-anchor="middle">agentes</text>
+<rect x="20" y="196" width="120" height="56" rx="10" class="caja"/>
+<text x="80" y="220" class="t t-b" text-anchor="middle">App</text>
+<text x="80" y="238" class="t t-s t-m" text-anchor="middle">clientes</text>
+
+<rect x="186" y="140" width="110" height="80" rx="10" class="c-red"/>
+<text x="241" y="170" class="t t-b" text-anchor="middle">Balan-</text>
+<text x="241" y="188" class="t t-b" text-anchor="middle">ceador</text>
+<text x="241" y="206" class="t t-s t-m" text-anchor="middle">reparte</text>
+<line x1="140" y1="138" x2="184" y2="166" class="ln" marker-end="url(#c5d3-m)"/>
+<line x1="140" y1="224" x2="184" y2="196" class="ln" marker-end="url(#c5d3-m)"/>
+
+<rect x="350" y="20" width="250" height="56" rx="10" class="caja" style="stroke-dasharray:5 4"/>
+<text x="364" y="44" class="t t-b">Autoescalador</text>
+<text x="364" y="62" class="t t-s">uso &gt; 70 % → agrega · &lt; 40 % → quita</text>
+
+<rect x="350" y="96" width="250" height="52" rx="10" class="c-red"/>
+<text x="364" y="118" class="t t-b">Réplica 1</text><text x="364" y="136" class="t t-s">FastAPI + modelo v2 · uso 62 %</text>
+<rect x="350" y="156" width="250" height="52" rx="10" class="c-red"/>
+<text x="364" y="178" class="t t-b">Réplica 2</text><text x="364" y="196" class="t t-s">FastAPI + modelo v2 · uso 58 %</text>
+<rect x="350" y="216" width="250" height="52" rx="10" class="c-red" style="stroke-dasharray:5 3"/>
+<text x="364" y="238" class="t t-b">Réplica 3</text><text x="364" y="256" class="t t-s">recién agregada · arrancando</text>
+<line x1="296" y1="168" x2="348" y2="122" class="ln s-red" marker-end="url(#c5d3-r)"/>
+<line x1="296" y1="180" x2="348" y2="182" class="ln s-red" marker-end="url(#c5d3-r)"/>
+<line x1="296" y1="192" x2="348" y2="242" class="ln s-red ln-d" marker-end="url(#c5d3-r)"/>
+<line x1="475" y1="76" x2="475" y2="94" class="ln ln-d" marker-end="url(#c5d3-m)"/>
+
+<rect x="620" y="96" width="90" height="172" rx="10" class="c-enl"/>
+<text x="665" y="160" class="t t-b" text-anchor="middle">Registro</text>
+<text x="665" y="178" class="t t-b" text-anchor="middle">de</text>
+<text x="665" y="196" class="t t-b" text-anchor="middle">modelos</text>
+<text x="665" y="218" class="t t-s t-m" text-anchor="middle">mora v2</text>
+<line x1="620" y1="182" x2="602" y2="182" class="ln ln-d" marker-end="url(#c5d3-m)"/>
+
+<rect x="350" y="300" width="120" height="72" rx="10" class="c-fis"/>
+<text x="410" y="326" class="t t-b" text-anchor="middle">Almacén</text>
+<text x="410" y="344" class="t t-s" text-anchor="middle">de variables</text>
+<text x="410" y="360" class="t t-s t-m" text-anchor="middle">en línea</text>
+<rect x="480" y="300" width="120" height="72" rx="10" class="c-tra"/>
+<text x="540" y="326" class="t t-b" text-anchor="middle">Registro de</text>
+<text x="540" y="344" class="t t-s" text-anchor="middle">predicciones</text>
+<text x="540" y="360" class="t t-s t-m" text-anchor="middle">para el cap. 7</text>
+<line x1="410" y1="268" x2="410" y2="298" class="ln" marker-end="url(#c5d3-m)"/>
+<line x1="540" y1="268" x2="540" y2="298" class="ln ln-d" marker-end="url(#c5d3-m)"/>
+
+<rect x="730" y="20" width="150" height="352" rx="12" class="caja"/>
+<text x="744" y="44" class="t t-xs t-b t-m">SE VIGILA</text>
+<text x="744" y="76" class="t t-b">Latencia p95</text>
+<text x="744" y="94" class="t t-s">40 ms</text>
+<text x="744" y="110" class="t t-s t-m">límite: 300 ms</text>
+<text x="744" y="152" class="t t-b">Rendimiento</text>
+<text x="744" y="170" class="t t-s">peticiones por</text>
+<text x="744" y="186" class="t t-s">segundo atendidas</text>
+<text x="744" y="228" class="t t-b">Costo</text>
+<text x="744" y="246" class="t t-s">por cada mil</text>
+<text x="744" y="262" class="t t-s">predicciones</text>
+<text x="744" y="304" class="t t-b">Errores</text>
+<text x="744" y="322" class="t t-s">422 y tiempos</text>
+<text x="744" y="338" class="t t-s">límite vencidos</text>
+</svg></div><figcaption><b>El servicio de mora escalado.</b> A la izquierda, quienes llaman: el CRM y la aplicación. En el centro, el balanceador reparte las peticiones entre tres réplicas idénticas, cada una con la v2 cargada desde el registro. Arriba, el autoescalador mira el uso de las réplicas y agrega o quita copias según el objetivo del 70 %. Abajo, el almacén de variables en línea y el registro de predicciones. A la derecha, lo que se vigila: latencia p95, rendimiento, costo por mil predicciones y errores.</figcaption></figure><div class="lab" id="05-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Sube el tráfico</h3></div><p class="hint">Mueve las peticiones por segundo, el tiempo que tarda el modelo en cada petición y cuántas peticiones atiende cada réplica a la vez. Con el autoescalador apagado, fija tú las réplicas y mira cómo se dispara la latencia p95 cuando el uso se acerca al 100 %. Enciéndelo y mira cuántas réplicas pide y cuánto cuesta al mes.</p><style>
+[id="05-lab-2"] .c5l2-chk{display:flex;align-items:center;gap:8px;font:500 .86rem var(--f-display);color:var(--ink)}
+[id="05-lab-2"] .c5l2-chk input{width:18px;height:18px;accent-color:var(--good);flex:none}
+[id="05-lab-2"] canvas{width:100%;display:block}
+[id="05-lab-2"] .c5l2-num{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){[id="05-lab-2"] .c5l2-num{grid-template-columns:repeat(2,minmax(0,1fr))}}
+[id="05-lab-2"] .c5l2-num div{border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:grid;gap:2px}
+[id="05-lab-2"] .c5l2-num small{font:700 .66rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+[id="05-lab-2"] .c5l2-num b{font:700 1.15rem var(--f-mono);color:var(--ink)}
+[id="05-lab-2"] .c5l2-num b.mal{color:var(--warm)}
+[id="05-lab-2"] .c5l2-rep{display:flex;flex-wrap:wrap;gap:4px}
+[id="05-lab-2"] .c5l2-rep i{width:22px;height:22px;border-radius:5px;border:2px solid var(--c-red);background:var(--c-red-s);position:relative;overflow:hidden}
+[id="05-lab-2"] .c5l2-rep i b{position:absolute;left:0;right:0;bottom:0;background:var(--c-red)}
+[id="05-lab-2"] .c5l2-rep i.full{border-color:var(--warm)} [id="05-lab-2"] .c5l2-rep i.full b{background:var(--warm)}
+</style>
+<div class="ctls">
+  <div class="ctl"><label for="c5l2-r">Peticiones por segundo</label><input type="range" id="c5l2-r" min="5" max="1000" step="5" value="60"><output id="c5l2-ro"></output></div>
+  <div class="ctl"><label for="c5l2-m">Tiempo del modelo por petición (ms)</label><input type="range" id="c5l2-m" min="5" max="200" step="5" value="20"><output id="c5l2-mo"></output></div>
+  <div class="ctl"><label for="c5l2-c">Peticiones a la vez por réplica</label><input type="range" id="c5l2-c" min="1" max="8" step="1" value="2"><output id="c5l2-co"></output></div>
+  <div class="ctl"><label for="c5l2-n">Réplicas fijas</label><input type="range" id="c5l2-n" min="1" max="20" step="1" value="2"><output id="c5l2-no"></output></div>
+</div>
+<label class="c5l2-chk"><input type="checkbox" id="c5l2-a"> Autoescalador: mantener el uso por debajo del 70 % (mínimo 2 réplicas)</label>
+<canvas id="c5l2-cv" role="img" aria-label="Latencia p95 en milisegundos según las peticiones por segundo, con el tiempo límite de 300 ms y el punto actual"></canvas>
+<div class="legend"><span><i style="background:var(--accent)"></i>latencia p95 con estas réplicas</span><span><i style="background:var(--warm)"></i>tiempo límite: 300 ms</span><span><i style="background:var(--ink)"></i>tráfico actual</span></div>
+<div class="c5l2-rep" id="c5l2-rep" aria-label="Réplicas y su uso"></div>
+<div class="c5l2-num">
+  <div><small>Réplicas</small><b id="c5l2-vr"></b></div>
+  <div><small>Uso por réplica</small><b id="c5l2-vu"></b></div>
+  <div><small>Latencia p95</small><b id="c5l2-vl"></b></div>
+  <div><small>Costo al mes</small><b id="c5l2-vc"></b></div>
+</div>
+<div class="readout texto" id="c5l2-out" aria-live="polite"></div>
+<p class="hint">Modelo simplificado de colas: cada réplica atiende varias peticiones a la vez; cuando el uso se acerca al 100 %, la espera en la fila crece muy rápido. Precio de ejemplo: US$ 0,20 por réplica y hora, 730 horas al mes, más 10 ms de red en cada petición.</p></div><div class="prose"><p>Para decidir entre lotes, en línea y borde, ayuda poner los números lado a lado con el mismo volumen. El laboratorio siguiente lo hace para la cartera de 150.000 clientes.</p></div><div class="lab" id="05-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Calculadora: lotes, en línea o borde</h3></div><p class="hint">Elige cuántas predicciones necesitas al mes, qué fracción de ellas se usa de verdad, la hora pico y el precio de una máquina. Compara las tres formas de servir: latencia, frescura de la predicción, costo mensual y costo por mil predicciones usadas. Prueba con la lista mensual (150.000 predicciones) y con el CRM (consultas cuando un agente abre una ficha).</p><style>
+[id="05-lab-1"] .c5l1-g{display:grid;gap:4px}
+[id="05-lab-1"] .c5l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="05-lab-1"] .c5l1-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:640px){[id="05-lab-1"] .c5l1-cards{grid-template-columns:minmax(0,1fr)}}
+[id="05-lab-1"] .c5l1-c{border:2px solid var(--line);border-top:5px solid var(--c-red);border-radius:10px;padding:8px 12px;display:grid;gap:4px;align-content:start}
+[id="05-lab-1"] .c5l1-c.mejor{border-color:var(--good);border-top-color:var(--good);background:var(--good-soft)}
+[id="05-lab-1"] .c5l1-c h4{margin:0;font:700 .95rem var(--f-display);color:var(--ink)}
+[id="05-lab-1"] .c5l1-c dl{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:0;font:500 .8rem var(--f-display)}
+[id="05-lab-1"] .c5l1-c dt{color:var(--muted);font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;margin-top:4px}
+[id="05-lab-1"] .c5l1-c dd{margin:0;font-family:var(--f-display);font-weight:600;color:var(--ink)}
+[id="05-lab-1"] .c5l1-c p{margin:0;font:500 .76rem var(--f-display);color:var(--muted)}
+[id="05-lab-1"] .c5l1-bar{height:10px;background:var(--grid);border-radius:4px;overflow:hidden}
+[id="05-lab-1"] .c5l1-bar i{display:block;height:100%;background:var(--warm);transition:width .3s}
+</style>
+<div class="c5l1-g"><span>Ejemplos</span>
+<div class="btns" role="group" aria-label="Ejemplos">
+  <button type="button" data-ej="lista" aria-pressed="true">Lista mensual de cobranza</button>
+  <button type="button" data-ej="crm" aria-pressed="false">Riesgo en el CRM</button>
+  <button type="button" data-ej="app" aria-pressed="false">Sugerencia en la app</button>
+</div></div>
+<div class="ctls">
+  <div class="ctl"><label for="c5l1-n">Clientes en la cartera</label><input type="range" id="c5l1-n" min="10000" max="1000000" step="10000" value="150000"><output id="c5l1-no"></output></div>
+  <div class="ctl"><label for="c5l1-q">Predicciones que se usan al mes</label><input type="range" id="c5l1-q" min="1000" max="2000000" step="1000" value="150000"><output id="c5l1-qo"></output></div>
+  <div class="ctl"><label for="c5l1-p">Precio de una máquina por hora (US$)</label><input type="range" id="c5l1-p" min="0.05" max="1" step="0.05" value="0.2"><output id="c5l1-po"></output></div>
+  <div class="ctl"><label for="c5l1-d">Teléfonos con la app (para el borde)</label><input type="range" id="c5l1-d" min="5000" max="500000" step="5000" value="50000"><output id="c5l1-do"></output></div>
+</div>
+<div class="opciones">
+  <label>Frecuencia del lote
+    <select id="c5l1-f"><option value="1">una vez al mes</option><option value="30">cada día</option><option value="720">cada hora</option></select>
+  </label>
+</div>
+<div class="c5l1-cards" id="c5l1-cards"></div>
+<div class="readout texto" id="c5l1-out" aria-live="polite"></div>
+<p class="hint">Supuestos: el lote usa una máquina 4 veces más grande, 10 minutos de arranque y 2 ms por cliente con la lectura de datos; el servicio en línea atiende 50 peticiones por segundo por réplica al 70 %, con mínimo 2 réplicas encendidas todo el mes (730 h) y una hora pico 3 veces el promedio de 10 horas hábiles; el borde paga la descarga del modelo de 5 MB una vez al mes (US$ 0,09 por GB) y la recepción de las predicciones para monitorearlas. Son números de ejemplo para comparar órdenes de magnitud.</p></div><div class="caso"><b>Un caso real</b><p><b>La API que no necesitaba existir.</b> Un equipo de una empresa de servicios montó un servicio en línea con cuatro réplicas para su modelo de propensión a comprar, porque «en línea es lo moderno». Al revisar el registro de predicciones descubrieron que el 97 % de las llamadas venía de una sola tarea nocturna que pedía, una por una, la predicción de cada cliente para armar una campaña. Pasaron esa tarea a un lote que escribe una tabla, y el servicio en línea quedó para las pocas consultas reales de la web: una réplica en lugar de cuatro, y el lote, que antes tardaba tres horas por la red, terminaba en minutos.</p></div><div class="ml"><b>En la práctica</b><p><b>La v2, servida dos veces.</b> El modelo de mora quedó con dos caminos que cargan el mismo artefacto del registro. La lista mensual es una tarea por lotes que corre el día de emisión de la factura y escribe <code>predicciones_mora</code> con el cliente, la probabilidad, <code>version_modelo = mora-v2</code> y la fecha; cobranza la lee a las 7 de la mañana. La API en línea, con FastAPI, dos réplicas y un tiempo límite de 300 ms, responde al CRM con un p95 de 40 ms. Las dos usan el paquete <code>variables_mora</code> del capítulo anterior, y las dos registran cada predicción con su versión. Cuando llegue la v3, el capítulo siguiente la pondrá al lado de la v2 sin apagar ninguna de las dos.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p>Entrenamiento y servicio separados. El mismo modelo registrado se sirve de la forma que pide la decisión: por lotes cuando basta una predicción programada (barato y auditable), en línea cuando alguien espera la respuesta (fresco y caro), en streaming cuando un evento debe disparar una acción y en el borde cuando la red, la latencia o la privacidad lo exigen. Cada predicción lleva su versión, cada entrada se valida y el servicio se mide por percentiles de latencia, rendimiento y costo por mil predicciones.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Cuál es la principal desventaja de la inferencia por lotes para el modelo de mora?</summary><p>La frescura: la predicción tiene la edad de la última corrida, así que un cliente que paga o deja de pagar después no cambia en la lista hasta la siguiente.</p></details><details><summary>¿Por qué el servicio en línea devuelve la versión del modelo en cada respuesta?</summary><p>Para poder saber después qué modelo tomó cada decisión: es la base del linaje, del monitoreo y de comparar versiones durante un despliegue.</p></details><details><summary>¿Qué gana y qué pierde el modelo cuando corre en el borde?</summary><p>Gana latencia, funcionamiento sin conexión, privacidad y costo por predicción; pierde control: actualizarlo es difícil, conviven versiones viejas y las predicciones no se registran solas.</p></details><details><summary>¿Por qué se reporta la latencia con percentiles y no con el promedio?</summary><p>Porque el promedio esconde las esperas largas: un p99 alto significa que una de cada cien peticiones tarda mucho aunque el promedio se vea bien.</p></details><details><summary>¿Por qué un autoescalador agrega réplicas al 70 % de uso y no al 100 %?</summary><p>Porque la latencia crece muy rápido cuando una réplica se acerca a su capacidad: las peticiones hacen fila mucho antes de llegar al 100 %.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Qué es el arranque en frío (<i>cold start</i>) de un servicio y por qué es más grave en un servicio de modelos que en uno común?<small>Pista: busca «model server cold start» y «scale to zero».</small></li><li>¿Qué es gRPC y por qué algunos servidores de inferencia lo ofrecen además de REST?</li><li>¿Qué es la ley de Little y cómo relaciona la concurrencia, el rendimiento y la latencia de un servicio?<small>Pista: busca «Little's law».</small></li><li>¿Qué operadores de scikit-learn no se pueden convertir a ONNX y qué se hace con ellos?<small>Pista: mira la lista de convertidores compatibles de <code>skl2onnx</code>.</small></li><li>¿Qué es TensorFlow Lite (hoy LiteRT) y cómo se usa un modelo dentro de una aplicación móvil?</li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://fastapi.tiangolo.com/" target="_blank" rel="noopener">FastAPI: documentación <small>framework para APIs en Python, en inglés</small></a><a class="vid" href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime <small>motor de inferencia, en inglés</small></a><a class="vid" href="https://github.com/bentoml/BentoML" target="_blank" rel="noopener">BentoML en GitHub <small>plataforma para servir modelos, en inglés</small></a><a class="vid" href="https://kserve.github.io/website/" target="_blank" rel="noopener">KServe <small>servir modelos sobre Kubernetes, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$,tok,canvasWidget}=window.Lab;
+  const RED=10,LIM=300,PRECIO=0.2;
+  function p95(rps,ms,c,rep){
+    const mu=c*1000/ms*rep,rho=rps/mu;
+    if(rho>=1)return Infinity;
+    const wq=Math.pow(rho,Math.sqrt(2*(c*rep+1))-1)/(c*rep*(1-rho))*ms;
+    return RED+ms+3*wq;
+  }
+  function estado(){
+    const rps=+$('#c5l2-r').value,ms=+$('#c5l2-m').value,c=+$('#c5l2-c').value,auto=$('#c5l2-a').checked;
+    const cap=c*1000/ms;
+    const rep=auto?Math.max(2,Math.ceil(rps/(cap*0.7))):+$('#c5l2-n').value;
+    return {rps,ms,c,auto,cap,rep,rho:rps/(rep*cap),lat:p95(rps,ms,c,rep)};
+  }
+  const W=canvasWidget($('#c5l2-cv'),w=>w<480?0.62:0.36,(ctx,w,h)=>{
+    const s=estado(),pl=44,pr=12,pt=10,pb=26,pw=w-pl-pr,ph=h-pt-pb,YM=600,XM=1000;
+    const X=v=>pl+v/XM*pw,Y=v=>pt+ph-Math.min(v,YM)/YM*ph;
+    ctx.clearRect(0,0,w,h);ctx.font='11px system-ui';ctx.lineWidth=1;
+    ctx.strokeStyle=tok('--grid');ctx.fillStyle=tok('--muted');
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    for(let v=0;v<=YM;v+=100){ctx.beginPath();ctx.moveTo(pl,Y(v));ctx.lineTo(pl+pw,Y(v));ctx.stroke();ctx.fillText(v+' ms',pl-4,Y(v));}
+    ctx.textAlign='center';ctx.textBaseline='top';
+    for(let v=0;v<=XM;v+=200){ctx.fillText(v+(v===XM?' pet/s':''),Math.min(X(v),pl+pw-20),pt+ph+6);}
+    ctx.strokeStyle=tok('--warm');ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(pl,Y(LIM));ctx.lineTo(pl+pw,Y(LIM));ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle=tok('--accent');ctx.lineWidth=2.2;ctx.beginPath();let pen=false;
+    for(let i=0;i<=400;i++){const r=i/400*XM;const rep=s.auto?Math.max(2,Math.ceil(r/(s.cap*0.7))):s.rep;const l=p95(r,s.ms,s.c,rep);
+      if(!isFinite(l)||l>YM){if(pen){ctx.lineTo(X(r),Y(YM));}pen=false;continue;}
+      pen?ctx.lineTo(X(r),Y(l)):ctx.moveTo(X(r),Y(l));pen=true;}
+    ctx.stroke();
+    ctx.strokeStyle=tok('--ink');ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(X(s.rps),pt);ctx.lineTo(X(s.rps),pt+ph);ctx.stroke();
+    ctx.fillStyle=tok('--ink');ctx.beginPath();ctx.arc(X(s.rps),Y(isFinite(s.lat)?s.lat:YM),5,0,7);ctx.fill();
+  });
+  function act(){
+    const s=estado();
+    $('#c5l2-ro').textContent=s.rps;$('#c5l2-mo').textContent=s.ms+' ms';$('#c5l2-co').textContent=s.c;$('#c5l2-no').textContent=s.auto?'—':s.rep;
+    $('#c5l2-n').disabled=s.auto;
+    $('#c5l2-vr').textContent=s.rep;
+    const uso=Math.min(s.rho,1.5);
+    $('#c5l2-vu').textContent=s.rho>=1?'> 100 %':Math.round(s.rho*100)+' %';$('#c5l2-vu').className=s.rho>0.85?'mal':'';
+    $('#c5l2-vl').textContent=isFinite(s.lat)?(s.lat>=1000?'> 1 s':Math.round(s.lat)+' ms'):'sin límite';$('#c5l2-vl').className=(!isFinite(s.lat)||s.lat>LIM)?'mal':'';
+    const costo=s.rep*730*PRECIO;$('#c5l2-vc').textContent='US$ '+Math.round(costo).toLocaleString('es');
+    $('#c5l2-rep').innerHTML=Array.from({length:s.rep},()=>'<i class="'+(s.rho>=0.85?'full':'')+'"><b style="height:'+Math.min(100,uso*100)+'%"></b></i>').join('');
+    const msg=[];
+    msg.push('<span>Cada réplica atiende hasta '+Math.round(s.cap)+' peticiones por segundo ('+s.c+' a la vez, '+s.ms+' ms cada una).</span>');
+    if(!isFinite(s.lat))msg.push('<span class="warn">Saturado: llegan más peticiones de las que las réplicas pueden atender. La fila crece sin límite y el CRM recibe errores por tiempo límite.</span>');
+    else if(s.lat>LIM)msg.push('<span class="warn">La latencia p95 pasa el tiempo límite de 300 ms: una de cada veinte fichas se abre sin el riesgo de mora.</span>');
+    else if(s.rho>0.85)msg.push('<span class="warn">El uso pasa del 85 %: la latencia todavía cumple, pero cualquier pico pequeño la dispara. Mira cómo la curva se vuelve casi vertical justo a la derecha del punto.</span>');
+    else msg.push('<span class="ok">Uso del '+Math.round(s.rho*100)+' % y latencia p95 de '+Math.round(s.lat)+' ms: hay margen.</span>');
+    if(s.auto)msg.push('<span>El autoescalador pide '+s.rep+' réplica(s) para este tráfico. El costo sigue al tráfico pico, no al promedio.</span>');
+    else if(s.rho<0.25&&s.rep>2)msg.push('<span>Las réplicas están casi vacías: pagas US$ '+Math.round(costo).toLocaleString('es')+' al mes por capacidad que nadie usa. Enciende el autoescalador.</span>');
+    if(s.ms>=100)msg.push('<span>Con un modelo de '+s.ms+' ms, optimizarlo (ONNX, cuantización) rinde más que agregar réplicas.</span>');
+    $('#c5l2-out').innerHTML=msg.join('');
+    W();
+  }
+  ['#c5l2-r','#c5l2-m','#c5l2-c','#c5l2-n'].forEach(id=>$(id).addEventListener('input',act));
+  $('#c5l2-a').addEventListener('change',act);
+  act();
+})();
+</script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const root=document.querySelector('[id="05-lab-1"]');
+  const EJ={lista:{n:150000,q:150000,f:'1'},crm:{n:150000,q:40000,f:'30'},app:{n:150000,q:600000,f:'30'}};
+  const miles=x=>Math.round(x).toLocaleString('es');
+  const usd=x=>x<0.01?'menos de US$ 0,01':'US$ '+(x<10?x.toFixed(2).replace('.',','):miles(x));
+  function act(){
+    const n=+$('#c5l1-n').value,q=+$('#c5l1-q').value,p=+$('#c5l1-p').value,dev=+$('#c5l1-d').value,f=+$('#c5l1-f').value;
+    $('#c5l1-no').textContent=miles(n);$('#c5l1-qo').textContent=miles(q);$('#c5l1-po').textContent=p.toFixed(2).replace('.',',');$('#c5l1-do').textContent=miles(dev);
+    // lotes
+    const hRun=10/60+n*0.002/3600,costL=f*hRun*p*4,puntL=n*f;
+    const fres=f===1?'hasta 30 días':f===30?'hasta 24 h':'hasta 1 h';
+    // en línea
+    const pico=q/(22*10*3600)*3,rep=Math.max(2,Math.ceil(pico/(50*0.7))),costO=rep*730*p;
+    // borde
+    const costE=dev*5/1024*0.09+q*0.000002;
+    const R=[
+      {k:'lotes',t:'Por lotes',lat:'≈ 5 ms (leer la tabla)',fr:fres,c:costL,extra:miles(puntL)+' predicciones calculadas al mes',nota:'Calcula para toda la cartera, se use o no.'},
+      {k:'linea',t:'En línea',lat:'≈ 40 ms p95',fr:'al momento',c:costO,extra:rep+' réplica(s) · pico '+pico.toFixed(1).replace('.',',')+' pet/s',nota:'Paga las réplicas encendidas aunque nadie pregunte.'},
+      {k:'borde',t:'En el borde',lat:'≈ 5 ms en el teléfono',fr:'datos al momento; modelo de hasta 1 mes',c:costE,extra:miles(dev)+' descargas del modelo',nota:'Conviven versiones viejas en teléfonos sin actualizar.'}
+    ];
+    const max=Math.max(...R.map(r=>r.c)),min=Math.min(...R.map(r=>r.c));
+    $('#c5l1-cards').innerHTML=R.map(r=>'<div class="c5l1-c'+(r.c===min?' mejor':'')+'"><h4>'+r.t+'</h4><dl><dt>Latencia</dt><dd>'+r.lat+'</dd><dt>Frescura</dt><dd>'+r.fr+'</dd><dt>Costo al mes</dt><dd>'+usd(r.c)+'</dd><dt>Por mil usadas</dt><dd>'+usd(r.c/q*1000)+'</dd></dl><div class="c5l1-bar" aria-hidden="true"><i style="width:'+(max?Math.max(2,r.c/max*100):0)+'%"></i></div><p>'+r.extra+'</p><p>'+r.nota+'</p></div>').join('');
+    const msg=[];
+    const usoL=q/puntL;
+    msg.push('<span>El lote calcula '+miles(puntL)+' predicciones y se usan '+miles(q)+': '+(usoL>=1?'todas se aprovechan':'se aprovecha el '+Math.max(0.1,usoL*100).toFixed(usoL<0.1?1:0).replace('.',',')+' %')+'.</span>');
+    if(costL<costO/10)msg.push('<span>Por lotes cuesta menos de la décima parte que en línea: si la decisión tolera la frescura de '+fres+', el lote gana.</span>');
+    else msg.push('<span class="warn">Con esta frecuencia, el lote ya no es tan barato: recalcula toda la cartera muchas veces para usar pocas predicciones.</span>');
+    if(rep>2)msg.push('<span>El tráfico pico pide '+rep+' réplicas: el costo en línea crece con la hora pico, no con el promedio.</span>');
+    else msg.push('<span>En línea, con este volumen, las 2 réplicas mínimas sobran: pagas sobre todo por estar disponible.</span>');
+    msg.push('<span>El borde es barato por predicción, pero el costo real está en lo que no aparece aquí: publicar la app, convivir con versiones viejas y traer de vuelta las predicciones para monitorearlas.</span>');
+    $('#c5l1-out').innerHTML=msg.join('');
+  }
+  ['#c5l1-n','#c5l1-q','#c5l1-p','#c5l1-d'].forEach(id=>$(id).addEventListener('input',act));
+  $('#c5l1-f').addEventListener('change',act);
+  root.querySelectorAll('[data-ej]').forEach(b=>b.addEventListener('click',()=>{const e=EJ[b.dataset.ej];$('#c5l1-n').value=e.n;$('#c5l1-q').value=e.q;$('#c5l1-f').value=e.f;root.querySelectorAll('[data-ej]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));act();}));
+  act();
+})();
+</script>
+</body>
+</html>

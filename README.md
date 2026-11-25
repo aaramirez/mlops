@@ -4,7 +4,7 @@ Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, se
 
 **Ver en línea:** https://aaramirez.github.io/mlops/
 
-Este repositorio solo tiene el sitio generado. El curso está en preparación: la tabla de contenido ya está publicada para revisión.
+Este repositorio solo tiene el sitio generado. Curso completo: 11 capítulos con laboratorios interactivos, diagramas y prácticas.
 
 | # | Capítulo |
 |---|---|

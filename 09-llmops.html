@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LLMOps · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="llmops">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 09 DE 11</span><h1>LLMOps: lo que cambia con los modelos de lenguaje</h1><p class="lede">El modelo de mora se entrena, se registra y se reentrena en casa. El asistente de atención usa un modelo que nadie de la empresa entrenó, y lo que cambia cada semana es un texto: el prompt. Este capítulo lleva al mundo de los modelos de lenguaje lo que el curso hizo con el modelo de mora: versiones, registro, despliegue con cuidado, costo y vigilancia de la deriva.</p></header>
+<section><div class="prose"><p>Hasta aquí, el curso tuvo un solo protagonista: el modelo de mora <code>mora-30d</code>, que salió de la laptop de Andrés, entró a un pipeline, se registró, se sirvió, se desplegó en canario, se vigiló y se reentrenó. En la misma empresa vive un segundo sistema con inteligencia artificial: <b>el asistente de atención</b>, el panel que ayuda a los 90 agentes del centro de contacto a responder consultas de facturas, reconexiones y visitas. Lo construyó paso a paso el equipo de Lucía, líder técnica del producto de IA, en <a href="https://aaramirez.github.io/aplicaciones-con-ia/temario.html" target="_blank" rel="noopener">Aplicaciones con IA</a>.</p><p>Un martes, Valeria recibió dos alertas en la misma hora. La del modelo de mora era de las conocidas: el PSI de <code>metodo_pago</code> pasó de 0,2, porque la billetera móvil seguía creciendo. La del asistente era nueva: la tasa de respuestas «no lo encontré en los manuales» había subido del 8 % al 15 % en tres días, sin que nadie hubiera tocado el código. Nadie había desplegado nada. ¿Qué cambió entonces? Lo averiguaron esa tarde, Valeria y Lucía juntas: el proveedor del modelo había movido el alias que usaban a una versión nueva, y la versión nueva era más prudente.</p><p>Ese martes resume el capítulo. En un <b>LLM</b> (<i>large language model</i>, modelo de lenguaje grande) las piezas del ciclo de vida son las mismas que en el modelo de mora, pero los artefactos que se versionan son otros, algunos cambian sin pedirte permiso y la cuenta se paga por palabra.</p></div></section>
+<section><h2>Qué cambia: modelos de terceros, y prompts y contexto como artefactos</h2><div class="analogia"><b>Imagínalo así</b><p>Un restaurante que hace su propio pan controla la harina, el horno y la receta: si el pan sale mal, sabe dónde mirar. Un restaurante que compra el pan a una panadería controla solo lo que pone encima y cómo lo sirve. Si un día la panadería cambia la receta, el sándwich cambia, aunque en la cocina nadie haya hecho nada distinto.</p></div><div class="prose"><p>El modelo de mora es pan propio: el equipo eligió los datos, el algoritmo y los parámetros, y el registro guarda las tres cosas. En el asistente, el modelo es pan comprado. Lo que el equipo controla es todo lo que lo rodea, y eso es lo que <b>LLMOps</b> (<i>large language model operations</i>, la operación de sistemas con modelos de lenguaje) trata como artefacto:</p><ul><li><b>El prompt</b> (<i>prompt</i>, las instrucciones que recibe el modelo) y la <b>plantilla</b> (<i>template</i>) con huecos para los datos del cliente. Un cambio de una palabra cambia el comportamiento, como un cambio de parámetro en el modelo de mora.</li><li><b>El índice de RAG</b> (<i>Retrieval-Augmented Generation</i>, generación aumentada con recuperación): los manuales partidos en fragmentos, sus <b>embeddings</b> (vectores que representan el significado de cada fragmento) y la configuración de la búsqueda. Si se reindexa con otro tamaño de fragmento, las respuestas cambian.</li><li><b>El modelo</b>, con su nombre exacto y su versión, sea de un proveedor o un modelo abierto servido en casa.</li><li><b>Los parámetros de llamada</b>: temperatura, máximo de tokens, esquema de salida.</li><li><b>El adaptador</b> del ajuste fino, cuando lo hay: el clasificador de tickets del asistente es un modelo abierto de 3B ajustado con datos propios.</li></ul></div><figure class="fig fig-comparacion" id="09-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 470" style="min-width:720px" role="img" aria-label="Comparación de los artefactos del modelo de mora y del asistente de atención en cada etapa del ciclo: datos, versiones y registro, entrenamiento, servicio y vigilancia, más lo que dispara un cambio en cada sistema">
+<text x="20" y="30" class="t t-xs t-b t-m">ETAPA</text>
+<rect x="200" y="12" width="320" height="30" rx="8" class="caja"/>
+<text x="360" y="32" class="t t-b" text-anchor="middle">Modelo de mora</text>
+<rect x="540" y="12" width="340" height="30" rx="8" class="caja"/>
+<text x="710" y="32" class="t t-b" text-anchor="middle">Asistente de atención (LLM)</text>
+
+<rect x="14" y="54" width="172" height="60" rx="8" class="c-fis"/>
+<text x="26" y="80" class="t t-b k-fis">Datos</text>
+<text x="26" y="98" class="t t-s k-fis">lo que entra</text>
+<text x="210" y="78" class="t">Tabla de clientes con historial</text>
+<text x="210" y="96" class="t t-s t-m">de pagos, versionada con huella</text>
+<text x="552" y="78" class="t">Manuales partidos en fragmentos</text>
+<text x="552" y="96" class="t t-s t-m">y tickets corregidos por los agentes</text>
+
+<rect x="14" y="122" width="172" height="76" rx="8" class="c-enl"/>
+<text x="26" y="148" class="t t-b k-enl">Versionar</text>
+<text x="26" y="166" class="t t-s k-enl">y registrar</text>
+<text x="210" y="146" class="t">Código, datos, parámetros</text>
+<text x="210" y="164" class="t">y el modelo en el registro</text>
+<text x="210" y="182" class="t t-s t-m">alias campeon</text>
+<text x="552" y="146" class="t">Prompt y plantilla, índice de RAG,</text>
+<text x="552" y="164" class="t">adaptador y versión del modelo</text>
+<text x="552" y="182" class="t t-s t-m">registro de prompts y de modelos</text>
+
+<rect x="14" y="206" width="172" height="60" rx="8" class="c-enl"/>
+<text x="26" y="232" class="t t-b k-enl">Entrenar</text>
+<text x="26" y="250" class="t t-s k-enl">y evaluar</text>
+<text x="210" y="230" class="t">Pipeline propio; métrica AUC ≥ 0,75</text>
+<text x="210" y="248" class="t t-s t-m">una respuesta correcta por cliente</text>
+<text x="552" y="230" class="t">No se entrena el modelo principal;</text>
+<text x="552" y="248" class="t t-s t-m">batería con varias métricas; ajuste fino a veces</text>
+
+<rect x="14" y="274" width="172" height="60" rx="8" class="c-red"/>
+<text x="26" y="300" class="t t-b k-red">Servir</text>
+<text x="26" y="318" class="t t-s k-red">y desplegar</text>
+<text x="210" y="298" class="t">Lista mensual por lotes o API propia;</text>
+<text x="210" y="316" class="t t-s t-m">costo casi fijo</text>
+<rect x="546" y="280" width="328" height="48" rx="6" class="caja" style="stroke-dasharray:5 4"/>
+<text x="556" y="298" class="t">Modelo del proveedor por API o abierto</text>
+<text x="556" y="316" class="t t-s t-m">en GPU propia; costo por token o por hora</text>
+
+<rect x="14" y="342" width="172" height="60" rx="8" class="c-tra"/>
+<text x="26" y="368" class="t t-b k-tra">Monitorear</text>
+<text x="26" y="386" class="t t-s k-tra">y reentrenar</text>
+<text x="210" y="366" class="t">PSI de cada variable; la etiqueta</text>
+<text x="210" y="384" class="t t-s t-m">llega a los 45 días</text>
+<text x="552" y="366" class="t">Abstención, largo, tokens, votos,</text>
+<text x="552" y="384" class="t t-s t-m">deriva del proveedor y de los temas</text>
+
+<line x1="14" y1="414" x2="886" y2="414" class="ln"/>
+<text x="20" y="440" class="t t-xs t-b t-m">QUÉ DISPARA</text>
+<text x="20" y="456" class="t t-xs t-b t-m">UN CAMBIO</text>
+<text x="210" y="440" class="t">Deriva, desempeño o calendario</text>
+<text x="210" y="456" class="t t-s t-m">el reentrenamiento del capítulo 8</text>
+<text x="552" y="440" class="t">Una versión de prompt, un índice nuevo</text>
+<text x="552" y="456" class="t t-s k-warm">o el proveedor, sin avisar</text>
+</svg></div><figcaption><b>Los artefactos de los dos sistemas.</b> A la izquierda, el modelo de mora; a la derecha, el asistente de atención. Cada fila es una etapa del ciclo con el color que usa el curso. Fíjate en la columna de la derecha: aparecen artefactos que no existían (prompt, índice, adaptador) y uno que el equipo no controla del todo, el modelo del proveedor, marcado con borde punteado. La fila de abajo dice qué dispara un cambio en cada sistema.</figcaption></figure><div class="prose"><p>Hay tres diferencias que cambian la operación. La primera: <b>el equipo no entrena el modelo principal</b>, así que el pipeline de entrenamiento del capítulo 3 se achica o desaparece, y el trabajo se mueve a versionar lo que sí se toca. La segunda: <b>no hay una sola respuesta correcta</b>, así que la métrica de exactitud del modelo de mora se reemplaza por una batería de evaluación con varias métricas, que Aplicaciones con IA trata a fondo. La tercera: <b>el costo es variable</b>: el modelo de mora cuesta casi lo mismo si su lista mensual tiene mil o cien mil clientes, y el asistente cobra cada token.</p></div></section>
+<section><h2>Versionar prompts, plantillas e índices de RAG</h2><div class="analogia"><b>Imagínalo así</b><p>Una receta de cocina que se cambia «un poquito» cada semana, sin anotar, termina siendo otra receta. Cuando un cliente dice «el plato del jueves estaba salado», nadie sabe qué receta se usó el jueves. Un cocinero ordenado numera cada versión y anota en la comanda cuál usó.</p></div><div class="prose"><p>En el capítulo 2 el modelo de mora quedó con linaje completo: de cada predicción se llega a los datos, el código y los parámetros. En el asistente, la misma promesa exige que <b>cada respuesta registre la versión de cada artefacto que la produjo</b>: <code>respuesta-agente@v5.1</code>, <code>indice-manuales@2026-11-02</code>, el modelo con su versión exacta y la temperatura.</p><p>Las reglas que se usan en la práctica son pocas:</p><ol class="steps"><li><span><b>Un cambio de texto es una versión nueva.</b> Nunca se edita una versión publicada, igual que nunca se sobrescribe un modelo en el registro.</span></li><li><span><b>El código pide un alias, no un número.</b> El servicio carga «la versión que hoy es <code>campeon</code>». Cambiar de versión, o volver a la anterior, es mover el alias, sin desplegar código. Es la misma idea de las etapas del registro de modelos del capítulo 2.</span></li><li><span><b>El índice tiene fecha y receta.</b> Se versiona como un conjunto de datos: qué documentos entraron, con qué tamaño de fragmento y con qué modelo de embeddings. Cambiar el modelo de embeddings obliga a reindexar todo, porque los vectores viejos y los nuevos no se pueden comparar.</span></li><li><span><b>Cada versión pasa la batería antes de recibir el alias.</b> Sin batería, mover el alias es una apuesta.</span></li></ol><p>Hay dos lugares donde vivir los prompts. Uno es el repositorio, en archivos <code>prompts/respuesta-agente@v5.1.txt</code>, revisados como código en una solicitud de cambios. El otro es un <b>registro de prompts</b> (<i>prompt registry</i>): MLflow tiene uno desde su versión 3, y herramientas de observabilidad como Langfuse ofrecen el suyo, con etiquetas como <code>production</code>. El registro permite que alguien que no programa, como la jefa del equipo de reclamos, proponga una versión nueva sin tocar el código. Muchos equipos combinan los dos: el texto nace en el repositorio y un paso de la integración continua lo publica en el registro.</p></div><figure class="fig fig-flujo" id="09-diagrama-2"><div class="lienzo"><svg viewBox="0 0 980 500" style="min-width:780px" role="img" aria-label="Diagrama de secuencia para publicar una versión de un prompt: solicitud de cambios con la versión 6, la integración continua corre la batería, publica la versión en el registro, una persona mueve el alias campeon, el servicio usa la versión nueva y la anota en cada traza, y si las métricas caen el alias vuelve a la versión anterior">
+<defs>
+<marker id="c9d2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c9d2-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+<marker id="c9d2-e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-enl"/></marker>
+<marker id="c9d2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-tra"/></marker>
+</defs>
+<rect x="14" y="14" width="124" height="50" rx="10" class="caja" style="stroke:var(--warm);stroke-width:2"/>
+<text x="76" y="35" class="t t-b k-warm" text-anchor="middle" style="font-size:12px">Autora</text>
+<text x="76" y="52" class="t t-s t-m" text-anchor="middle">del prompt</text>
+<line x1="76" y1="64" x2="76" y2="470" class="vida"/>
+<rect x="176" y="14" width="124" height="50" rx="10" class="d-sis"/>
+<text x="238" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Repositorio</text>
+<text x="238" y="52" class="t t-s t-m" text-anchor="middle">prompts/</text>
+<line x1="238" y1="64" x2="238" y2="470" class="vida"/>
+<rect x="338" y="14" width="124" height="50" rx="10" class="d-casa"/>
+<text x="400" y="35" class="t t-b k-casa" text-anchor="middle" style="font-size:12px">Integración</text>
+<text x="400" y="52" class="t t-s t-m" text-anchor="middle">continua</text>
+<line x1="400" y1="64" x2="400" y2="470" class="vida"/>
+<rect x="500" y="14" width="124" height="50" rx="10" class="c-enl"/>
+<text x="562" y="35" class="t t-b k-enl" text-anchor="middle" style="font-size:12px">Registro</text>
+<text x="562" y="52" class="t t-s t-m" text-anchor="middle">de prompts</text>
+<line x1="562" y1="64" x2="562" y2="470" class="vida"/>
+<rect x="662" y="14" width="124" height="50" rx="10" class="c-red"/>
+<text x="724" y="35" class="t t-b k-red" text-anchor="middle" style="font-size:12px">Servicio</text>
+<text x="724" y="52" class="t t-s t-m" text-anchor="middle">del asistente</text>
+<line x1="724" y1="64" x2="724" y2="470" class="vida"/>
+
+<line x1="76" y1="104" x2="236" y2="104" class="ln s-warm" style="stroke-width:2" marker-end="url(#c9d2-w)"/>
+<text x="84" y="96" class="t" style="font-size:12px">① solicitud con v6</text>
+<line x1="238" y1="148" x2="398" y2="148" class="ln" style="stroke:var(--d-sis);stroke-width:2" marker-end="url(#c9d2-m)"/>
+<text x="246" y="140" class="t" style="font-size:12px">② corre la batería</text>
+<line x1="400" y1="194" x2="560" y2="194" class="ln" style="stroke:var(--d-casa);stroke-width:2" marker-end="url(#c9d2-m)"/>
+<text x="408" y="186" class="t" style="font-size:12px">③ pasa: publica v6</text>
+<path d="M76 240 H560" class="ln s-warm" style="stroke-width:2" marker-end="url(#c9d2-w)"/>
+<text x="250" y="232" class="t" style="font-size:12px">④ una persona mueve @campeon: v5.1 → v6</text>
+<line x1="724" y1="290" x2="564" y2="290" class="ln s-enl" style="stroke-width:2" marker-end="url(#c9d2-e)"/>
+<text x="576" y="282" class="t" style="font-size:12px">⑤ pide el alias</text>
+<path d="M724 306 h40 v24 h-38" class="ln s-red" style="stroke-width:2" marker-end="url(#c9d2-m)"/>
+<text x="770" y="318" class="t t-s">anota v6</text>
+<text x="770" y="332" class="t t-s">en la traza</text>
+<line x1="724" y1="380" x2="78" y2="380" class="ln ln-d s-tra" style="stroke-width:2" marker-end="url(#c9d2-a)"/>
+<text x="300" y="372" class="t k-tra" style="font-size:12px">las métricas en vivo caen: alerta</text>
+<path d="M76 420 H560" class="ln ln-d s-warm" style="stroke-width:2" marker-end="url(#c9d2-w)"/>
+<text x="200" y="412" class="t" style="font-size:12px">⑥ reversión: @campeon vuelve a v5.1, sin desplegar código</text>
+<text x="84" y="460" class="t t-s t-m">El código pide el alias, nunca un número: cambiar o revertir es mover una etiqueta.</text>
+
+<path d="M850 86v32" class="ln s-warm" style="stroke-width:3"/>
+<text x="862" y="106" class="t t-xs t-b k-warm">PROPONER</text>
+<path d="M850 130v78" class="ln" style="stroke:var(--d-casa);stroke-width:3"/>
+<text x="862" y="166" class="t t-xs t-b k-casa">COMPROBAR</text>
+<text x="862" y="182" class="t t-s t-m">batería</text>
+<path d="M850 222v116" class="ln s-enl" style="stroke-width:3"/>
+<text x="862" y="276" class="t t-xs t-b k-enl">PUBLICAR</text>
+<text x="862" y="292" class="t t-s t-m">alias</text>
+<path d="M850 352v80" class="ln s-tra" style="stroke-width:3"/>
+<text x="862" y="390" class="t t-xs t-b k-tra">VIGILAR</text>
+<text x="862" y="406" class="t t-s t-m">y revertir</text>
+</svg></div><figcaption><b>Publicar una versión de un prompt.</b> Participantes: quien escribe el prompt, el repositorio, la integración continua, el registro de prompts y el servicio del asistente. ① Se abre una solicitud de cambios con <code>v6</code>; ② la integración continua corre la batería de evaluación; ③ si pasa, publica <code>v6</code> en el registro; ④ una persona mueve el alias <code>campeon</code> de <code>v5.1</code> a <code>v6</code>; ⑤ el servicio, que pide el alias en cada arranque o cada pocos minutos, empieza a usar <code>v6</code> y lo anota en cada traza; ⑥ si las métricas en vivo caen, mover el alias de vuelta es la reversión. A la derecha, las fases: proponer, comprobar, publicar y vigilar.</figcaption></figure><div class="lab" id="09-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>El registro de versiones del prompt</h3></div><p class="hint">Elige a qué versión apunta el alias <code>campeon</code>. Abajo, el registro muestra qué respondió el asistente a las mismas seis consultas con cada versión, y las métricas de la batería. Busca la versión que mejoró el tono pero rompió la abstención.</p><style>
+[id="09-lab-2"] .c9l2-g{display:grid;gap:4px}
+[id="09-lab-2"] .c9l2-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="09-lab-2"] .c9l2-ver{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:6px}
+[id="09-lab-2"] .c9l2-v{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--card);font:500 .74rem/1.3 var(--f-display);color:var(--muted);display:grid;gap:2px;position:relative}
+[id="09-lab-2"] .c9l2-v b{font:700 .9rem var(--f-mono);color:var(--ink)}
+[id="09-lab-2"] .c9l2-v.alias{border:2px solid var(--accent);background:var(--accent-soft)}
+[id="09-lab-2"] .c9l2-v .tag{font:700 .66rem var(--f-mono);color:var(--card);background:var(--accent);border-radius:4px;padding:1px 5px;justify-self:start}
+[id="09-lab-2"] table{width:100%;border-collapse:collapse;font-size:.8rem}
+[id="09-lab-2"] th,[id="09-lab-2"] td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}
+[id="09-lab-2"] th{font:700 .7rem var(--f-display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+[id="09-lab-2"] td.ok{color:var(--good);font-weight:700;white-space:nowrap}
+[id="09-lab-2"] td.mal{color:var(--warm);font-weight:700;white-space:nowrap}
+[id="09-lab-2"] td code{font-size:.74rem}
+[id="09-lab-2"] .c9l2-m{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:6px}
+[id="09-lab-2"] .c9l2-k{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--card);font:500 .72rem/1.3 var(--f-display);color:var(--muted);display:grid;gap:2px}
+[id="09-lab-2"] .c9l2-k b{font:700 1rem var(--f-mono);color:var(--ink)}
+[id="09-lab-2"] .c9l2-k.mal{border-color:var(--warm);background:var(--warm-soft)}
+[id="09-lab-2"] .c9l2-k.mal b{color:var(--warm)}
+</style>
+<div class="c9l2-g"><span>El alias campeon apunta a</span>
+<div class="btns" role="group" aria-label="Versión con el alias campeon" id="c9l2-btns">
+  <button type="button" data-v="0" aria-pressed="true">v4</button>
+  <button type="button" data-v="1" aria-pressed="false">v5</button>
+  <button type="button" data-v="2" aria-pressed="false">v5.1</button>
+  <button type="button" data-v="3" aria-pressed="false">v6</button>
+</div></div>
+<div class="c9l2-ver" id="c9l2-ver" aria-label="Versiones registradas de respuesta-agente"></div>
+<div class="c9l2-g"><span>Registro: lo que respondió esta versión</span>
+<div class="tbl"><table><thead><tr><th>Consulta</th><th>Respuesta registrada</th><th>Juicio</th></tr></thead><tbody id="c9l2-tb"></tbody></table></div></div>
+<div class="c9l2-g"><span>Batería de evaluación (umbrales: exactitud ≥ 88 %, abstención correcta ≥ 90 %)</span>
+<div class="c9l2-m" id="c9l2-m" aria-live="polite"></div></div>
+<div class="readout texto" id="c9l2-out" aria-live="polite"></div></div><div class="prose"><p>El lab reproduce un episodio que cuenta Aplicaciones con IA: la plantilla <code>v5</code> sonaba más cálida y bajó la <b>abstención correcta</b> (las veces que el asistente dice «no lo sé» cuando de verdad no está en los manuales) del 92 % al 70 %. Aquí interesa la parte operativa: gracias al alias, la reversión fue un clic, y gracias a la versión en cada traza, se pudo listar exactamente qué respuestas salieron con la <code>v5</code> para revisarlas.</p></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Registra dos versiones de un prompt y muévelas con un alias</h3></div><p>Vas a usar el registro de prompts de MLflow en tu computadora, sin servidor y sin ningún modelo de lenguaje: solo se guardan y se cargan textos con su versión. Crea un entorno virtual e instala MLflow:</p><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python -m venv .venv</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>.venv\Scripts\activate</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>pip install "mlflow&gt;=3.1"</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 -m venv .venv</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>source .venv/bin/activate</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>pip install "mlflow&gt;=3.1"</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>prompts_registro.py</code>:</p><div class="code-copia"><pre><code>"""Registra dos versiones de un prompt y las mueve con un alias."""
+import mlflow
+
+mlflow.set_tracking_uri("sqlite:///registro.db")
+NOMBRE = "respuesta-agente"
+
+v1 = mlflow.genai.register_prompt(
+    name=NOMBRE,
+    template="Responde la consulta del agente usando solo los manuales.\n"
+             "Si no está en los manuales, di «No lo encontré».\nConsulta: {{consulta}}",
+    commit_message="Versión inicial",
+)
+v2 = mlflow.genai.register_prompt(
+    name=NOMBRE,
+    template="Sé cálido y resolutivo: el agente siempre necesita una respuesta útil.\n"
+             "Consulta: {{consulta}}",
+    commit_message="Tono más cálido",
+)
+print("Versiones registradas:", v1.version, v2.version)
+
+mlflow.genai.set_prompt_alias(name=NOMBRE, alias="campeon", version=v2.version)
+p = mlflow.genai.load_prompt(f"prompts:/{NOMBRE}@campeon")
+print(f"campeon -&gt; versión {p.version}:", p.format(consulta="¿Cuánto cuesta reconectar?"))
+
+mlflow.genai.set_prompt_alias(name=NOMBRE, alias="campeon", version=v1.version)
+p = mlflow.genai.load_prompt(f"prompts:/{NOMBRE}@campeon")
+print(f"Reversión: campeon -&gt; versión {p.version}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python prompts_registro.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 prompts_registro.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el programa y mira qué versión entrega el alias antes y después de la reversión.</span></li><li><span>Córrelo otra vez: MLflow no sobrescribe, registra las versiones 3 y 4.</span></li><li><span>Si quieres ver el registro en pantalla, corre <code>mlflow ui --backend-store-uri sqlite:///registro.db</code>, abre <code>http://127.0.0.1:5000</code>, entra a la sección de prompts y detén el servidor con Ctrl+C al terminar.</span></li></ol><p><b>Qué observar:</b> el texto del prompt nunca se edita: cada cambio es una versión con su mensaje, y lo que el servicio usaría depende solo del alias. La reversión no tocó ni el código ni las versiones, solo movió una etiqueta. Es el mismo mecanismo del registro de modelos del capítulo 2, aplicado a un texto. Si una versión de MLflow cambia los nombres de las funciones, la documentación del registro de prompts dice cuáles usar.</p></div></section>
+<section><h2>Deriva en un LLM: cuando el modelo cambia sin que tú lo cambies</h2><div class="prose"><p>El capítulo 7 separó la deriva de datos (cambian las entradas) de la deriva de concepto (cambia la relación entre entradas y resultado). En un sistema con LLM aparecen las dos, más una tercera que el modelo de mora no conoce.</p></div><div class="analogia"><b>Imagínalo así</b><p>Si compras siempre «el café de la casa» en una cafetería, un día te lo pueden cambiar de grano sin avisarte: el nombre es el mismo, el sabor no. Si pides «el colombiano de la cosecha de marzo», sabes exactamente qué te sirven, y te avisan cuando se acaba.</p></div><div class="prose"><ul><li><b>La deriva del proveedor.</b> Muchos proveedores ofrecen dos clases de nombres: un alias que avanza solo hacia la versión más reciente y versiones fechadas (<i>snapshots</i>) que no cambian, con una fecha anunciada de retiro. El incidente del martes vino de usar el alias. La regla de producción es <b>fijar la versión fechada</b>, registrarla en cada traza y tratar el cambio de versión como un cambio de modelo: batería, sombra y canario, como en el capítulo 6.</li><li><b>La deriva de las entradas.</b> Los clientes empiezan a preguntar por un plan nuevo o por una caída masiva. El texto no tiene columnas a las que aplicarles un PSI, pero se puede medir la distribución de otras cosas: el largo de las consultas, la categoría que les asigna el clasificador, la distancia de sus embeddings al centro de los meses anteriores.</li><li><b>La deriva de concepto.</b> La política de reconexión cambia y el manual se actualiza: la misma pregunta ahora tiene otra respuesta correcta. Si el índice no se reconstruyó, el asistente responde con la política vieja.</li></ul><p>Lo que se vigila, entonces, no es la exactitud (no hay etiqueta inmediata) sino <b>señales aproximadas</b>, como las métricas sustitutas del capítulo 7: la tasa de abstención, la validez del esquema de salida, el largo promedio de las respuestas, los tokens por consulta, los votos negativos de los agentes y el puntaje de una muestra diaria revisada con la batería. Cuando la etiqueta llega tarde o no llega, estas señales son las que avisan. Cómo se instrumentan las trazas y los tableros de un asistente está en el capítulo de observabilidad de Aplicaciones con IA; aquí importa la decisión de operación: cada señal tiene su umbral, su dueño y su acción.</p></div></section>
+<section><h2>Servir modelos abiertos: GPU, servidores de inferencia como vLLM y cuantización</h2><div class="prose"><p>El clasificador de tickets del asistente no vive en un proveedor: es un modelo abierto de 3B parámetros, ajustado con datos propios, que corre en un servidor de la empresa. Ahí reaparece todo el capítulo 5, con una pieza nueva: la <b>GPU</b> (<i>graphics processing unit</i>, unidad de procesamiento gráfico), el procesador que hace en paralelo las multiplicaciones que necesita un modelo de lenguaje.</p></div><div class="analogia"><b>Imagínalo así</b><p>Una cocina con un solo cocinero que prepara un plato a la vez desperdicia la plancha: mientras el pan se tuesta, la carne espera. Una cocina bien organizada pone varios pedidos en la plancha a la vez, mete un pedido nuevo apenas se libera un espacio y guarda los ingredientes picados en recipientes del mismo tamaño para no perder lugar en el mesón.</p></div><div class="prose"><p>Un modelo de lenguaje genera la respuesta token por token, y para cada token nuevo necesita lo calculado para los anteriores. Ese cálculo guardado se llama <b>caché KV</b> (<i>key-value cache</i>) y ocupa memoria de la GPU por cada conversación en curso. Un <b>servidor de inferencia</b> (<i>inference server</i>) es el programa que administra esa memoria y reparte la GPU entre muchas peticiones. <b>vLLM</b>, un proyecto de código abierto, es un ejemplo conocido: guarda la caché en páginas de tamaño fijo, como la memoria virtual de un sistema operativo, y practica el <b>lote continuo</b> (<i>continuous batching</i>): no espera a que termine un lote para empezar el siguiente, sino que mete una petición nueva en cuanto se libera lugar. Expone una API compatible con la de OpenAI, así que el resto del sistema no nota si detrás hay un proveedor o un servidor propio. SGLang es otra alternativa del mercado, y para un computador personal o un piloto, Ollama y llama.cpp.</p></div><figure class="fig fig-arquitectura" id="09-diagrama-3"><div class="lienzo"><svg viewBox="0 0 960 470" style="min-width:760px" role="img" aria-label="Arquitectura del servicio de un modelo abierto: el asistente llama a la puerta de modelos, que envía la petición a dos réplicas de vLLM en GPU propias o al proveedor por API; cada réplica tiene los pesos cuantizados, el adaptador y la caché KV; abajo, el registro de modelos del que cargan la versión campeon y el monitoreo que recibe latencia, tokens por segundo y memoria">
+<defs>
+<marker id="c9d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+</defs>
+<rect x="10" y="10" width="220" height="330" rx="12" class="d-sis"/>
+<text x="24" y="32" class="t t-xs t-b k-sis">SISTEMAS DEL ASISTENTE</text>
+<rect x="250" y="10" width="470" height="330" rx="12" class="d-oper"/>
+<text x="264" y="32" class="t t-xs t-b k-oper">SERVIDOR PROPIO (GPU)</text>
+<rect x="740" y="10" width="210" height="330" rx="12" class="d-inet"/>
+<text x="754" y="32" class="t t-xs t-b k-inet">PROVEEDOR EXTERNO</text>
+
+<rect x="34" y="60" width="172" height="56" rx="10" class="caja"/>
+<text x="120" y="84" class="t t-b" text-anchor="middle">Asistente</text>
+<text x="120" y="102" class="t t-s t-m" text-anchor="middle">POST /v1/consultas</text>
+<line x1="120" y1="116" x2="120" y2="176" class="ln" marker-end="url(#c9d3-m)"/>
+<rect x="34" y="180" width="172" height="76" rx="10" class="caja" style="stroke-width:2"/>
+<text x="120" y="204" class="t t-b" text-anchor="middle">Puerta de modelos</text>
+<text x="120" y="222" class="t t-s t-m" text-anchor="middle">enruta, presupuesto,</text>
+<text x="120" y="238" class="t t-s t-m" text-anchor="middle">registra versión y tokens</text>
+
+<rect x="290" y="56" width="390" height="120" rx="10" class="c-red"/>
+<text x="304" y="78" class="t t-b k-red">Réplica 1 · vLLM</text>
+<text x="304" y="96" class="t t-s">API compatible con OpenAI, lote continuo</text>
+<rect x="304" y="108" width="114" height="54" rx="6" class="caja"/>
+<text x="361" y="130" class="t t-s t-b" text-anchor="middle">Pesos base</text>
+<text x="361" y="148" class="t t-s t-m" text-anchor="middle">3B a 4 bits</text>
+<rect x="428" y="108" width="114" height="54" rx="6" class="caja"/>
+<text x="485" y="130" class="t t-s t-b" text-anchor="middle">Adaptador</text>
+<text x="485" y="148" class="t t-s t-m" text-anchor="middle">LoRA v7</text>
+<rect x="552" y="108" width="114" height="54" rx="6" class="caja" style="stroke-dasharray:4 3"/>
+<text x="609" y="130" class="t t-s t-b" text-anchor="middle">Caché KV</text>
+<text x="609" y="148" class="t t-s t-m" text-anchor="middle">en páginas</text>
+
+<rect x="290" y="196" width="390" height="120" rx="10" class="c-red"/>
+<text x="304" y="218" class="t t-b k-red">Réplica 2 · vLLM</text>
+<text x="304" y="236" class="t t-s">misma versión: base + adaptador</text>
+<rect x="304" y="248" width="114" height="54" rx="6" class="caja"/>
+<text x="361" y="270" class="t t-s t-b" text-anchor="middle">Pesos base</text>
+<text x="361" y="288" class="t t-s t-m" text-anchor="middle">3B a 4 bits</text>
+<rect x="428" y="248" width="114" height="54" rx="6" class="caja"/>
+<text x="485" y="270" class="t t-s t-b" text-anchor="middle">Adaptador</text>
+<text x="485" y="288" class="t t-s t-m" text-anchor="middle">LoRA v7</text>
+<rect x="552" y="248" width="114" height="54" rx="6" class="caja" style="stroke-dasharray:4 3"/>
+<text x="609" y="270" class="t t-s t-b" text-anchor="middle">Caché KV</text>
+<text x="609" y="288" class="t t-s t-m" text-anchor="middle">en páginas</text>
+
+<path d="M206 206 C250 206 250 116 286 116" class="ln" style="stroke-width:2" marker-end="url(#c9d3-m)"/>
+<path d="M206 226 C250 226 250 256 286 256" class="ln" style="stroke-width:2" marker-end="url(#c9d3-m)"/>
+
+<rect x="760" y="120" width="170" height="90" rx="10" class="caja"/>
+<use href="#i-nube" x="828" y="128" width="34" height="34" class="ico"/>
+<text x="845" y="180" class="t t-b" text-anchor="middle">Modelo mediano</text>
+<text x="845" y="198" class="t t-s t-m" text-anchor="middle">versión fechada</text>
+<path d="M120 256 V326 H845 V214" class="ln ln-d" style="stroke-width:2" marker-end="url(#c9d3-m)"/>
+<text x="756" y="318" class="t t-s t-m">confianza baja: sube por API</text>
+
+<rect x="250" y="370" width="300" height="84" rx="10" class="c-enl"/>
+<text x="266" y="394" class="t t-b k-enl">Registro de modelos</text>
+<text x="266" y="414" class="t t-s">par base + adaptador, datos, evaluación</text>
+<text x="266" y="432" class="t t-s t-m">cada réplica carga @campeon</text>
+<line x1="400" y1="370" x2="400" y2="320" class="ln s-enl" style="stroke-width:2" marker-end="url(#c9d3-m)"/>
+
+<rect x="580" y="370" width="300" height="84" rx="10" class="c-tra"/>
+<text x="596" y="394" class="t t-b k-tra">Monitoreo</text>
+<text x="596" y="414" class="t t-s">latencia p95, tokens por segundo,</text>
+<text x="596" y="432" class="t t-s">memoria de la GPU, costo por consulta</text>
+<line x1="640" y1="320" x2="640" y2="366" class="ln s-tra" style="stroke-width:2" marker-end="url(#c9d3-m)"/>
+</svg></div><figcaption><b>El servicio de un modelo abierto.</b> De izquierda a derecha: el asistente llama a la puerta de modelos, que decide si la petición va al servidor propio o al proveedor por API. El servidor propio tiene dos réplicas de vLLM, cada una en una GPU, con los pesos cuantizados del modelo base, el adaptador del ajuste fino y la caché KV en la memoria de la GPU. Abajo, el registro de modelos, de donde cada réplica carga la versión con el alias <code>campeon</code>, y el monitoreo, que recibe latencia, tokens por segundo y uso de la memoria.</figcaption></figure><div class="prose"><p>La <b>cuantización</b> (<i>quantization</i>) es la otra palanca. Un modelo guarda cada peso con 16 bits; cuantizar es guardarlos con 8 o 4 bits. Un modelo de 8.000 millones de parámetros ocupa unos 16 GB a 16 bits y unos 4 a 5 GB a 4 bits, lo que lo hace caber en una GPU más barata y deja memoria libre para la caché. El precio es una pérdida de calidad que hay que medir con la batería: a veces es imperceptible y a veces rompe justo la tarea que importa. Formatos como GGUF, AWQ o GPTQ son maneras distintas de cuantizar; por qué funcionan por dentro está en <a href="https://aaramirez.github.io/modelos-de-ia/temario.html" target="_blank" rel="noopener">Modelos de IA</a>. Para operación, la regla es una: <b>la versión cuantizada es otro modelo</b> y entra al registro con su propia evaluación.</p></div></section>
+<section><h2>Costos por token y presupuestos</h2><div class="analogia"><b>Imagínalo así</b><p>Tener auto propio o andar en taxi. Si viajas poco, el taxi sale más barato: pagas solo lo que usas. Si viajas todo el día, el auto se paga solo, pero también pagas el seguro, el garaje y el mecánico, lo uses o no.</p></div><div class="prose"><p>Un proveedor cobra por <b>token</b> (<i>token</i>, el trozo de texto con que trabaja el modelo, más o menos tres cuartos de una palabra), con un precio para los tokens de entrada y otro, mayor, para los de salida. Un servidor propio cobra por hora de GPU, se use o no, más el trabajo de las personas que lo operan. La cuenta depende del volumen, y casi siempre sorprende:</p><ul><li>El asistente atiende unas 120.000 consultas al mes, de unos 2.500 tokens de entrada y 300 de salida. A precios de ejemplo de un modelo mediano por API (US$ 0,40 por millón de tokens de entrada y US$ 1,60 por millón de salida), son unos US$ 180 al mes.</li><li>Una GPU en la nube encendida todo el mes, a un precio de ejemplo de US$ 1,20 la hora, son unos US$ 876, antes de contar a nadie que la mantenga.</li></ul><p>A ese volumen, el taxi gana por mucho. El servidor propio del clasificador no se justificó por costo, sino por latencia y porque el texto de los clientes no sale de la empresa. Los precios cambian cada pocos meses; lo que no cambia es la forma de la cuenta.</p></div><div class="lab" id="09-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Calculadora: API o modelo abierto propio</h3></div><p class="hint">Mueve el volumen de consultas, los tokens por consulta, los precios de la API, el precio de la GPU y cuántos tokens por segundo saca cada GPU. Mira el costo mensual de cada opción, cuántas GPU harían falta en la hora pico y en qué volumen se cruzan las dos curvas.</p><style>
+[id="09-lab-1"] .c9l1-scroll{overflow-x:auto}
+[id="09-lab-1"] .c9l1-graf{min-width:520px;width:100%;height:auto;display:block;background:var(--card);border:1px solid var(--line);border-radius:8px}
+[id="09-lab-1"] .c9l1-graf text{font:500 11px var(--f-display);fill:var(--muted)}
+[id="09-lab-1"] .c9l1-graf .eje{stroke:var(--grid);stroke-width:1}
+[id="09-lab-1"] .c9l1-graf .api{fill:none;stroke:var(--accent);stroke-width:2.5}
+[id="09-lab-1"] .c9l1-graf .gpu{fill:none;stroke:var(--warm);stroke-width:2.5}
+[id="09-lab-1"] .c9l1-graf .hoy{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:4 3}
+[id="09-lab-1"] .c9l1-tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}
+[id="09-lab-1"] .c9l1-t{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--card);display:grid;gap:2px;font:500 .74rem/1.3 var(--f-display);color:var(--muted)}
+[id="09-lab-1"] .c9l1-t b{font:700 1.05rem var(--f-mono);color:var(--ink)}
+[id="09-lab-1"] .c9l1-t.api{border-left:4px solid var(--accent)}
+[id="09-lab-1"] .c9l1-t.gpu{border-left:4px solid var(--warm)}
+</style>
+<div class="ctls">
+  <label class="ctl">Consultas al mes <output id="c9l1-on">120.000</output><input type="range" id="c9l1-n" min="0" max="15" step="1" value="5" aria-label="Consultas al mes"></label>
+  <label class="ctl">Tokens de entrada por consulta <output id="c9l1-otin">2.500</output><input type="range" id="c9l1-tin" min="300" max="8000" step="100" value="2500"></label>
+  <label class="ctl">Tokens de salida por consulta <output id="c9l1-otout">300</output><input type="range" id="c9l1-tout" min="50" max="1500" step="50" value="300"></label>
+  <label class="ctl">API: US$ por millón de tokens de entrada <output id="c9l1-opin">0,40</output><input type="range" id="c9l1-pin" min="0.05" max="5" step="0.05" value="0.4"></label>
+  <label class="ctl">API: US$ por millón de tokens de salida <output id="c9l1-opout">1,60</output><input type="range" id="c9l1-pout" min="0.1" max="15" step="0.1" value="1.6"></label>
+  <label class="ctl">GPU: US$ por hora <output id="c9l1-ogpu">1,20</output><input type="range" id="c9l1-gpu" min="0.3" max="6" step="0.1" value="1.2"></label>
+  <label class="ctl">Tokens de salida por segundo por GPU (con lote continuo) <output id="c9l1-otps">1.500</output><input type="range" id="c9l1-tps" min="100" max="6000" step="100" value="1500"></label>
+  <label class="ctl">Operación del servidor propio (US$ al mes) <output id="c9l1-oops">800</output><input type="range" id="c9l1-ops" min="0" max="4000" step="100" value="800"></label>
+</div>
+<div class="btns" role="group" aria-label="Disponibilidad del servidor propio">
+  <button type="button" id="c9l1-resp" aria-pressed="true">Con una GPU de respaldo</button>
+</div>
+<div class="c9l1-scroll"><svg class="c9l1-graf" id="c9l1-svg" viewBox="0 0 640 260" role="img" aria-label="Costo mensual de la API y del servidor propio según el volumen de consultas"></svg></div>
+<div class="legend"><span><i style="background:var(--accent)"></i>API (pago por token)</span><span><i style="background:var(--warm)"></i>Modelo abierto propio (GPU por hora + operación)</span><span>Línea punteada: tu volumen</span></div>
+<div class="c9l1-tarjetas" id="c9l1-tar" aria-live="polite"></div>
+<div class="readout texto" id="c9l1-out" aria-live="polite"></div></div><div class="prose"><p>Además del costo total, la operación necesita <b>presupuestos</b> que se cumplan solos: un máximo de tokens por petición, un tope de gasto diario con una alerta al 80 % y un corte al 100 %, y un costo por consulta vigilado como cualquier otra métrica del modelo. Un error en un bucle o un prompt que de pronto genera el doble de texto se ve primero en la factura; un presupuesto lo detiene antes. Y el costo se registra <b>por versión</b>: si la <code>v6</code> del prompt agrega un ejemplo largo, sube el costo de cada consulta, y esa subida se aprueba junto con la versión.</p></div></section>
+<section><h2>El ajuste fino en producción: datos, registro y despliegue</h2><div class="prose"><p>El clasificador de tickets es el lugar donde LLMOps se parece más al modelo de mora, porque ahí el equipo sí entrena. Las razones para ajustar y cómo se preparan los ejemplos están en el capítulo de ajuste de Aplicaciones con IA; aquí va lo que pasa después, que es lo mismo que el curso hizo con el modelo de mora.</p></div><div class="analogia"><b>Imagínalo así</b><p>Un sastre que ajusta un traje hecho no cose uno nuevo: toma la talla estándar y le hace unos pocos cambios a la medida. Pero si guarda solo el traje terminado y pierde las medidas, no puede repetir el ajuste cuando el cliente vuelva.</p></div><div class="prose"><ul><li><b>Datos versionados.</b> Los 6.000 tickets que los agentes etiquetaron o corrigieron, con su consentimiento y sin datos personales, son un conjunto de datos con versión y huella, como en el capítulo 2. El <b>conjunto dorado</b> (<i>golden set</i>) de 400 tickets revisados por la jefa de reclamos no se toca: es la vara con que se mide cada versión.</li><li><b>Registro completo.</b> Con <b>LoRA</b> (<i>Low-Rank Adaptation</i>, adaptación de bajo rango), el ajuste no reescribe el modelo: produce un <b>adaptador</b> pequeño que se suma al modelo base. El registro guarda el adaptador junto con el nombre y la versión exacta del modelo base, la versión de los datos, los hiperparámetros, la cuantización y el resultado en el conjunto dorado. Un adaptador sin su modelo base es inservible.</li><li><b>Despliegue con cuidado.</b> La versión nueva corre primero en sombra junto a la anterior, después en canario, y solo entra si gana en el conjunto dorado y en vivo: campeón contra retador, como en el capítulo 8.</li><li><b>Reentrenamiento.</b> Cada trimestre, o antes si aparecen categorías nuevas de tickets que el clasificador no conoce, se repite el ciclo con los casos que los agentes corrigieron.</li></ul></div><div class="ml"><b>En la práctica</b><p><b>El adaptador que no cargaba.</b> Al reentrenar el clasificador en el segundo trimestre, el equipo actualizó también el modelo base a una revisión nueva publicada por su autor. El adaptador nuevo funcionaba; el viejo, que era el plan de reversión, ya no cargaba sobre la base nueva. Desde entonces, el registro trata el par «base y adaptador» como una sola versión, y la reversión apunta al par completo, no solo al adaptador.</p></div></section>
+<section><h2>Lo que sigue en Aplicaciones con IA</h2><div class="prose"><p>La evaluación de una aplicación con LLM (conjunto dorado, métricas, jueces, regresiones) y su observabilidad (trazas, costos por usuario, KPIs por nivel) están en <a href="https://aaramirez.github.io/aplicaciones-con-ia/temario.html" target="_blank" rel="noopener">Aplicaciones con IA</a>, en sus capítulos de evaluación y de observabilidad. Este capítulo se quedó con la parte de operación que esos capítulos dan por hecha: que cada artefacto tenga versión, que cada versión pase por el registro, que el cambio se pueda revertir y que el costo y la deriva se vigilen como cualquier otra métrica del modelo.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p>Un sistema con un modelo de lenguaje se opera con el mismo ciclo que el modelo de mora, pero cambian los artefactos: el prompt, la plantilla, el índice, el modelo con su versión fechada y el adaptador se versionan, pasan una batería y se publican con un alias que se puede mover hacia atrás. El costo es por token y se vigila con presupuestos. Y la deriva incluye una nueva: la del proveedor que cambia el modelo sin avisar, que se evita fijando la versión.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Por qué en un sistema con LLM el prompt se trata como un artefacto con versión, igual que un modelo?</summary><p>Porque un cambio de texto cambia el comportamiento tanto como un cambio de parámetros. Sin versión no se puede saber qué prompt produjo una respuesta ni volver al anterior.</p></details><details><summary>¿Qué ventaja tiene que el servicio cargue el prompt por alias (<code>campeon</code>) y no por número de versión?</summary><p>Que cambiar de versión o revertir es mover el alias, sin desplegar código, y se hace en segundos.</p></details><details><summary>El incidente del martes no vino de ningún despliegue del equipo. ¿De dónde vino y cómo se evita?</summary><p>De un alias del proveedor que avanzó a una versión nueva del modelo. Se evita fijando la versión fechada y tratando su cambio como un cambio de modelo, con batería, sombra y canario.</p></details><details><summary>Con 120.000 consultas al mes, ¿por qué la API sale más barata que una GPU propia en el ejemplo del capítulo?</summary><p>Porque la API se paga por uso (unos US$ 180 al mes) y la GPU se paga encendida todo el mes (unos US$ 876), más la operación. El servidor propio conviene a volúmenes mucho mayores o por otras razones, como latencia o privacidad.</p></details><details><summary>¿Qué debe guardar el registro de un modelo ajustado con LoRA para que la reversión funcione?</summary><p>El adaptador junto con la versión exacta del modelo base, los datos, los hiperparámetros, la cuantización y su evaluación; el par base y adaptador se trata como una sola versión.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Cuánta memoria ocupa la caché KV de una sola conversación larga y de qué datos del modelo depende su tamaño?<small>Pista: busca «KV cache size formula».</small></li><li>¿Qué es la decodificación especulativa (<i>speculative decoding</i>) y cómo reduce la latencia de un modelo grande?</li><li>¿Qué es el almacenamiento en caché de prompts (<i>prompt caching</i>) que ofrecen algunos proveedores y cómo cambia el precio de los tokens de entrada repetidos?</li><li>¿Qué diferencia hay entre un modelo de «pesos abiertos» y uno de código abierto según la definición de la Open Source Initiative?</li><li>¿Qué es un clasificador de dominio (<i>domain classifier</i>) para detectar deriva y cómo se aplica a textos representados con embeddings?<small>Pista: busca «embedding drift detection».</small></li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://mlflow.org/docs/latest/genai/prompt-registry/" target="_blank" rel="noopener">Registro de prompts de MLflow <small>documentación, en inglés</small></a><a class="vid" href="https://docs.vllm.ai/" target="_blank" rel="noopener">Documentación de vLLM <small>servidor de inferencia de código abierto, en inglés</small></a><a class="vid" href="https://aaramirez.github.io/aplicaciones-con-ia/temario.html" target="_blank" rel="noopener">Aplicaciones con IA <small>evaluación y observabilidad de aplicaciones con LLM, curso del sitio</small></a><a class="vid" href="https://aaramirez.github.io/modelos-de-ia/temario.html" target="_blank" rel="noopener">Modelos de IA <small>cuantización y cómo funciona un modelo por dentro, curso del sitio</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const root=document.querySelector('[id="09-lab-2"]');
+  const V=[
+    {n:'v4',msg:'Tono neutro; «si no está, di que no lo encontraste»',ex:90,ab:92,tin:2420,tout:180},
+    {n:'v5',msg:'Tono cálido; «el agente siempre necesita una respuesta útil»',ex:91,ab:70,tin:2440,tout:260},
+    {n:'v5.1',msg:'Tono cálido; vuelve la regla de abstenerse',ex:91,ab:93,tin:2480,tout:250},
+    {n:'v6',msg:'Agrega tres ejemplos largos al prompt',ex:92,ab:93,tin:3300,tout:250}
+  ];
+  // C: consulta; R: respuesta por versión [texto, correcta]
+  const C=[
+    {q:'¿Cuánto paga la cuenta 20417 para reconectar?',r:[
+      ['US$ 35,00: factura F-88213 (US$ 30,00) más reconexión (US$ 5,00). Fuente: politica-reconexion-2026.',1],
+      ['¡Claro! Para reconectar, la clienta paga US$ 35,00: la factura de octubre y US$ 5,00 de reconexión. Fuente: politica-reconexion-2026.',1],
+      ['¡Claro! La clienta paga US$ 35,00: la factura F-88213 y US$ 5,00 de reconexión. Fuente: politica-reconexion-2026.',1],
+      ['¡Con gusto! Son US$ 35,00: F-88213 (US$ 30,00) y reconexión (US$ 5,00). Fuente: politica-reconexion-2026.',1]]},
+    {q:'¿Se puede mover la visita de la orden 4471 al jueves en la tarde?',r:[
+      ['Sí, si faltan más de 24 horas para la visita. Fuente: politica-visitas-2026.',1],
+      ['¡Por supuesto! Se reprograma sin costo si faltan más de 24 horas. Fuente: politica-visitas-2026.',1],
+      ['¡Por supuesto! Sin costo, si faltan más de 24 horas. Fuente: politica-visitas-2026.',1],
+      ['¡Claro que sí! Sin costo, siempre que falten más de 24 horas. Fuente: politica-visitas-2026.',1]]},
+    {q:'¿Tienen planes de televisión satelital?',r:[
+      ['No lo encontré en los manuales.',1],
+      ['¡Sí! Tenemos planes de televisión satelital desde US$ 15,00 al mes.',0],
+      ['No lo encontré en los manuales; te sugiero consultarlo con ventas.',1],
+      ['No lo encontré en los manuales; te sugiero consultarlo con ventas.',1]]},
+    {q:'¿Cuánto cuesta la reconexión?',r:[
+      ['US$ 5,00 según la política vigente desde 2026. Fuente: politica-reconexion-2026.',1],
+      ['¡Buena pregunta! La reconexión cuesta US$ 5,00. Fuente: politica-reconexion-2026.',1],
+      ['¡Buena pregunta! Cuesta US$ 5,00. Fuente: politica-reconexion-2026.',1],
+      ['¡Buena pregunta! Cuesta US$ 5,00 desde 2026. Fuente: politica-reconexion-2026.',1]]},
+    {q:'¿El cliente puede pagar con criptomonedas?',r:[
+      ['No lo encontré en los manuales.',1],
+      ['¡Claro! Puede pagar con criptomonedas desde la app.',0],
+      ['No lo encontré en los manuales.',1],
+      ['No lo encontré en los manuales.',1]]},
+    {q:'¿Qué reembolso aplica a un cobro duplicado de US$ 30,00?',r:[
+      ['Más de US$ 10,00: requiere aprobación de la supervisora. Fuente: politica-reembolsos.',1],
+      ['¡Lo resolvemos! Como supera US$ 10,00, necesita la aprobación de la supervisora. Fuente: politica-reembolsos.',1],
+      ['¡Lo resolvemos! Supera US$ 10,00: va con aprobación de la supervisora. Fuente: politica-reembolsos.',1],
+      ['¡Lo resolvemos! Supera US$ 10,00, así que necesita aprobación. Fuente: politica-reembolsos.',1]]}
+  ];
+  const nf=(v,d)=>{d=d||0;const [e,f]=Math.abs(v).toFixed(d).split('.');return (v<0?'-':'')+e.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(f?','+f:'');};
+  const costo=v=>(v.tin*0.4+v.tout*1.6)/1e6*1000;
+  let sel=0;
+  function pintar(){
+    $('#c9l2-ver').innerHTML=V.map((v,i)=>'<div class="c9l2-v'+(i===sel?' alias':'')+'">'+(i===sel?'<span class="tag">@campeon</span>':'')+'<b>respuesta-agente@'+v.n+'</b><span>'+v.msg+'</span></div>').join('');
+    $('#c9l2-tb').innerHTML=C.map(c=>{const r=c.r[sel];return '<tr><td>'+c.q+'</td><td>'+r[0]+'<br><code>prompt='+V[sel].n+'</code></td><td class="'+(r[1]?'ok">correcta':'mal">inventada')+'</td></tr>';}).join('');
+    const v=V[sel],okEx=v.ex>=88,okAb=v.ab>=90,c=costo(v),c0=costo(V[0]);
+    $('#c9l2-m').innerHTML=
+      '<div class="c9l2-k'+(okEx?'':' mal')+'"><span>Exactitud con fuente</span><b>'+v.ex+' %</b></div>'+
+      '<div class="c9l2-k'+(okAb?'':' mal')+'"><span>Abstención correcta</span><b>'+v.ab+' %</b></div>'+
+      '<div class="c9l2-k"><span>Tokens por consulta</span><b>'+nf(v.tin+v.tout,0)+'</b></div>'+
+      '<div class="c9l2-k'+(c>c0*1.2?' mal':'')+'"><span>Costo cada mil consultas</span><b>US$ '+nf(c,2)+'</b></div>';
+    const E=[
+      'La versión de partida: correcta y prudente, pero los agentes la encuentran seca. Es la referencia contra la que se mide cada versión nueva.',
+      'Sube la exactitud un punto y el tono gusta, pero la abstención cae a 70 %: inventa planes y medios de pago. No pasa la batería. Si llegó a producción, mover el alias de vuelta a v4 o a v5.1 es la reversión, y el registro permite listar cada respuesta que salió con v5 para revisarla.',
+      'Conserva el tono cálido y recupera la regla de abstenerse: pasa los dos umbrales con un costo casi igual al de v4. Es la candidata natural para el alias.',
+      'La calidad sube un punto más, pero los tres ejemplos largos agregan unos 800 tokens de entrada a cada consulta: el costo sube cerca de un 37 % frente a v4. Pasa la batería; la decisión es si un punto de exactitud vale ese costo cada mes.'
+    ];
+    $('#c9l2-out').innerHTML=(okEx&&okAb?'<span class="ok">Pasa la batería.</span>':'<span class="warn">No pasa la batería: no debería tener el alias campeon.</span>')+'<span>'+E[sel]+'</span>';
+  }
+  root.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{sel=+b.dataset.v;root.querySelectorAll('[data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));pintar();}));
+  pintar();
+})();
+</script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const root=document.querySelector('[id="09-lab-1"]');
+  // volúmenes del deslizador; la gráfica usa escala logarítmica de 10.000 a 10.000.000
+  const VOLS=[1e4,2e4,3e4,5e4,8e4,12e4,2e5,3e5,5e5,8e5,12e5,2e6,3e6,5e6,8e6,1e7];
+  const vol=i=>VOLS[i];
+  const curva=i=>10000*Math.pow(1000,i/40);
+  const nf=(v,d)=>{d=d||0;const [e,f]=Math.abs(v).toFixed(d).split('.');return (v<0?'-':'')+e.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(f?','+f:'');};
+  const us=v=>'US$ '+nf(v,v<100?2:0);
+  let respaldo=true;
+  function val(id){return parseFloat($('#c9l1-'+id).value);}
+  function costos(N,p){
+    const api=N*(p.tin*p.pin+p.tout*p.pout)/1e6;
+    // hora pico: la mitad del tráfico diario en 4 horas, 30 días
+    const picoHora=N/30*0.5/4;
+    // la entrada se procesa unas 10 veces más rápido que la salida
+    const tpsNec=picoHora*(p.tout+p.tin/10)/3600;
+    let gpus=Math.max(1,Math.ceil(tpsNec/(p.tps*0.7)));
+    if(respaldo)gpus+=1;
+    const gpu=gpus*p.gpu*730+p.ops;
+    return {api,gpu,gpus,tpsNec};
+  }
+  function pintar(){
+    const p={tin:val('tin'),tout:val('tout'),pin:val('pin'),pout:val('pout'),gpu:val('gpu'),tps:val('tps'),ops:val('ops')};
+    const N=vol(val('n'));
+    $('#c9l1-on').textContent=nf(N);$('#c9l1-otin').textContent=nf(p.tin);$('#c9l1-otout').textContent=nf(p.tout);
+    $('#c9l1-opin').textContent=nf(p.pin,2);$('#c9l1-opout').textContent=nf(p.pout,2);$('#c9l1-ogpu').textContent=nf(p.gpu,2);
+    $('#c9l1-otps').textContent=nf(p.tps);$('#c9l1-oops').textContent=nf(p.ops);
+    // curvas
+    const W=640,H=260,L=78,R=30,T=14,B=36;
+    const xs=[];for(let i=0;i<=40;i++)xs.push(curva(i));
+    const ca=xs.map(n=>costos(n,p));
+    const ymax=Math.max(...ca.map(c=>Math.max(c.api,c.gpu)));
+    const lmin=Math.log10(10),lmax=Math.log10(ymax*1.2);
+    const X=i=>L+(W-L-R)*i/40;
+    const Y=v=>T+(H-T-B)*(1-(Math.log10(Math.max(v,10))-lmin)/(lmax-lmin));
+    let s='';
+    for(let e=1;e<=Math.ceil(lmax);e++){const y=Y(Math.pow(10,e));if(y<T-1)continue;s+='<line class="eje" x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'"/><text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end">US$ '+nf(Math.pow(10,e))+'</text>';}
+    [[0,'10 mil','start'],[13.33,'100 mil','middle'],[26.67,'1 millón','middle'],[40,'10 millones','end']].forEach(([i,t,an])=>{s+='<text x="'+X(i)+'" y="'+(H-14)+'" text-anchor="'+an+'">'+t+'</text>';});
+    s+='<text x="'+((L+W-R)/2)+'" y="'+(H-2)+'" text-anchor="middle">consultas al mes</text>';
+    s+='<polyline class="api" points="'+ca.map((c,i)=>X(i).toFixed(1)+','+Y(c.api).toFixed(1)).join(' ')+'"/>';
+    s+='<polyline class="gpu" points="'+ca.map((c,i)=>X(i).toFixed(1)+','+Y(c.gpu).toFixed(1)).join(' ')+'"/>';
+    const xi=X(40*Math.log10(N/10000)/3);
+    s+='<line class="hoy" x1="'+xi+'" x2="'+xi+'" y1="'+T+'" y2="'+(H-B)+'"/>';
+    $('#c9l1-svg').innerHTML=s;
+    // cruce
+    let cruce=null;
+    for(let n=10000;n<=10000000;n=Math.round(n*1.02)){const c=costos(n,p);if(c.api>=c.gpu){cruce=n;break;}}
+    const c=costos(N,p);
+    $('#c9l1-tar').innerHTML=
+      '<div class="c9l1-t api"><span>API al mes</span><b>'+us(c.api)+'</b><span>'+us(c.api/N*1000)+' cada mil consultas</span></div>'+
+      '<div class="c9l1-t gpu"><span>Servidor propio al mes</span><b>'+us(c.gpu)+'</b><span>'+c.gpus+' GPU encendidas todo el mes</span></div>'+
+      '<div class="c9l1-t"><span>En la hora pico se necesitan</span><b>'+nf(c.tpsNec)+' tok/s</b><span>de salida equivalentes</span></div>'+
+      '<div class="c9l1-t"><span>Las curvas se cruzan en</span><b>'+(cruce?'≈ '+nf(Math.round(cruce/1e5)*1e5):'más de 10 M')+'</b><span>consultas al mes</span></div>';
+    const gana=c.api<=c.gpu;
+    let t='<span class="'+(gana?'ok':'warn')+'">'+(gana?'A este volumen conviene la API: ':'A este volumen conviene el servidor propio: ')+'la diferencia es de '+us(Math.abs(c.api-c.gpu))+' al mes.</span>';
+    t+='<span>La API crece en línea recta con el volumen; el servidor propio sube a escalones, una GPU entera cada vez que la hora pico no cabe.'+(respaldo?' La GPU de respaldo cuesta lo mismo aunque casi nunca trabaje: es el precio de no caerse.':' Sin respaldo, una falla de la única GPU deja al asistente sin modelo.')+'</span>';
+    if(p.tin/p.tout>6)t+='<span>Tus consultas son sobre todo entrada (contexto de RAG y prompt largo): bajar los tokens de entrada abarata más la API que cambiar de modelo.</span>';
+    $('#c9l1-out').innerHTML=t;
+  }
+  root.querySelectorAll('input[type=range]').forEach(i=>i.addEventListener('input',pintar));
+  $('#c9l1-resp').addEventListener('click',e=>{respaldo=!respaldo;e.currentTarget.setAttribute('aria-pressed',respaldo?'true':'false');pintar();});
+  pintar();
+})();
+</script>
+</body>
+</html>

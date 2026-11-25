@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reentrenamiento · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="reentrenamiento">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 08 DE 11</span><h1>Reentrenamiento y gobierno del modelo</h1><p class="lede">La precisión temprana avisó en el mes 6 y la mora lo confirmó 45 días después: la v3 ya no ve el mundo como es. Este capítulo decide cuándo reentrenar (por calendario, por deriva o por desempeño), cierra el ciclo que lleva del monitoreo a una versión nueva, enfrenta a la v4 retadora con la v3 campeona con una regla escrita antes, deja cada decisión aprobada y auditada, y retira la v2 sin perder su historia.</p></header>
+<section><div class="prose"><p>En el mes 7, con la precisión temprana en baja y la alerta del precio de los planes sonando, alguien propuso lo obvio: «Reentrenemos con los datos del último mes y listo». La pregunta de la gerente de Cobranzas fue la misma de siempre, ahora con una variante: «¿Y cómo sabemos que el nuevo es mejor que el que tenemos?». La de auditoría fue otra: «¿Quién lo aprueba y dónde queda escrito?».</p><p>Reentrenar es fácil: el pipeline del <a href="03-entrenamiento-reproducible.html">capítulo 3</a> lo hace con un comando. Lo difícil es todo lo que rodea a ese comando: decidir cuándo vale la pena, con qué datos, cómo se compara el modelo nuevo con el que está decidiendo, quién firma y qué pasa con los modelos viejos. A ese conjunto de reglas y registros se le llama <b>gobierno del modelo</b> (<i>model governance</i>).</p></div></section>
+<section><h2>Reentrenar por calendario, por deriva o por desempeño</h2><div class="analogia"><b>Imagínalo así</b><p>El mantenimiento de un auto se programa de tres maneras. Por fecha: cada seis meses, aunque no lo hayas usado. Por señal: cuando se enciende una luz en el tablero. Por resultado: cuando notas que frena peor. La fecha es simple y a veces innecesaria; la luz avisa antes de la falla, pero a veces se enciende por nada; la frenada es la señal más clara, y llega cuando el problema ya está.</p></div><div class="prose"><p><b>Reentrenar</b> (<i>retrain</i>) es entrenar otra vez el modelo con datos más recientes, con la misma receta o con una mejorada. Hay tres formas de decidir cuándo, y la mayoría de los equipos termina combinándolas:</p><ul><li><b>Por calendario</b> (<i>scheduled retraining</i>): cada mes o cada trimestre, pase lo que pase. Es simple, predecible y fácil de auditar. Su defecto: paga reentrenamientos que no cambian nada y, si el mundo cambia de golpe a mitad de mes, espera hasta la fecha.</li><li><b>Por deriva</b> (<i>drift-triggered</i>): cuando el PSI de las entradas importantes o de las predicciones pasa un umbral, como los del <a href="07-monitoreo.html">capítulo 7</a>. Reacciona el mismo día del cambio, sin esperar etiquetas. Su defecto: una deriva inocua también dispara, y un reentrenamiento inmediato aprende de etiquetas viejas.</li><li><b>Por desempeño</b> (<i>performance-triggered</i>): cuando el AUC o la precisión medidos con etiquetas reales caen por debajo de un límite. Es la señal más fiel, pero en el modelo de mora llega entre 45 y 60 días tarde.</li></ul><p>Hay un detalle que el modelo de mora vuelve evidente. Para entrenar hacen falta etiquetas, y la etiqueta de una factura emitida hoy se conoce dentro de unos 60 días. Si los clientes cambiaron de golpe en el mes 6, un reentrenamiento en el mes 6 solo tiene etiquetas del mes 4: aprende del mundo de antes. Por eso, después de un cambio brusco, el reentrenamiento útil es el que llega cuando ya maduraron las etiquetas de los datos nuevos, y mientras tanto se usan otras defensas, como ajustar el umbral de la lista.</p></div><div class="lab" id="08-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Un año del modelo de mora con cinco estrategias</h3></div><p class="hint">Elige una estrategia de reentrenamiento y mira el AUC semana a semana, con un desgaste lento y un cambio brusco en la semana 26. Mueve el umbral de deriva, el de desempeño y los dos costos: lo que cuesta cada reentrenamiento y lo que cuesta cada punto de AUC perdido. La tabla compara las cinco estrategias; busca con qué costos gana cada una.</p><style>
+[id="08-lab-1"] .c8l1-g{display:grid;gap:4px}
+[id="08-lab-1"] .c8l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="08-lab-1"] table{width:100%;border-collapse:collapse;font-size:.82rem}
+[id="08-lab-1"] th,[id="08-lab-1"] td{padding:5px 6px}
+[id="08-lab-1"] td{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+[id="08-lab-1"] td:first-child{font-family:var(--f-display);text-align:left}
+[id="08-lab-1"] tr.sel td{background:var(--accent-soft);font-weight:700}
+[id="08-lab-1"] tr.mejor td:last-child{color:var(--good);font-weight:700}
+</style>
+<div class="c8l1-g"><span>Estrategia de reentrenamiento</span>
+<div class="btns" role="group" aria-label="Estrategia">
+  <button type="button" data-e="nunca" aria-pressed="false">Nunca</button>
+  <button type="button" data-e="trim" aria-pressed="false">Cada trimestre</button>
+  <button type="button" data-e="mes" aria-pressed="false">Cada mes</button>
+  <button type="button" data-e="deriva" aria-pressed="true">Por deriva (PSI)</button>
+  <button type="button" data-e="desemp" aria-pressed="false">Por desempeño (AUC)</button>
+</div></div>
+<div class="ctls">
+  <label class="ctl">Umbral de deriva: PSI <output id="c8l1-psi-o"></output>
+    <input id="c8l1-psi" type="range" min="0.05" max="0.4" step="0.01" value="0.2"></label>
+  <label class="ctl">Umbral de desempeño: caída del AUC <output id="c8l1-auc-o"></output>
+    <input id="c8l1-auc" type="range" min="1" max="8" step="0.5" value="3"></label>
+  <label class="ctl">Costo de cada reentrenamiento <output id="c8l1-cr-o"></output>
+    <input id="c8l1-cr" type="range" min="200" max="6000" step="100" value="1500"></label>
+  <label class="ctl">Costo mensual de cada punto de AUC perdido <output id="c8l1-cp-o"></output>
+    <input id="c8l1-cp" type="range" min="200" max="4000" step="100" value="1200"></label>
+</div>
+<canvas id="c8l1-c" role="img" aria-label="AUC semanal del modelo de mora durante un año con la estrategia elegida, comparado con no reentrenar nunca; los triángulos marcan cada reentrenamiento y la línea vertical, el cambio brusco de la semana 26"></canvas>
+<div class="legend"><span><i style="background:var(--accent)"></i>estrategia elegida</span><span><i style="background:var(--muted)"></i>sin reentrenar</span><span><i style="background:var(--good)"></i>reentrenamiento</span><span><i style="background:var(--warm)"></i>cambio brusco (semana 26)</span></div>
+<div class="tbl"><table aria-label="Comparación de estrategias en el año">
+<thead><tr><th>Estrategia</th><th class="num">AUC prom.</th><th class="num">AUC mín.</th><th class="num">Reentr.</th><th class="num">Costo total</th></tr></thead>
+<tbody id="c8l1-tb"></tbody></table></div>
+<div class="readout texto" id="c8l1-out" aria-live="polite"></div></div><div class="prose"><p>El laboratorio no da una estrategia ganadora, y eso es lo que enseña. Cuando reentrenar es barato y cada punto de AUC vale mucho, gana el calendario mensual. Cuando reentrenar es caro (por la revisión humana, no por el cómputo), gana la deriva con un umbral bien elegido. En todos los casos, no reentrenar nunca es lo más caro. El modelo de mora terminó con una combinación: reentrenamiento trimestral por calendario, uno extra si la deriva pasa el umbral dos semanas seguidas y un aviso a las personas si el AUC por cohorte cae más de 3 puntos.</p></div></section>
+<section><h2>El ciclo cerrado: monitoreo, datos nuevos, entrenamiento, evaluación y despliegue</h2><div class="analogia"><b>Imagínalo así</b><p>Un termostato no espera a que alguien le diga que hace frío. Mide la temperatura, la compara con la deseada, enciende la calefacción y vuelve a medir. Nadie lo opera; las personas solo deciden la temperatura deseada y revisan de vez en cuando que funcione.</p></div><div class="prose"><p>En un <b>ciclo cerrado</b> (<i>closed loop</i>), el resultado del monitoreo vuelve a entrar al sistema y dispara el reentrenamiento sin que nadie tenga que acordarse. Es lo que en los niveles de madurez del <a href="01-por-que-falla.html">capítulo 1</a> se llama <b>entrenamiento continuo</b> (<i>continuous training</i>, CT): el pipeline no solo se puede correr, sino que corre solo cuando hace falta, y su salida llega a producción por la escalera de despliegue del <a href="06-desplegar-modelos.html">capítulo 6</a>.</p></div><figure class="fig fig-esquema" id="08-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 470" style="min-width:720px" role="img" aria-label="El ciclo cerrado del reentrenamiento en ocho pasos: monitoreo, disparador por calendario, deriva o desempeño, datos nuevos con etiqueta madura, validación de datos, entrenamiento en el pipeline, evaluación del retador contra el campeón, registro y aprobación, y despliegue en sombra y canario, que vuelve al monitoreo; dos salidas: si la validación falla se detiene, y si el retador no gana el campeón sigue">
+<defs>
+<marker id="c8d1-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c8d1-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<rect x="40" y="40" width="180" height="62" rx="10" class="c-tra"/>
+<text x="54" y="64" class="t t-b">① Monitoreo</text><text x="54" y="84" class="t t-s t-m">deriva, precisión, AUC</text>
+<rect x="260" y="40" width="180" height="62" rx="10" class="c-tra" style="stroke-width:2.2"/>
+<text x="274" y="64" class="t t-b">② Disparador</text><text x="274" y="84" class="t t-s t-m">calendario, deriva o AUC</text>
+<rect x="480" y="40" width="180" height="62" rx="10" class="c-fis"/>
+<text x="494" y="64" class="t t-b">③ Datos nuevos</text><text x="494" y="84" class="t t-s t-m">con la etiqueta madura</text>
+<rect x="700" y="40" width="170" height="62" rx="10" class="c-fis"/>
+<text x="714" y="64" class="t t-b">④ Validación</text><text x="714" y="84" class="t t-s t-m">esquema, rangos, deriva</text>
+<rect x="700" y="200" width="170" height="62" rx="10" class="c-enl"/>
+<text x="714" y="224" class="t t-b">⑤ Entrenamiento</text><text x="714" y="244" class="t t-s t-m">el pipeline del cap. 3</text>
+<rect x="700" y="360" width="170" height="62" rx="10" class="c-apl"/>
+<text x="714" y="384" class="t t-b">⑥ Evaluación</text><text x="714" y="404" class="t t-s t-m">retador contra campeón</text>
+<rect x="460" y="360" width="200" height="62" rx="10" class="c-apl"/>
+<text x="474" y="384" class="t t-b">⑦ Registro y aprobación</text><text x="474" y="404" class="t t-s t-m">evidencia, quién y cuándo</text>
+<rect x="220" y="360" width="200" height="62" rx="10" class="c-red"/>
+<text x="234" y="384" class="t t-b">⑧ Despliegue</text><text x="234" y="404" class="t t-s t-m">sombra y canario (cap. 6)</text>
+<path d="M220 71 H257" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<path d="M440 71 H477" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<path d="M660 71 H697" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<path d="M785 102 V197" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<path d="M785 262 V357" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<path d="M700 391 H663" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<path d="M460 391 H423" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<path d="M220 391 H130 V105" class="ln" style="stroke-width:2" marker-end="url(#c8d1-m)"/>
+<text x="138" y="250" class="t t-s t-m">la versión nueva</text><text x="138" y="266" class="t t-s t-m">se vigila desde</text><text x="138" y="282" class="t t-s t-m">el primer día</text>
+<path d="M870 71 H888 V128" class="ln s-warm" style="stroke-width:2" marker-end="url(#c8d1-w)"/>
+<text x="888" y="148" class="t t-s t-b k-warm" text-anchor="end">datos rotos:</text>
+<text x="888" y="164" class="t t-s k-warm" text-anchor="end">se detiene</text>
+<path d="M740 360 V326 H330 V105" class="ln s-warm" style="stroke-width:2;stroke-dasharray:6 4" marker-end="url(#c8d1-w)"/>
+<text x="340" y="298" class="t t-s t-b k-warm">el retador no gana:</text>
+<text x="340" y="314" class="t t-s k-warm">el campeón sigue y se anota</text>
+<text x="450" y="458" class="t t-s t-m" text-anchor="middle">Ningún paso es manual por obligación; la aprobación ⑦ es el único que una persona firma.</text>
+</svg></div><figcaption><b>El ciclo cerrado del reentrenamiento.</b> Se lee en el sentido de las flechas, desde arriba a la izquierda. ① El monitoreo mide deriva, precisión y AUC; ② un disparador decide por calendario, deriva o desempeño; ③ se arma la instantánea de datos nuevos, solo con etiquetas maduras; ④ se validan; ⑤ el pipeline entrena; ⑥ el retador se evalúa contra el campeón; ⑦ se registra con su evidencia y se aprueba; ⑧ se despliega en sombra y canario, y la versión nueva vuelve al monitoreo. Cada paso tiene el color de su etapa del ciclo de vida. Las dos salidas de advertencia son las paradas: datos rotos detienen el ciclo, y un retador que no gana deja al campeón en su lugar.</figcaption></figure><div class="prose"><p>Tres decisiones de diseño hacen que el ciclo sea confiable:</p><ol class="steps"><li><span><b>Qué datos entran.</b> Una <b>ventana deslizante</b> (<i>sliding window</i>) usa los últimos 12 meses y olvida lo más viejo; una ventana que crece usa todo. Con deriva de concepto, la ventana deslizante se adapta mejor; con eventos que se repiten cada año, como diciembre, conviene que la ventana cubra al menos un año completo.</span></li><li><span><b>Qué se fija.</b> El ciclo reentrena con la misma receta: mismas variables, mismos parámetros, misma semilla. Cambiar la receta (una variable nueva, otro algoritmo) es un proyecto con su propia revisión, no un reentrenamiento automático.</span></li><li><span><b>Dónde se detiene.</b> La validación de datos y la comparación con el campeón son compuertas que pueden decir que no. Un ciclo cerrado que siempre despliega lo que entrena es una forma automática de empeorar.</span></li></ol></div></section>
+<section><h2>Campeón contra retador</h2><div class="analogia"><b>Imagínalo así</b><p>En el boxeo, el campeón no entrega el cinturón porque aparezca alguien prometedor. El retador tiene que ganarle en el ring, con las mismas reglas, ante los mismos jueces. Y las reglas se acuerdan antes de la pelea, no después de ver quién ganó.</p></div><div class="prose"><p>El patrón <b>campeón contra retador</b> (<i>champion/challenger</i>) es la regla de que un modelo nuevo solo reemplaza al que decide si le gana en una comparación justa. El <b>campeón</b> (<i>champion</i>) es la versión en producción, hoy la v3; el <b>retador</b> (<i>challenger</i>), la versión que compite, la v4, entrenada con los meses posteriores al cambio del mes 6 y al alza del mes 7. «Justa» significa cuatro cosas:</p><ul><li><b>El mismo conjunto de evaluación.</b> Las dos versiones se evalúan sobre los mismos clientes, y esos clientes son posteriores a todo lo que vieron al entrenar: una <b>evaluación fuera del tiempo</b> (<i>out-of-time</i>). Para el modelo de mora, los dos meses más recientes con etiqueta madura.</li><li><b>La diferencia con su incertidumbre.</b> Un AUC mejor por 0,002 puede ser azar. Con el <b>bootstrap</b> (<i>bootstrap</i>), se toman cientos de muestras con reemplazo de los mismos clientes y se calcula la diferencia en cada una: el rango del 95 % central dice si la mejora es real.</li><li><b>Por segmento.</b> El promedio puede esconder que el retador empeora con un grupo: los clientes que pagan con billetera son uno de cada cuatro y pueden perder mientras los demás ganan.</li><li><b>Más que una métrica.</b> La calibración (que una probabilidad de 0,30 signifique de verdad 30 %), la latencia y el costo de servir también deciden.</li></ul><p>La regla se escribe antes de mirar los números. Si se escribe después, siempre se encuentra una métrica en la que el favorito gana. La del modelo de mora dice: la v4 entra si el AUC global sube al menos 0,01 (la regla del registro del <a href="02-versionar.html">capítulo 2</a>) con el intervalo de la diferencia sobre cero, ningún segmento baja más de 0,01, la calibración no empeora más de 0,01 y la latencia p95 queda bajo 150 ms.</p></div><div class="lab" id="08-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Campeona contra retadora: decide con los datos</h3></div><p class="hint">Elige un caso de la v4 y lee la tabla: las dos versiones medidas sobre los mismos clientes, con la regla escrita arriba. Decide si la v4 entra o si la v3 sigue, y lee por qué. Después achica el conjunto de evaluación a 2.000 clientes con el caso A y mira qué pasa con el intervalo.</p><style>
+[id="08-lab-2"] .c8l2-g{display:grid;gap:4px}
+[id="08-lab-2"] .c8l2-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+[id="08-lab-2"] table{width:100%;border-collapse:collapse;font-size:.82rem}
+[id="08-lab-2"] th,[id="08-lab-2"] td{padding:5px 6px}
+[id="08-lab-2"] td{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+[id="08-lab-2"] td:first-child{font-family:var(--f-display);text-align:left}
+[id="08-lab-2"] td.si{color:var(--good);font-weight:700} [id="08-lab-2"] td.no{color:var(--warm);font-weight:700}
+[id="08-lab-2"] .c8l2-regla{font-size:.86rem;border-left:3px solid var(--c-apl);padding:6px 10px;background:var(--c-apl-s);border-radius:0 8px 8px 0}
+[id="08-lab-2"] .c8l2-ver{font:700 1rem var(--f-display);padding:8px 12px;border-radius:8px;border:2px solid var(--line)}
+[id="08-lab-2"] .c8l2-ver.si{border-color:var(--good);color:var(--good);background:var(--good-soft)}
+[id="08-lab-2"] .c8l2-ver.no{border-color:var(--warm);color:var(--warm);background:var(--warm-soft)}
+</style>
+<div class="c8l2-g"><span>Qué trae la retadora v4 (cambia de caso)</span>
+<div class="btns" role="group" aria-label="Caso de la retadora">
+  <button type="button" data-k="todo" aria-pressed="true">Caso A</button>
+  <button type="button" data-k="pyme" aria-pressed="false">Caso B</button>
+  <button type="button" data-k="ruido" aria-pressed="false">Caso C</button>
+  <button type="button" data-k="lenta" aria-pressed="false">Caso D</button>
+</div></div>
+<div class="ctls">
+  <label class="ctl">Clientes en el conjunto de evaluación (los dos últimos meses) <output id="c8l2-n-o"></output>
+    <input id="c8l2-n" type="range" min="2000" max="40000" step="1000" value="20000"></label>
+</div>
+<p class="c8l2-regla"><b>La regla, escrita antes de mirar:</b> la v4 entra si el AUC global sube al menos 0,01 y el intervalo de la diferencia queda sobre cero; si ningún segmento baja más de 0,01; si la calibración no empeora más de 0,01 y si la latencia p95 queda bajo 150 ms.</p>
+<div class="tbl"><table aria-label="Campeona contra retadora en el mismo conjunto de evaluación">
+<thead><tr><th>Métrica</th><th class="num">v3 campeona</th><th class="num">v4 retadora</th><th class="num">¿Cumple?</th></tr></thead>
+<tbody id="c8l2-tb"></tbody></table></div>
+<div class="btns">
+  <button type="button" class="primary" id="c8l2-si">Promover la v4</button>
+  <button type="button" id="c8l2-no">Mantener la v3</button>
+</div>
+<div class="c8l2-ver" id="c8l2-ver" aria-live="polite">Lee la tabla y decide.</div>
+<div class="readout texto" id="c8l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Campeona contra retadora con los meses del curso</h3></div><p>Vas a entrenar una v3 con los meses 2 a 4 y una v4 con los meses 7 a 9, compararlas sobre los meses 11 y 12 (fuera del tiempo) con un bootstrap pareado y por segmento, y guardar la decisión en un archivo para auditoría. Trabaja en la carpeta <code>mora-30d</code>, con el entorno activado; el programa importa <code>generar_datos.py</code>. Guárdalo como <code>campeon_retador.py</code>:</p><div class="code-copia"><pre><code>"""Campeona (v3) contra retadora (v4): evaluación fuera del tiempo, bootstrap y segmentos."""
+import datetime, json, sys
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from generar_datos import generar
+
+MESES_V4 = [int(m) for m in sys.argv[1:]] or [7, 8, 9]     # ventana de la retadora
+NUM = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
+       "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
+
+def entrenar(meses):
+    datos = pd.concat([generar(m, 20000, 42) for m in meses])
+    columnas = ColumnTransformer([("num", StandardScaler(), NUM),
+                                  ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
+    return make_pipeline(columnas, LogisticRegression(max_iter=2000)).fit(datos, datos.mora_30d)
+
+campeon = entrenar([2, 3, 4])                                # v3, la campeona
+retador = entrenar(MESES_V4)                                 # v4, la retadora
+prueba = pd.concat([generar(m, 20000, 42) for m in (11, 12)])  # fuera del tiempo: ninguna los vio
+y = prueba.mora_30d.to_numpy()
+pc, pr = campeon.predict_proba(prueba)[:, 1], retador.predict_proba(prueba)[:, 1]
+
+rng = np.random.default_rng(0)
+difs = []
+for _ in range(300):                                         # bootstrap pareado: los mismos clientes
+    i = rng.integers(0, len(y), len(y))
+    difs.append(roc_auc_score(y[i], pr[i]) - roc_auc_score(y[i], pc[i]))
+lo, hi = np.percentile(difs, [2.5, 97.5])
+auc_c, auc_r = roc_auc_score(y, pc), roc_auc_score(y, pr)
+print(f"Retadora entrenada con los meses {MESES_V4}")
+print(f"AUC global      v3 {auc_c:.3f}   v4 {auc_r:.3f}   dif. {auc_r - auc_c:+.3f}   IC 95 % [{lo:+.3f}, {hi:+.3f}]")
+segmentos_ok = True
+for nombre, m in (("billetera", prueba.metodo_pago == "billetera"), ("otros pagos", prueba.metodo_pago != "billetera")):
+    m = m.to_numpy()
+    a_c, a_r = roc_auc_score(y[m], pc[m]), roc_auc_score(y[m], pr[m])
+    segmentos_ok &amp;= (a_r - a_c) &gt;= -0.01
+    print(f"AUC {nombre:&lt;11} v3 {a_c:.3f}   v4 {a_r:.3f}   dif. {a_r - a_c:+.3f}")
+
+regla = "AUC +0,01 con el IC sobre 0 y ningún segmento cae más de 0,01"
+entra = (auc_r - auc_c) &gt;= 0.01 and lo &gt; 0 and segmentos_ok
+decision = {"fecha": datetime.date.today().isoformat(), "modelo": "mora-30d",
+            "campeon": "v3", "retador": "v4", "meses_retador": MESES_V4, "regla": regla,
+            "auc_campeon": round(auc_c, 4), "auc_retador": round(auc_r, 4),
+            "ic95_diferencia": [round(lo, 4), round(hi, 4)],
+            "decision": "promover a candidata" if entra else "mantener la campeona"}
+with open("decision-mora-v4.json", "w", encoding="utf-8") as f:
+    json.dump(decision, f, ensure_ascii=False, indent=2)
+print("Decisión:", decision["decision"], "(guardada en decision-mora-v4.json)")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python campeon_retador.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python campeon_retador.py 4 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python campeon_retador.py 0 1 2 3 4 5 6 7 8 9</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 campeon_retador.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 campeon_retador.py 4 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 campeon_retador.py 0 1 2 3 4 5 6 7 8 9</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Con la ventana por omisión, lee el AUC de cada versión, la diferencia con su intervalo y los dos segmentos, y abre <code>decision-mora-v4.json</code>.</span></li><li><span>Repite con una retadora entrenada con los meses 4 y 5, antes del cambio.</span></li><li><span>Repite con una ventana que crece, del mes 0 al 9.</span></li></ol><p><b>Qué observar:</b> la v3, entrenada antes del cambio del mes 6, ya está por debajo del mínimo de 0,75; la v4, que aprendió de los meses posteriores, le gana por unos 0,02 en los dos segmentos y su intervalo queda lejos del cero: la regla dice promoverla a candidata, y el archivo guarda la regla, los números y la decisión, que es lo que pedirá auditoría. La retadora de los meses 4 y 5 mejora apenas 0,003: el intervalo queda sobre cero, pero la mejora es menor que 0,01 y la campeona sigue. La ventana que crece casi empata con la de tres meses, porque mezcla meses de antes y de después del cambio: con deriva de concepto, más datos no siempre es mejor. Tarda unos segundos por el bootstrap.</p></div></section>
+<section><h2>Aprobaciones, auditoría y documentación</h2><div class="analogia"><b>Imagínalo así</b><p>En un banco, quien escribe un cheque grande no es quien lo autoriza, y queda una copia firmada de cada uno. No es desconfianza en una persona: es que, con dinero de por medio, el proceso tiene que resistir errores, apuros y malas ideas. Un modelo que decide a quién se llama por una deuda merece el mismo cuidado.</p></div><div class="prose"><p>Un modelo que toma decisiones sobre clientes necesita, además de la regla, que alguien con autoridad la aplique y que quede constancia. En el registro de modelos, eso se traduce en tres piezas.</p><p><b>La aprobación separa a quien construye de quien aprueba.</b> En el modelo de mora firman dos personas: una revisión independiente de riesgo de modelos, que no entrenó la v4 y revisa la evidencia técnica, y la gerente de Cobranzas, dueña del caso, que revisa el impacto en su operación. Este principio de una revisión independiente viene de la banca: la guía pública SR 11-7 de la Reserva Federal de Estados Unidos sobre gestión del riesgo de modelos lo convirtió en práctica común, y muchas industrias lo adoptaron.</p><p><b>La auditoría reconstruye cualquier decisión.</b> Cada paso deja una línea con quién, cuándo, qué versión, qué evidencia y qué se decidió. Con el linaje del <a href="02-versionar.html">capítulo 2</a> y la versión que lleva cada predicción, se puede responder una pregunta como «¿por qué llamaron a este cliente el 3 de agosto?» con la versión que lo marcó, los datos con que se entrenó y quién la aprobó.</p><p><b>La documentación viaja con el modelo.</b> La tarjeta del modelo (<i>model card</i>) del capítulo 2 se actualiza con cada versión: para qué sirve y para qué no, con qué datos se entrenó, cómo le va por segmento y qué limitaciones conocidas tiene. La v4 agrega una nota: con menos de seis meses de historia de la billetera, su comportamiento con esos clientes se revisará en tres meses.</p></div><figure class="fig fig-flujo" id="08-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 470" style="min-width:740px" role="img" aria-label="Diagrama de secuencia de la aprobación de la v4: el pipeline registra la v4 con su linaje y métricas y el alias candidata; el registro avisa a la revisión de riesgo de modelos, que revisa la evidencia y aprueba; la gerente de Cobranzas aprueba el impacto en el negocio; el registro mueve el alias retador y el despliegue la pone en sombra y en canario; al final se mueve el alias campeon; cada paso queda en el registro de auditoría">
+<defs>
+<marker id="c8d2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-apl"/></marker>
+<marker id="c8d2-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+</defs>
+<rect x="20" y="16" width="140" height="44" rx="8" class="c-enl"/>
+<text x="90" y="36" class="t t-b" text-anchor="middle">Pipeline</text><text x="90" y="52" class="t t-s t-m" text-anchor="middle">entrena la v4</text>
+<rect x="200" y="16" width="150" height="44" rx="8" class="c-apl"/>
+<text x="275" y="36" class="t t-b" text-anchor="middle">Registro</text><text x="275" y="52" class="t t-s t-m" text-anchor="middle">de modelos</text>
+<rect x="390" y="16" width="150" height="44" rx="8" class="caja"/>
+<text x="465" y="36" class="t t-b" text-anchor="middle">Riesgo de modelos</text><text x="465" y="52" class="t t-s t-m" text-anchor="middle">revisión independiente</text>
+<rect x="580" y="16" width="140" height="44" rx="8" class="caja" style="stroke:var(--warm);stroke-width:2"/>
+<text x="650" y="36" class="t t-b" text-anchor="middle">Gerente</text><text x="650" y="52" class="t t-s t-m" text-anchor="middle">de Cobranzas</text>
+<rect x="760" y="16" width="120" height="44" rx="8" class="c-red"/>
+<text x="820" y="36" class="t t-b" text-anchor="middle">Despliegue</text><text x="820" y="52" class="t t-s t-m" text-anchor="middle">CD del cap. 6</text>
+<line x1="90" y1="60" x2="90" y2="380" class="vida"/><line x1="275" y1="60" x2="275" y2="380" class="vida"/>
+<line x1="465" y1="60" x2="465" y2="380" class="vida"/><line x1="650" y1="60" x2="650" y2="380" class="vida"/><line x1="820" y1="60" x2="820" y2="380" class="vida"/>
+<path d="M90 92 H271" class="ln s-apl" style="stroke-width:2" marker-end="url(#c8d2-a)"/>
+<text x="98" y="84" class="t t-s">① v4 + linaje + métricas</text>
+<rect x="205" y="102" width="140" height="22" rx="5" class="caja"/><text x="275" y="117" class="t t-s t-mono" text-anchor="middle">alias: candidata</text>
+<path d="M275 150 H461" class="ln s-apl" style="stroke-width:2" marker-end="url(#c8d2-a)"/>
+<text x="283" y="142" class="t t-s">② pide revisión</text>
+<rect x="395" y="162" width="140" height="38" rx="5" class="caja"/><text x="465" y="178" class="t t-s" text-anchor="middle">③ tabla, segmentos,</text><text x="465" y="193" class="t t-s" text-anchor="middle">tarjeta del modelo</text>
+<path d="M465 222 H279" class="ln s-apl" style="stroke-width:2" marker-end="url(#c8d2-a)"/>
+<text x="290" y="214" class="t t-s">aprueba con comentario</text>
+<path d="M275 252 H646" class="ln s-apl" style="stroke-width:2" marker-end="url(#c8d2-a)"/>
+<text x="470" y="244" class="t t-s">④ pide visto bueno del negocio</text>
+<path d="M650 280 H279" class="ln s-apl" style="stroke-width:2" marker-end="url(#c8d2-a)"/>
+<text x="470" y="272" class="t t-s">aprueba</text>
+<rect x="205" y="290" width="140" height="22" rx="5" class="caja"/><text x="275" y="305" class="t t-s t-mono" text-anchor="middle">alias: retador</text>
+<path d="M275 334 H816" class="ln s-red" style="stroke-width:2" marker-end="url(#c8d2-r)"/>
+<text x="560" y="326" class="t t-s">⑤ sombra → canario → 100 %</text>
+<path d="M820 364 H279" class="ln s-red" style="stroke-width:2" marker-end="url(#c8d2-r)"/>
+<text x="560" y="356" class="t t-s">⑥ listo: mover el alias</text>
+<rect x="205" y="372" width="140" height="22" rx="5" class="c-red"/><text x="275" y="387" class="t t-s t-mono" text-anchor="middle">alias: campeon</text>
+<rect x="20" y="410" width="860" height="46" rx="8" class="c-apl" style="stroke-dasharray:5 3"/>
+<text x="34" y="430" class="t t-s"><tspan class="t-b">Registro de auditoría:</tspan> cada flecha deja una línea con quién, cuándo, qué versión, qué evidencia y qué decidió.</text>
+<text x="34" y="447" class="t t-s t-m">Si cualquiera rechaza, la v4 no avanza, el motivo queda anotado y la v3 sigue de campeona.</text>
+</svg></div><figcaption><b>La aprobación de la v4, paso a paso.</b> Los participantes están arriba y el tiempo corre hacia abajo. ① El pipeline registra la v4 con su linaje y sus métricas y, como pasa las reglas automáticas, el registro le pone el alias <code>candidata</code>; ② el registro pide la revisión; ③ riesgo de modelos revisa la tabla contra la campeona, los segmentos y la tarjeta del modelo, y aprueba con un comentario; ④ la gerente de Cobranzas da el visto bueno del negocio, y el alias pasa a <code>retador</code>; ⑤ el despliegue la lleva por sombra, canario y 100 %; ⑥ al terminar, el alias <code>campeon</code> pasa a la v4. Abajo, el registro de auditoría que deja cada flecha.</figcaption></figure><div class="prose"><p>Las aprobaciones no tienen que ser lentas. Un reentrenamiento por calendario con la misma receta, que cumple toda la regla, puede tener aprobación automática con revisión posterior; un cambio de receta o un modelo que falla en un segmento pide firmas antes. Lo que no se negocia es el registro: una aprobación automática también deja su línea.</p></div></section>
+<section><h2>Retirar un modelo</h2><div class="analogia"><b>Imagínalo así</b><p>Cuando una línea de buses deja de operar, no basta con dejar de mandar buses. Hay que quitar los letreros de las paradas, avisar a quienes la usaban, cambiar los mapas y guardar los registros por si alguien pregunta después por un viaje. Si solo se dejan de mandar buses, la gente sigue esperando en la parada.</p></div><div class="prose"><p><b>Retirar</b> (<i>retire</i>, también <i>decommission</i>) un modelo es dejarlo de usar de forma ordenada. Llega por tres caminos: lo reemplazó una versión mejor, como la v2; el problema que resolvía dejó de existir; o falla y no tiene arreglo. Los pasos son los mismos:</p><ol class="steps"><li><span><b>Saber quién lo usa.</b> El registro dice qué servicios cargan cada alias, pero hay usos escondidos: un informe que lee la tabla de predicciones de la v2, una hoja de cálculo que llama a la API. El registro de peticiones de las últimas semanas los delata.</span></li><li><span><b>Avisar y fijar una fecha.</b> Los usuarios reciben la fecha de retiro y la versión que la reemplaza.</span></li><li><span><b>Apagar en orden.</b> Se quita el alias, se apagan las réplicas y se borra el punto de la API. Si alguien llama a la versión retirada, recibe un error claro, no un silencio.</span></li><li><span><b>Archivar, no borrar.</b> El artefacto, el linaje, las métricas, la tarjeta y las aprobaciones se guardan el tiempo que pidan las reglas de la empresa y del regulador. Retirar un modelo no borra su historia: las decisiones que tomó todavía pueden ser cuestionadas.</span></li></ol></div><figure class="fig fig-esquema" id="08-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 330" style="min-width:720px" role="img" aria-label="La vida de las cuatro versiones del modelo de mora a lo largo de quince meses: cada versión pasa por desarrollo, sombra y canario, campeona, anterior como respaldo y retirada; la v1 nunca llega a producción y se archiva, la v2 es campeona hasta que entra la v3 y se retira cuando la v4 es campeona; la v3 queda como anterior; las retiradas conservan su linaje archivado">
+<text x="20" y="26" class="t t-xs t-b t-m">VERSIÓN</text>
+<text x="110" y="26" class="t t-xs t-b t-m">TIEMPO →</text>
+<g class="t t-s t-m">
+<text x="110" y="50">mes 0</text><text x="260" y="50">mes 3</text><text x="410" y="50">mes 6</text><text x="560" y="50">mes 9</text><text x="710" y="50">mes 12</text><text x="836" y="50">mes 15</text>
+</g>
+<text x="20" y="84" class="t t-b">v1</text>
+<rect x="100" y="68" width="40" height="26" rx="4" class="c-enl"/>
+<rect x="140" y="68" width="730" height="26" rx="4" class="caja" style="fill:var(--grid)"/>
+<text x="148" y="86" class="t t-s t-m">nunca decidió en producción; archivada con su artefacto y su linaje</text>
+<text x="20" y="134" class="t t-b">v2</text>
+<rect x="110" y="118" width="40" height="26" rx="4" class="c-enl"/>
+<rect x="150" y="118" width="160" height="26" rx="4" class="c-red"/><text x="158" y="136" class="t t-s t-b">campeona</text>
+<rect x="310" y="118" width="370" height="26" rx="4" class="caja" style="stroke-dasharray:4 3"/><text x="318" y="136" class="t t-s">anterior (respaldo)</text>
+<rect x="680" y="118" width="190" height="26" rx="4" class="caja" style="fill:var(--grid)"/><text x="688" y="136" class="t t-s t-m">retirada</text>
+<text x="20" y="184" class="t t-b">v3</text>
+<rect x="210" y="168" width="50" height="26" rx="4" class="c-enl"/>
+<rect x="260" y="168" width="50" height="26" rx="4" class="caja" style="stroke:var(--warm);stroke-width:2;stroke-dasharray:4 3"/>
+<rect x="310" y="168" width="370" height="26" rx="4" class="c-red"/><text x="318" y="186" class="t t-s t-b">campeona</text>
+<rect x="680" y="168" width="190" height="26" rx="4" class="caja" style="stroke-dasharray:4 3"/><text x="688" y="186" class="t t-s">anterior</text>
+<text x="20" y="234" class="t t-b">v4</text>
+<rect x="590" y="218" width="50" height="26" rx="4" class="c-enl"/>
+<rect x="640" y="218" width="40" height="26" rx="4" class="caja" style="stroke:var(--warm);stroke-width:2;stroke-dasharray:4 3"/>
+<rect x="680" y="218" width="190" height="26" rx="4" class="c-red"/><text x="688" y="236" class="t t-s t-b">campeona</text>
+<line x1="20" y1="262" x2="880" y2="262" class="ln" style="stroke-width:.8"/>
+<rect x="20" y="276" width="18" height="14" rx="3" class="c-enl"/><text x="44" y="288" class="t t-s">desarrollo y evaluación</text>
+<rect x="210" y="276" width="18" height="14" rx="3" class="caja" style="stroke:var(--warm);stroke-width:2;stroke-dasharray:4 3"/><text x="234" y="288" class="t t-s">sombra y canario</text>
+<rect x="370" y="276" width="18" height="14" rx="3" class="c-red"/><text x="394" y="288" class="t t-s">campeona (decide)</text>
+<rect x="530" y="276" width="18" height="14" rx="3" class="caja" style="stroke-dasharray:4 3"/><text x="554" y="288" class="t t-s">anterior (encendida, sin decidir)</text>
+<rect x="760" y="276" width="18" height="14" rx="3" class="caja" style="fill:var(--grid)"/><text x="784" y="288" class="t t-s">retirada</text>
+<text x="450" y="318" class="t t-s t-m" text-anchor="middle">En cada momento hay una sola campeona y, como mucho, una anterior lista para volver.</text>
+</svg></div><figcaption><b>La vida de las cuatro versiones del modelo de mora.</b> Cada fila es una versión y el tiempo corre hacia la derecha. Cada versión pasa por desarrollo y evaluación, sombra y canario, campeona y anterior (encendida como respaldo, sin decidir), hasta que se retira. La v1 nunca decidió en producción y se archivó; la v2 fue campeona hasta que llegó la v3 y se retira cuando la v4 se vuelve campeona; la v3 queda como anterior. En cada momento hay una sola campeona.</figcaption></figure><div class="prose"><p>Las políticas de gobierno de la IA en toda la organización (quién decide qué casos de uso se aprueban, cómo se evalúa el impacto en las personas, qué exige la regulación) están en <a href="https://aaramirez.github.io/ia-responsable/temario.html" target="_blank" rel="noopener">IA responsable</a>. Este capítulo cubre la parte operativa: cómo esas políticas se vuelven alias, firmas y registros.</p></div><div class="caso"><b>Un caso real</b><p><b>El modelo que nadie se animaba a apagar.</b> Un equipo de datos de una empresa de servicios encontró en una revisión de costos once modelos en producción, cuatro de ellos sin dueño conocido. Uno, entrenado años antes con datos que ya no existían, seguía calculando un puntaje que un sistema viejo usaba para ordenar una cola de atención. Nadie sabía si apagarlo rompería algo, así que nadie lo apagaba. Armaron un inventario con dueño, uso y fecha de última revisión para cada modelo, revisaron los registros de peticiones para encontrar a los consumidores y retiraron cinco en un trimestre. La regla que quedó: ningún modelo entra en producción sin dueño y sin fecha de revisión.</p></div><div class="ml"><b>En la práctica</b><p><b>La v4 entra y la v2 sale.</b> La v4 se entrenó en el mes 10 con los meses 7 a 9, los primeros con etiquetas maduras después del cambio de concepto y del alza. Sobre los meses 11 y 12 (con la mora conocida 45 días después), su AUC fue 0,76 frente a 0,74 de la v3, con el intervalo de la diferencia entre +0,02 y +0,03, sin caídas con la billetera ni con los demás medios de pago y con mejor calibración. Riesgo de modelos aprobó con una nota sobre la billetera, la gerente de Cobranzas firmó junto con Valeria, y la v4 pasó por una semana de sombra y dos de canario antes de recibir el alias <code>campeon</code>. El mismo día, la v3 quedó como respaldo y la v2 se retiró: se apagaron sus réplicas, el informe mensual que todavía leía sus predicciones se movió a la tabla nueva y su artefacto quedó archivado con su linaje y sus aprobaciones.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p>Reentrenamiento por deriva, dentro de un ciclo cerrado y gobernado. Se reentrena por calendario, por deriva o por desempeño, sabiendo que la etiqueta tarda y que un reentrenamiento apurado aprende del mundo viejo. El ciclo va del monitoreo a los datos nuevos, la validación, el entrenamiento, la evaluación, la aprobación y el despliegue por etapas, con compuertas que pueden decir que no. El retador solo reemplaza al campeón si le gana con la regla escrita antes: fuera del tiempo, con intervalo, por segmento y en más de una métrica. Cada decisión queda firmada y auditada, y cada modelo retirado queda archivado con su historia.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Qué ventaja y qué defecto tiene reentrenar por desempeño en el modelo de mora?</summary><p>Es la señal más fiel, porque mide el acierto con etiquetas reales, pero llega entre 45 y 60 días tarde, cuando la mora de las facturas ya se conoce.</p></details><details><summary>¿Por qué reentrenar el mismo día de un cambio brusco puede no servir?</summary><p>Porque las etiquetas disponibles son de facturas de antes del cambio: el modelo nuevo aprende del mundo viejo. El reentrenamiento útil llega cuando maduran las etiquetas de los datos nuevos.</p></details><details><summary>¿Qué hace que una comparación entre campeón y retador sea justa?</summary><p>El mismo conjunto de evaluación, posterior a todo lo que vieron (fuera del tiempo); la diferencia con su intervalo de incertidumbre; la revisión por segmento; y más de una métrica, como la calibración y la latencia, con la regla escrita antes.</p></details><details><summary>La v4 mejora el AUC global en 0,014, pero baja 0,025 con los clientes que pagan con billetera. ¿Entra?</summary><p>No, con la regla del capítulo: ningún segmento puede bajar más de 0,01. El promedio mejora porque los demás clientes son la mayoría, pero el segmento de la billetera empeora.</p></details><details><summary>¿Por qué firman dos personas distintas la aprobación de la v4?</summary><p>Para separar a quien construye de quien aprueba: una revisión independiente de riesgo de modelos revisa la evidencia técnica y la dueña del caso, la gerente de Cobranzas, revisa el impacto en su operación.</p></details><details><summary>¿Qué significa archivar y no borrar al retirar un modelo?</summary><p>Guardar el artefacto, el linaje, las métricas, la tarjeta del modelo y las aprobaciones durante el plazo que pidan las reglas, porque las decisiones que tomó todavía pueden ser cuestionadas.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Qué es el olvido catastrófico (<i>catastrophic forgetting</i>) y por qué preocupa cuando un modelo se actualiza con los datos nuevos en lugar de reentrenarse desde cero?<small>Pista: busca «incremental learning catastrophic forgetting».</small></li><li>¿Qué es la clasificación de modelos por nivel de riesgo (<i>model tiering</i>) y cómo cambia la profundidad de la validación de cada uno?<small>Pista: busca «model risk tiering SR 11-7».</small></li><li>¿Qué son los ciclos de retroalimentación (<i>feedback loops</i>) en un modelo cuyas decisiones cambian los datos con que se reentrenará?</li><li>¿Cómo se mide si un modelo está calibrado y qué son la curva de calibración y el puntaje de Brier?<small>Pista: busca «calibration curve Brier score».</small></li><li>¿Qué exige la Ley de IA europea a los sistemas de alto riesgo sobre registros y supervisión humana?</li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning" target="_blank" rel="noopener">MLOps: entrega continua y pipelines de automatización en el aprendizaje automático, de Google Cloud <small>los niveles de madurez y el entrenamiento continuo, en inglés</small></a><a class="vid" href="https://www.federalreserve.gov/boarddocs/srletters/2011/sr1107.htm" target="_blank" rel="noopener">SR 11-7: guía sobre gestión del riesgo de modelos, de la Reserva Federal <small>el documento público, en inglés</small></a><a class="vid" href="https://arxiv.org/abs/1810.03993" target="_blank" rel="noopener">Model Cards for Model Reporting, de Mitchell y otros <small>el artículo de las tarjetas de modelo, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$,tok,canvasWidget,bindOut}=window.Lab;
+  const root=document.querySelector('[id="08-lab-1"]');
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  const S=52,CHOQUE=26,RETRASO=8,FRESCO=0.80,DECAE=0.0022;
+  const r=rng(8);const RUIDO=[];for(let s=0;s<S;s++)RUIDO.push((r()-0.5)*0.008);
+  const NOM={nunca:'Nunca',trim:'Cada trimestre',mes:'Cada mes',deriva:'Por deriva',desemp:'Por desempeño'};
+  let est='deriva';
+  const val=id=>parseFloat($(id).value);
+  // AUC real en la semana s de un modelo entrenado en la semana t (con etiquetas hasta t-RETRASO)
+  function auc(s,t){let a=FRESCO-DECAE*(s-t);
+    if(s>=CHOQUE){const fin=t-RETRASO;const pen=fin<CHOQUE?0.07:Math.max(0,0.07*(1-(fin-CHOQUE)/4));a-=pen;}
+    return a+RUIDO[s];}
+  function psi(s,t){let p=0.012*(s-t);if(s>=CHOQUE&&t<CHOQUE)p+=0.22;return p;}
+  function simular(e){const uP=val('#c8l1-psi'),uA=val('#c8l1-auc')/100;let t=-1,seg=-1;const serie=[],re=[];
+    for(let s=0;s<S;s++){
+      let toca=false;
+      if(e==='trim'&&s>0&&s%13===0)toca=true;
+      if(e==='mes'&&s>0&&s%4===0)toca=true;
+      if(e==='deriva'&&((s-t>=2&&psi(s,t)>=uP)||s===seg))toca=true;
+      if(e==='desemp'&&s-t>RETRASO+1){const vista=auc(s-RETRASO,t);if(vista<FRESCO-uA)toca=true;}
+      if(toca){if(e==='deriva'&&s!==seg&&psi(s,t)>=0.3)seg=s+RETRASO+4;t=s;re.push(s);}
+      serie.push(auc(s,t));}
+    const prom=serie.reduce((a,b)=>a+b,0)/S,min=Math.min(...serie);
+    const perdida=serie.reduce((a,v)=>a+Math.max(0,FRESCO-v)*100,0)*val('#c8l1-cp')/4.33;
+    const costo=re.length*val('#c8l1-cr')+perdida;
+    return{serie,re,prom,min,costo};}
+  let actual=null,base=null;
+  const dibujar=canvasWidget($('#c8l1-c'),w=>w<520?0.85:0.45,(ctx,w,h)=>{
+    ctx.clearRect(0,0,w,h);if(!actual)return;
+    const L=40,R=10,T=10,B=24,y0=0.62,y1=0.82;
+    const X=s=>L+s/(S-1)*(w-L-R),Y=a=>T+(y1-a)/(y1-y0)*(h-T-B);
+    ctx.font='11px '+tok('--f-mono');ctx.strokeStyle=tok('--grid');ctx.fillStyle=tok('--muted');ctx.textAlign='right';ctx.textBaseline='middle';
+    for(let a=0.64;a<=0.821;a+=0.04){ctx.beginPath();ctx.moveTo(L,Y(a));ctx.lineTo(w-R,Y(a));ctx.stroke();ctx.fillText(a.toFixed(2).replace('.',','),L-4,Y(a));}
+    ctx.textAlign='center';ctx.textBaseline='top';
+    for(let s=0;s<S;s+=w<520?13:4)ctx.fillText('s'+s,X(s),h-B+5);
+    ctx.strokeStyle=tok('--warm');ctx.setLineDash([5,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(X(CHOQUE),T);ctx.lineTo(X(CHOQUE),h-B);ctx.stroke();ctx.setLineDash([]);
+    function linea(sr,c,lw){ctx.beginPath();sr.forEach((a,s)=>{s?ctx.lineTo(X(s),Y(Math.max(y0,a))):ctx.moveTo(X(s),Y(Math.max(y0,a)));});ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.stroke();}
+    linea(base.serie,tok('--muted'),1.6);linea(actual.serie,tok('--accent'),2.5);
+    ctx.fillStyle=tok('--good');
+    actual.re.forEach(s=>{const x=X(s),y=h-B-2;ctx.beginPath();ctx.moveTo(x,y-10);ctx.lineTo(x-5,y);ctx.lineTo(x+5,y);ctx.closePath();ctx.fill();});
+  });
+  const din=x=>'US$ '+Math.round(x).toLocaleString('es');
+  const c2=x=>x.toFixed(3).replace('.',',');
+  function pintar(){
+    const todos={};Object.keys(NOM).forEach(k=>todos[k]=simular(k));
+    actual=todos[est];base=todos.nunca;dibujar();
+    const mejor=Object.keys(todos).reduce((a,b)=>todos[a].costo<=todos[b].costo?a:b);
+    $('#c8l1-tb').innerHTML=Object.keys(NOM).map(k=>{const x=todos[k];return '<tr class="'+(k===est?'sel ':'')+(k===mejor?'mejor':'')+'"><td>'+NOM[k]+'</td><td>'+c2(x.prom)+'</td><td>'+c2(x.min)+'</td><td>'+x.re.length+'</td><td>'+din(x.costo)+'</td></tr>';}).join('');
+    let h='<span>'+NOM[est]+': '+actual.re.length+' reentrenamientos, AUC promedio '+c2(actual.prom)+'. El costo total suma los reentrenamientos y la mora que el modelo dejó de prevenir por cada punto de AUC perdido.</span>';
+    if(est==='nunca')h+='<span class="warn">Sin reentrenar, el modelo pierde un poco cada semana y se desploma en la semana 26, cuando cambia la economía de los clientes.</span>';
+    if(est==='mes')h+='<span>Reentrenar cada mes sigue de cerca el desgaste, pero paga reentrenamientos que no cambian nada. Tras el choque, el reentrenamiento tampoco sirve hasta que llegan etiquetas nuevas: la mora se sabe 8 semanas después.</span>';
+    if(est==='deriva')h+='<span>La deriva de las entradas se ve en la misma semana del cambio, sin esperar etiquetas. Pero un reentrenamiento inmediato todavía aprende de etiquetas viejas, porque la mora de las facturas nuevas se sabe 8 semanas después. Por eso, tras un salto brusco, se programa otro reentrenamiento para cuando maduran las etiquetas de los datos nuevos.</span>';
+    if(est==='desemp')h+='<span>Por desempeño es la señal más fiel, pero llega tarde: el AUC de esta semana se conoce 8 semanas después, cuando las facturas ya vencieron.</span>';
+    h+='<span>Con estos costos, la estrategia más barata del año es <b>'+NOM[mejor]+'</b>. Sube el costo de reentrenar o el del punto de AUC y mira cómo cambia.</span>';
+    $('#c8l1-out').innerHTML=h;
+  }
+  bindOut('#c8l1-psi',x=>x.toFixed(2).replace('.',','));
+  bindOut('#c8l1-auc',x=>x.toFixed(1).replace('.',',')+' pt');
+  bindOut('#c8l1-cr',x=>din(x));
+  bindOut('#c8l1-cp',x=>din(x));
+  ['#c8l1-psi','#c8l1-auc','#c8l1-cr','#c8l1-cp'].forEach(id=>$(id).addEventListener('input',pintar));
+  root.querySelectorAll('[data-e]').forEach(bt=>bt.addEventListener('click',()=>{est=bt.getAttribute('data-e');root.querySelectorAll('[data-e]').forEach(x=>x.setAttribute('aria-pressed',x===bt?'true':'false'));pintar();}));
+  pintar();
+})();
+</script>
+<script>
+(function(){
+  const {$,bindOut}=window.Lab;
+  const root=document.querySelector('[id="08-lab-2"]');
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function normal(r){const u=Math.max(1e-12,r()),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  const PREV=0.08,RHO=0.75;
+  const CAMP={g:0.742,hog:0.746,pym:0.712,cal:0.021,lat:42};
+  const CASOS={
+    todo:{g:0.764,hog:0.767,pym:0.740,cal:0.015,lat:45,nota:'La v4 aprendió de los meses posteriores al cambio del mes 6 y al alza: mejora en los dos segmentos y está mejor calibrada.'},
+    pyme:{g:0.757,hog:0.766,pym:0.687,cal:0.019,lat:44,nota:'La v4 mejora el promedio porque los demás medios de pago son el 75 % de los clientes, pero con la billetera baja 0,025: el promedio esconde el segmento.'},
+    ruido:{g:0.745,hog:0.749,pym:0.715,cal:0.020,lat:43,nota:'La v4 es casi igual: la diferencia verdadera es de 0,003, más chica que el ruido del conjunto. Promoverla sería cambiar por cambiar.'},
+    lenta:{g:0.766,hog:0.769,pym:0.742,cal:0.014,lat:190,nota:'La v4 acierta más, pero es un ensamble cuatro veces más grande: su p95 rompe el límite de 150 ms de la API en línea del capítulo 5.'}
+  };
+  let caso='todo';
+  function se(A,N){const np=N*PREV,nn=N*(1-PREV),q1=A/(2-A),q2=2*A*A/(1+A);return Math.sqrt((A*(1-A)+(np-1)*(q1-A*A)+(nn-1)*(q2-A*A))/(np*nn));}
+  function medir(){const N=+$('#c8l2-n').value,v=CASOS[caso],r=rng(N/1000*7+caso.length*131);
+    const out={};
+    [['g',1],['hog',0.75],['pym',0.25]].forEach(([k,f])=>{const n=N*f;const s1=se(CAMP[k],n),s2=se(v[k],n);
+      const z1=normal(r),z2=RHO*z1+Math.sqrt(1-RHO*RHO)*normal(r);
+      const a1=CAMP[k]+z1*s1,a2=v[k]+z2*s2;const sd=Math.sqrt(s1*s1+s2*s2-2*RHO*s1*s2);
+      out[k]={a1,a2,d:a2-a1,lo:a2-a1-1.96*sd,hi:a2-a1+1.96*sd};});
+    out.cal={a1:CAMP.cal,a2:v.cal};out.lat={a1:CAMP.lat,a2:v.lat};return out;}
+  const c3=x=>x.toFixed(3).replace('.',',');
+  const sg=x=>(x>=0?'+':'−')+c3(Math.abs(x));
+  let ev=null;
+  function pintar(){
+    const m=medir();
+    const okG=m.g.d>=0.01&&m.g.lo>0,okH=m.hog.d>=-0.01,okP=m.pym.d>=-0.01,okC=m.cal.a2-m.cal.a1<=0.01,okL=m.lat.a2<150;
+    ev={m,ok:okG&&okH&&okP&&okC&&okL,okG,okH,okP,okC,okL};
+    const fila=(n,a,b,ok,extra)=>'<tr><td>'+n+'</td><td>'+a+'</td><td>'+b+(extra||'')+'</td><td class="'+(ok?'si':'no')+'">'+(ok?'sí':'no')+'</td></tr>';
+    $('#c8l2-tb').innerHTML=
+      fila('AUC global',c3(m.g.a1),c3(m.g.a2),okG,'<br><small>dif. '+sg(m.g.d)+' [' +sg(m.g.lo)+', '+sg(m.g.hi)+']</small>')+
+      fila('AUC otros pagos (75 %)',c3(m.hog.a1),c3(m.hog.a2),okH,'<br><small>dif. '+sg(m.hog.d)+'</small>')+
+      fila('AUC billetera (25 %)',c3(m.pym.a1),c3(m.pym.a2),okP,'<br><small>dif. '+sg(m.pym.d)+'</small>')+
+      fila('Error de calibración',c3(m.cal.a1),c3(m.cal.a2),okC)+
+      fila('Latencia p95',m.lat.a1+' ms',m.lat.a2+' ms',okL);
+    $('#c8l2-ver').className='c8l2-ver';$('#c8l2-ver').textContent='Lee la tabla y decide.';
+    const N=+$('#c8l2-n').value;
+    $('#c8l2-out').innerHTML='<span>Las dos versiones se evalúan sobre los mismos '+N.toLocaleString('es')+' clientes de los dos últimos meses, que ninguna vio al entrenar. El intervalo de la diferencia sale de comparar las dos sobre los mismos clientes.</span>'+(N<8000?'<span class="warn">Con pocos clientes, el intervalo es ancho: una mejora real puede no alcanzar a demostrarse y un segmento chico se mueve mucho por azar.</span>':'');
+  }
+  function decidir(prom){
+    const e=ev,bien=prom===e.ok;
+    $('#c8l2-ver').className='c8l2-ver '+(bien?'si':'no');
+    $('#c8l2-ver').textContent=bien?(prom?'Bien: la v4 cumple toda la regla y entra, primero en sombra y canario.':'Bien: la regla dice que la v3 sigue.'):(prom?'La regla no deja promoverla.':'La v4 cumplía toda la regla: quedarse con la v3 también tiene un costo.');
+    const falla=[];if(!e.okG)falla.push(e.m.g.lo<=0?'el intervalo del AUC global toca el cero':'la mejora global es menor que 0,01');if(!e.okH)falla.push('baja con los otros medios de pago');if(!e.okP)falla.push('baja con la billetera más de 0,01');if(!e.okC)falla.push('empeora la calibración');if(!e.okL)falla.push('la latencia p95 pasa de 150 ms');
+    let h='<span>'+CASOS[caso].nota+'</span>';
+    if(falla.length)h+='<span class="warn">No cumple: '+falla.join('; ')+'.</span>';else h+='<span class="ok">Cumple todos los puntos de la regla.</span>';
+    h+='<span>La decisión queda en el registro con la tabla, la regla, quién aprobó y cuándo: es lo que pedirá auditoría.</span>';
+    $('#c8l2-out').innerHTML=h;
+  }
+  bindOut('#c8l2-n',x=>x.toLocaleString('es'));
+  $('#c8l2-n').addEventListener('input',pintar);
+  root.querySelectorAll('[data-k]').forEach(bt=>bt.addEventListener('click',()=>{caso=bt.getAttribute('data-k');root.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',x===bt?'true':'false'));pintar();}));
+  $('#c8l2-si').addEventListener('click',()=>decidir(true));
+  $('#c8l2-no').addEventListener('click',()=>decidir(false));
+  pintar();
+})();
+</script>
+</body>
+</html>

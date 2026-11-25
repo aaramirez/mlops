@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KX76XF8R');</script>
+<!-- End Google Tag Manager -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Versionar · IA en producción (MLOps) · IA en producción (MLOps)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Lo que pasa después del cuaderno: versionar, entrenar de forma reproducible, servir, desplegar y vigilar modelos de aprendizaje automático y de lenguaje en producción.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400;1,8..60,600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KX76XF8R"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="wrap" data-page="versionar">
+<header class="topbar"><a class="brand" href="index.html">IA en <b>producción</b></a><span class="eyebrow">Curso visual e interactivo · Datos e inteligencia artificial</span><a class="al-sitio" href="https://aaramirez.github.io/">← Todos los cursos</a></header>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Ruta de aprendizaje"></nav>
+<main>
+<header class="page-head"><span class="num">CAPÍTULO 02 DE 11</span><h1>Versionar datos, código y modelos</h1><p class="lede">Andrés no pudo repetir su propio modelo porque nadie había guardado con qué datos, qué código y qué parámetros se hizo. Este capítulo versiona las tres cosas que cambian con Git, DVC y MLflow, guarda el modelo de mora en un registro con alias y aprobaciones, y le pone una tarjeta que dice para qué sirve y para qué no.</p></header>
+<section><h2>Las tres cosas que cambian: datos, código y modelo</h2><div class="prose"><p>La primera pregunta de Valeria a Andrés fue simple: «¿con qué datos sacaste el 0,86?». Andrés buscó en su laptop y encontró <code>clientes_sep.csv</code>, <code>clientes_sep_final.csv</code> y <code>clientes_sep_final2.csv</code>. Ninguno daba 0,86. El cuaderno había cambiado tantas veces que el código de aquel día tampoco existía. El modelo estaba en un archivo <code>modelo_final.pkl</code>, sin fecha ni historia. El número era real, pero ya no se podía comprobar.</p></div><div class="analogia"><b>Imagínalo así</b><p>Un laboratorio clínico no entrega solo un número. El informe dice de qué muestra salió, cuándo se tomó, qué reactivo se usó, con qué lote y en qué equipo calibrado. Si el médico duda, el laboratorio puede repetir el examen en las mismas condiciones. Un resultado que no se puede rastrear hasta su muestra no sirve para decidir, por bueno que parezca.</p></div><div class="prose"><p>Un modelo de aprendizaje automático es el resultado de tres cosas que cambian por separado, y hay que guardar la versión de cada una:</p><ul><li><b>Los datos.</b> La tabla de clientes de septiembre no es la de octubre, y una misma tabla puede corregirse después. Cambian sin que nadie toque el código.</li><li><b>El código.</b> El script que limpia, calcula variables y entrena. Cambia cuando alguien corrige un error o prueba una idea.</li><li><b>El modelo.</b> El artefacto que sale del entrenamiento: los coeficientes, el preprocesamiento y todo lo necesario para predecir. Un <b>artefacto</b> (<i>artifact</i>) es cualquier archivo que produce un proceso y que hay que guardar.</li></ul><p>Hay una cuarta pieza que se olvida seguido: <b>los parámetros y el entorno</b>. Los parámetros (<i>hyperparameters</i>) son los valores que eliges antes de entrenar, como la fuerza de la regularización <code>C</code> o la semilla; el entorno, las versiones de Python y de las librerías. Con los mismos datos y el mismo código, otra versión de scikit-learn puede dar decimales distintos.</p><p>Cuando las cuatro piezas tienen versión y están conectadas, existe el <b>linaje</b> (<i>lineage</i>) del modelo: la cadena que va de cada predicción a la versión del modelo que la hizo, de esa versión a la corrida que la entrenó y de la corrida a sus datos, su código y sus parámetros. Con el linaje completo puedes responder la pregunta que tarde o temprano hace alguien: «¿por qué este cliente estaba en la lista?».</p></div><figure class="fig fig-arquitectura" id="02-diagrama-1"><div class="lienzo"><svg viewBox="0 0 900 380" style="min-width:720px" role="img" aria-label="El linaje de una predicción: los datos con su hash de DVC, el código con su commit de Git y los parámetros y el entorno entran a una corrida de entrenamiento en MLflow; la corrida produce la versión 1 del modelo en el registro, que usa la lista de febrero, que produce la predicción de un cliente con la versión del modelo; una flecha de regreso recorre el linaje desde la predicción hasta sus causas">
+<defs>
+<marker id="c2d1-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c2d1-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<text x="20" y="24" class="t t-xs t-b t-m">LO QUE CAMBIA</text>
+<rect x="20" y="36" width="200" height="74" rx="10" class="c-fis"/>
+<text x="34" y="57" class="t t-xs t-b k-fis">DATOS · DVC</text>
+<text x="34" y="77" class="t t-s t-mono">clientes-m00.csv</text>
+<text x="34" y="96" class="t t-s t-mono">md5 44d5c0a1…</text>
+<rect x="20" y="122" width="200" height="74" rx="10" class="caja"/>
+<text x="34" y="143" class="t t-xs t-b t-m">CÓDIGO · GIT</text>
+<text x="34" y="163" class="t t-s t-mono">entrenar.py</text>
+<text x="34" y="182" class="t t-s t-mono">commit 7eb9bf3</text>
+<rect x="20" y="208" width="200" height="74" rx="10" class="caja"/>
+<text x="34" y="229" class="t t-xs t-b t-m">PARÁMETROS Y ENTORNO</text>
+<text x="34" y="249" class="t t-s t-mono">C=1.0 · semilla 42</text>
+<text x="34" y="268" class="t t-s t-mono">scikit-learn 1.9.1</text>
+
+<path d="M220 73H262V150H284" class="ln" marker-end="url(#c2d1-m)"/>
+<path d="M220 159H284" class="ln" marker-end="url(#c2d1-m)"/>
+<path d="M220 245H262V168H284" class="ln" marker-end="url(#c2d1-m)"/>
+
+<rect x="288" y="112" width="170" height="94" rx="10" class="c-enl"/>
+<text x="302" y="133" class="t t-xs t-b k-enl">CORRIDA · MLFLOW</text>
+<text x="302" y="153" class="t t-s t-mono">run eb874da3</text>
+<text x="302" y="172" class="t t-s">AUC 0,789</text>
+<text x="302" y="191" class="t t-s">recall 0,30 anotado</text>
+<path d="M458 159H486" class="ln" marker-end="url(#c2d1-m)"/>
+
+<rect x="490" y="112" width="130" height="94" rx="10" class="c-enl"/>
+<text x="504" y="133" class="t t-xs t-b k-enl">REGISTRO</text>
+<text x="504" y="153" class="t t-s t-mono">mora-30d</text>
+<text x="504" y="172" class="t t-s">versión 1</text>
+<text x="504" y="191" class="t t-s t-mono">@campeon</text>
+<path d="M620 159H648" class="ln" marker-end="url(#c2d1-m)"/>
+
+<rect x="652" y="112" width="104" height="94" rx="10" class="c-red"/>
+<text x="666" y="133" class="t t-xs t-b k-red">SERVICIO</text>
+<text x="666" y="153" class="t t-s">lista de</text>
+<text x="666" y="172" class="t t-s">febrero</text>
+<text x="666" y="191" class="t t-s">por lotes</text>
+<path d="M756 159H778" class="ln" marker-end="url(#c2d1-m)"/>
+
+<rect x="782" y="112" width="100" height="94" rx="10" class="c-red"/>
+<text x="794" y="133" class="t t-xs t-b k-red">PREDICCIÓN</text>
+<text x="794" y="153" class="t t-s t-mono">100245</text>
+<text x="794" y="172" class="t t-s">p = 0,41</text>
+<text x="794" y="191" class="t t-s t-mono">v1</text>
+
+<path d="M832 214V316H120V290" class="ln s-warm" style="stroke-dasharray:5 4;stroke-width:1.8" marker-end="url(#c2d1-w)"/>
+<text x="470" y="338" class="t t-s t-b" text-anchor="middle">Linaje: de cada predicción hasta los datos, el código y los parámetros que la hicieron posible</text>
+<text x="470" y="356" class="t t-s t-m" text-anchor="middle">Si falta un eslabón (un hash, un commit, la versión en la predicción), la pregunta «¿por qué este cliente?» ya no tiene respuesta</text>
+</svg></div><figcaption><b>El linaje de una predicción.</b> A la izquierda, lo que cambia: los datos con su hash de DVC (ámbar), el código con su commit de Git y los parámetros y el entorno (gris). Las tres piezas entran a una corrida de entrenamiento anotada en MLflow, que produce la versión 1 de <code>mora-30d</code> en el registro (verde). La lista de febrero usa esa versión y produce la predicción del cliente 100245, que guarda la versión que la hizo (azul). La flecha roja punteada recorre el camino al revés: así se investiga una predicción.</figcaption></figure><div class="lab" id="02-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Rastrea un modelo en producción hasta sus datos, su código y sus parámetros</h3></div><p class="hint">Elige una predicción de la lista y sigue la cadena de izquierda a derecha. Después apaga lo que se versiona, de a uno, y mira qué eslabón se rompe y qué preguntas quedan sin respuesta. La fila de enero salió del cuaderno, antes de versionar nada.</p><style>
+[id="02-lab-1"] .c2l1-sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:6px 14px}
+[id="02-lab-1"] .c2l1-sw label{display:grid;grid-template-columns:18px 1fr;gap:6px;align-items:start;font:500 .86rem/1.35 var(--f-display);color:var(--ink);cursor:pointer}
+[id="02-lab-1"] .c2l1-sw small{display:block;color:var(--muted);font-size:.76rem}
+[id="02-lab-1"] .c2l1-cad{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:8px}
+[id="02-lab-1"] .c2l1-n{border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);font:500 .8rem/1.4 var(--f-display);color:var(--ink);min-height:92px;overflow-wrap:anywhere}
+[id="02-lab-1"] .c2l1-n b{display:block;font:700 .68rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px}
+[id="02-lab-1"] .c2l1-n code{font:500 .76rem var(--f-mono)}
+[id="02-lab-1"] .c2l1-n.roto{border-style:dashed;border-color:var(--warm);background:var(--warm-soft)}
+[id="02-lab-1"] .c2l1-n.lejos{opacity:.45;border-style:dashed}
+[id="02-lab-1"] .c2l1-q{display:grid;gap:3px}
+</style>
+<div class="btns" role="group" aria-label="Predicción que vas a rastrear">
+  <button type="button" data-p="0" aria-pressed="true">Cliente 100245 · febrero · 0,41</button>
+  <button type="button" data-p="1" aria-pressed="false">Cliente 103118 · febrero · 0,12</button>
+  <button type="button" data-p="2" aria-pressed="false">Cliente 100877 · enero · 0,35</button>
+</div>
+<div class="c2l1-sw" role="group" aria-label="Qué se versionó">
+  <label><input type="checkbox" id="c2l1-ver" checked><span>Versión en cada predicción<small>la lista guarda qué modelo calculó cada fila</small></span></label>
+  <label><input type="checkbox" id="c2l1-mlf" checked><span>Corrida y registro en MLflow<small>parámetros, métricas, entorno y versión</small></span></label>
+  <label><input type="checkbox" id="c2l1-dvc" checked><span>Datos con DVC<small>el hash del archivo con que se entrenó</small></span></label>
+  <label><input type="checkbox" id="c2l1-git" checked><span>Código en Git<small>el commit del script de entrenamiento</small></span></label>
+</div>
+<div class="c2l1-cad" id="c2l1-cad" aria-label="Cadena de linaje"></div>
+<div class="readout texto" id="c2l1-out" aria-live="polite"></div></div></section>
+<section><h2>El código con Git (a fondo en DevOps)</h2><div class="prose"><p>El código se versiona con <b>Git</b>, y casi todos los equipos ya lo hacen. Cada <b>commit</b> (confirmación) guarda una foto de todos los archivos y recibe un identificador único, un hash como <code>7eb9bf3</code>, que se obtiene con <code>git rev-parse --short HEAD</code>. Ese identificador es el que se anota junto a cada entrenamiento: dice exactamente qué código produjo el modelo. Las ramas, los pull requests, las etiquetas de versión y la integración continua están a fondo en <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>.</p><p>En un proyecto de ML, lo importante es lo que <b>no</b> va en Git:</p><ul><li><b>Datos grandes.</b> Git guarda cada versión de cada archivo completa, y la historia crece sin freno. GitHub, por ejemplo, rechaza archivos de más de 100 MB.</li><li><b>Modelos binarios.</b> Un <code>.pkl</code> o un <code>.onnx</code> cambia entero con cada entrenamiento y no se puede comparar línea a línea.</li><li><b>Secretos.</b> Claves de bases de datos y de APIs van en un gestor de secretos, nunca en el repositorio.</li></ul><p>Lo que sí va: el código, la configuración (un <code>config.yaml</code> con el umbral, las variables y las rutas), el archivo de dependencias con versiones exactas y unos archivos chicos que apuntan a los datos y a los modelos. Esos punteros son el truco de la sección siguiente.</p></div></section>
+<section><h2>Versionar datos: DVC, lakeFS y tablas con historia</h2><div class="prose"><p>Versionar datos tiene un problema que el código no tiene: el tamaño. La solución común es no guardar los datos en Git, sino guardar en Git una <b>huella</b> de los datos y los datos mismos en otro lugar.</p></div><div class="analogia"><b>Imagínalo así</b><p>En el guardarropa de un teatro no te devuelven el abrigo por su descripción: te dan una ficha con un número. La ficha cabe en el bolsillo; el abrigo queda colgado atrás. Mientras tengas la ficha, recuperas exactamente tu abrigo, aunque haya mil iguales. DVC hace eso con los datos: Git guarda la ficha y el almacén guarda el abrigo.</p></div><div class="prose"><p><b>DVC</b> (<i>Data Version Control</i>, control de versiones de datos) es una herramienta de código abierto que trabaja junto a Git. Al ejecutar <code>dvc add datos/clientes-m00.csv</code>, DVC calcula un <b>hash</b> (resumen) del archivo con el algoritmo MD5: una cadena de 32 caracteres que cambia por completo si cambia un solo byte. Copia el archivo a una caché local, escribe un archivo pequeño <code>clientes-m00.csv.dvc</code> con el hash y el tamaño, y agrega el CSV al <code>.gitignore</code> para que Git no lo suba. Git versiona el <code>.dvc</code>; los datos van con <code>dvc push</code> a un <b>remoto</b> (<i>remote</i>): un bucket de S3, Google Cloud Storage o Azure, un servidor por SSH o, para practicar, una carpeta local. Quien clone el repositorio ejecuta <code>dvc pull</code> y recibe exactamente esos bytes.</p></div><figure class="fig fig-flujo" id="02-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 412" style="min-width:760px" role="img" aria-label="Diagrama de secuencia de DVC: dvc add calcula el hash y copia el archivo a la caché local, Git guarda solo el archivo .dvc, dvc push sube los datos al remoto; en otra máquina, git pull trae el .dvc y dvc pull busca los datos por su hash en el remoto">
+<defs>
+<marker id="c2d2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c2d2-f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-fis"/></marker>
+<marker id="c2d2-e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-enl"/></marker>
+<marker id="c2d2-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+<marker id="c2d2-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-tra"/></marker>
+<marker id="c2d2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-apl"/></marker>
+<marker id="c2d2-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<rect x="26" y="14" width="134" height="48" rx="10" class="caja"/>
+<text x="93" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Tu carpeta</text>
+<text x="93" y="52" class="t t-s t-m" text-anchor="middle">datos/ y código</text>
+<line x1="93" y1="62" x2="93" y2="398" class="vida"/>
+<rect x="172" y="14" width="134" height="48" rx="10" class="c-fis"/>
+<text x="239" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Caché de DVC</text>
+<text x="239" y="52" class="t t-s t-m" text-anchor="middle">.dvc/cache</text>
+<line x1="239" y1="62" x2="239" y2="398" class="vida"/>
+<rect x="318" y="14" width="134" height="48" rx="10" class="caja"/>
+<text x="385" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Git</text>
+<text x="385" y="52" class="t t-s t-m" text-anchor="middle">repositorio</text>
+<line x1="385" y1="62" x2="385" y2="398" class="vida"/>
+<rect x="464" y="14" width="134" height="48" rx="10" class="c-fis"/>
+<text x="531" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Remoto de DVC</text>
+<text x="531" y="52" class="t t-s t-m" text-anchor="middle">almacén de datos</text>
+<line x1="531" y1="62" x2="531" y2="398" class="vida"/>
+<rect x="610" y="14" width="134" height="48" rx="10" class="caja"/>
+<text x="677" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Otra máquina</text>
+<text x="677" y="52" class="t t-s t-m" text-anchor="middle">Valeria o el pipeline</text>
+<line x1="677" y1="62" x2="677" y2="398" class="vida"/>
+<line x1="97" y1="101" x2="233" y2="101" class="ln s-fis" style="stroke-width:1.8" marker-end="url(#c2d2-f)"/>
+<text x="166" y="94" class="t t-s" text-anchor="middle"><tspan class="t-b">①</tspan> dvc add datos/clientes-m00.csv</text>
+<text x="166" y="116" class="t t-s t-m" text-anchor="middle">calcula el md5 y copia el archivo a la caché</text>
+<path d="M93 145h34v16h-30" class="ln" style="stroke-width:1.8" marker-end="url(#c2d2-m)"/>
+<text x="135" y="146" class="t t-s" text-anchor="start"><tspan class="t-b">②</tspan> escribe clientes-m00.csv.dvc</text>
+<text x="135" y="168" class="t t-s t-m" text-anchor="start">y agrega el CSV a datos/.gitignore</text>
+<line x1="97" y1="205" x2="379" y2="205" class="ln" style="stroke-width:1.8" marker-end="url(#c2d2-m)"/>
+<text x="239" y="198" class="t t-s" text-anchor="middle"><tspan class="t-b">③</tspan> git add · git commit</text>
+<text x="239" y="220" class="t t-s t-m" text-anchor="middle">Git guarda el .dvc (5 líneas), no el CSV</text>
+<line x1="243" y1="257" x2="525" y2="257" class="ln s-fis" style="stroke-width:1.8" marker-end="url(#c2d2-f)"/>
+<text x="385" y="250" class="t t-s" text-anchor="middle"><tspan class="t-b">④</tspan> dvc push</text>
+<text x="385" y="272" class="t t-s t-m" text-anchor="middle">sube a la carpeta md5/44/d5c0…</text>
+<line x1="389" y1="309" x2="671" y2="309" class="ln" style="stroke-width:1.8" marker-end="url(#c2d2-m)"/>
+<text x="531" y="302" class="t t-s" text-anchor="middle"><tspan class="t-b">⑤</tspan> git clone o git pull</text>
+<text x="531" y="324" class="t t-s t-m" text-anchor="middle">llega el código y el .dvc con el hash</text>
+<line x1="535" y1="361" x2="671" y2="361" class="ln s-fis" style="stroke-width:1.8" marker-end="url(#c2d2-f)"/>
+<text x="604" y="354" class="t t-s" text-anchor="middle"><tspan class="t-b">⑥</tspan> dvc pull</text>
+<text x="604" y="376" class="t t-s t-m" text-anchor="middle">busca 44d5c0a1… y deja el mismo CSV</text>
+<rect x="760" y="78" width="124" height="203" rx="8" class="c-fis"/>
+<text x="770" y="98" class="t t-xs t-b">GUARDAR</text>
+<text x="770" y="116" class="t t-s">una versión</text>
+<text x="770" y="131" class="t t-s">de los datos</text>
+<rect x="760" y="286" width="124" height="99" rx="8" class="caja"/>
+<text x="770" y="306" class="t t-xs t-b">RECUPERAR</text>
+<text x="770" y="324" class="t t-s">la misma versión</text>
+<text x="770" y="339" class="t t-s">en otra máquina</text>
+</svg></div><figcaption><b>Cómo guarda y recupera DVC una versión de los datos.</b> Los participantes están arriba y el tiempo corre hacia abajo; las flechas ámbar mueven datos y las grises, código o punteros. ① <code>dvc add</code> calcula el hash y copia el CSV a la caché; ② escribe el archivo <code>.dvc</code> y protege el CSV de Git; ③ Git guarda solo el <code>.dvc</code>, cinco líneas de texto; ④ <code>dvc push</code> sube los datos al remoto, en una carpeta con el nombre del hash. En otra máquina, ⑤ Git trae el código y el <code>.dvc</code>, y ⑥ <code>dvc pull</code> busca ese hash en el remoto y deja el mismo archivo. A la derecha, las dos fases: guardar y recuperar.</figcaption></figure><div class="prose"><p>DVC no es la única forma. Hay tres familias, y conviene elegir según dónde viven los datos:</p><div class="tbl"><table><thead><tr><th>Herramienta</th><th>Cómo versiona</th><th>Cuándo encaja</th></tr></thead><tbody><tr><td><b>DVC</b></td><td>Hash de cada archivo, puntero en Git, datos en un remoto</td><td>Archivos (CSV, Parquet, imágenes) que el equipo de ML prepara y usa para entrenar</td></tr><tr><td><b>lakeFS</b></td><td>Ramas y commits sobre un almacén de objetos completo, sin copiar los datos</td><td>Un <b>lago de datos</b> (<i>data lake</i>) compartido por varios equipos, donde se quiere probar cambios en una rama aislada</td></tr><tr><td><b>Tablas con historia</b> (Delta Lake, Apache Iceberg)</td><td>Cada escritura crea una instantánea; se consulta el estado de una fecha o versión anterior</td><td>Datos que ya viven en tablas grandes de un <i>lakehouse</i>; basta anotar la versión de la tabla</td></tr></tbody></table></div><p>En las tablas con historia, la consulta del pasado se llama <b>viaje en el tiempo</b> (<i>time travel</i>). En Delta Lake se escribe, por ejemplo, <code>SELECT * FROM clientes VERSION AS OF 12</code>. Para el modelo de mora, anotar «tabla <code>clientes</code>, versión 12» cumple el mismo papel que el hash de DVC. Cómo se construyen esos lagos y tablas está en <a href="https://aaramirez.github.io/ingenieria-de-datos/temario.html" target="_blank" rel="noopener">Ingeniería de datos</a>.</p></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Versiona los datos del mes 0 con DVC y recupéralos</h3></div><p>En la carpeta <code>mora-30d</code> del capítulo 01, con el entorno activado, vas a poner el proyecto en Git, versionar el CSV del mes 0 con DVC, subirlo a un remoto local y comprobar que puedes volver a él después de dañarlo. Necesitas Git instalado. DVC pesa unos 100 MB.</p><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>pip install dvc</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git init</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc init</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python generar_datos.py --meses 0 3</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc add datos/clientes-m00.csv</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>type datos\clientes-m00.csv.dvc</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git add datos/clientes-m00.csv.dvc datos/.gitignore generar_datos.py cuaderno.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git commit -m "Datos del mes 0 con version"</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc remote add -d local ../almacen-dvc</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc push</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git add .dvc/config</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git commit -m "Remoto local de DVC"</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>pip install dvc</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git init</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc init</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python generar_datos.py --meses 0 3</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc add datos/clientes-m00.csv</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>cat datos/clientes-m00.csv.dvc</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git add datos/clientes-m00.csv.dvc datos/.gitignore generar_datos.py cuaderno.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git commit -m "Datos del mes 0 con version"</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc remote add -d local ../almacen-dvc</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc push</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git add .dvc/config</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git commit -m "Remoto local de DVC"</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Ejecuta las líneas en orden. Anota el <code>md5</code> que muestra el archivo <code>.dvc</code> y mira la carpeta <code>../almacen-dvc</code>: busca una subcarpeta con las dos primeras letras de ese hash.</span></li><li><span>Ahora «daña» los datos: alguien regenera el archivo con otra semilla, como pasó con los CSV de Andrés. Después pregúntale a DVC y recupera la versión guardada.</span></li></ol><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>python generar_datos.py --meses 0 --semilla 7</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc status</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc checkout --force</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>dvc status</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps" start="3" style="counter-reset:st 2"><li><span>Corre <code>python cuaderno.py</code> y confirma que el AUC del modelo honesto vuelve a ser el mismo que en el capítulo 01.</span></li></ol><p><b>Qué observar:</b> el archivo <code>.dvc</code> tiene cinco líneas: el hash, el tamaño y el nombre. Eso es todo lo que guarda Git. Después de regenerar con otra semilla, <code>dvc status</code> avisa que el CSV cambió; <code>dvc checkout --force</code> lo devuelve a la versión del hash anotado y el segundo <code>dvc status</code> dice que todo está al día. Tu hash puede ser distinto del de otra persona, porque los saltos de línea de un CSV cambian entre Windows y macOS o Linux; lo que importa es que en tu proyecto el hash y los datos siempre coinciden.</p></div></section>
+<section><h2>Seguimiento de experimentos: parámetros, métricas y artefactos con MLflow</h2><div class="prose"><p>Valeria y Andrés probaron, en una semana, regresiones logísticas con distintos <code>C</code>, árboles, bosques y <i>boosting</i>. Al tercer día ya nadie recordaba cuál había dado qué. El <b>seguimiento de experimentos</b> (<i>experiment tracking</i>) es anotar cada entrenamiento de forma automática, con todo lo necesario para compararlo y repetirlo.</p></div><div class="analogia"><b>Imagínalo así</b><p>Un buen cocinero que prueba variantes de una salsa lleva una libreta: qué cambió, cuánto de cada cosa, cómo quedó, quién la probó. Sin la libreta, la mejor salsa de la semana se pierde el lunes. El seguimiento de experimentos es esa libreta, pero la escribe el propio código mientras entrena.</p></div><div class="prose"><p><b>MLflow</b> es la herramienta de código abierto más usada para esto, y el curso la usa en sus prácticas. Sus conceptos:</p><ul><li><b>Experimento</b> (<i>experiment</i>): un grupo de corridas sobre el mismo problema, por ejemplo <code>mora-30d</code>.</li><li><b>Corrida</b> (<i>run</i>): un entrenamiento, con un identificador único como <code>eb874da3</code>.</li><li><b>Parámetros</b> (<i>params</i>): los valores de entrada, como <code>C = 1.0</code>, el hash de los datos o el commit del código.</li><li><b>Métricas</b> (<i>metrics</i>): los resultados, como el AUC y el <b>recall</b> (sensibilidad) con umbral 0,30: de cada 100 clientes que caen en mora, cuántos estaban en la lista.</li><li><b>Artefactos</b> (<i>artifacts</i>): archivos que produce la corrida, empezando por el modelo, guardado con su <b>firma</b> (<i>signature</i>), el esquema de las columnas que espera y lo que devuelve.</li></ul><p>MLflow separa dónde guarda cada cosa: los parámetros y las métricas van a una base de datos de seguimiento (en las prácticas, un archivo SQLite llamado <code>mlflow.db</code>) y los artefactos, a un <b>almacén de artefactos</b> (<i>artifact store</i>), que en la práctica es una carpeta y en producción suele ser un bucket. Para scikit-learn existe además <code>mlflow.sklearn.autolog()</code>, que anota casi todo sin escribir una línea; aquí se anota a mano para ver qué se guarda. Weights &amp; Biases, Neptune y los servicios gestionados de las grandes nubes (Vertex AI, SageMaker, Azure Machine Learning) son ejemplos del mercado que cumplen el mismo papel.</p></div><figure class="fig fig-flujo" id="02-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 450" style="min-width:760px" role="img" aria-label="Diagrama de secuencia de MLflow: el script de entrenamiento abre una corrida, anota parámetros y métricas en la base de seguimiento, sube el modelo al almacén de artefactos y registra una versión; una persona le pone el alias campeon; el servicio carga el modelo por su alias y recibe el artefacto de esa versión">
+<defs>
+<marker id="c2d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
+<marker id="c2d3-f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-fis"/></marker>
+<marker id="c2d3-e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-enl"/></marker>
+<marker id="c2d3-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
+<marker id="c2d3-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-tra"/></marker>
+<marker id="c2d3-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-apl"/></marker>
+<marker id="c2d3-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-warm"/></marker>
+</defs>
+<rect x="26" y="14" width="110" height="48" rx="10" class="caja"/>
+<text x="81" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">entrenar.py</text>
+<text x="81" y="52" class="t t-s t-m" text-anchor="middle">el pipeline</text>
+<line x1="81" y1="62" x2="81" y2="436" class="vida"/>
+<rect x="148" y="14" width="110" height="48" rx="10" class="c-enl"/>
+<text x="203" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Seguimiento</text>
+<text x="203" y="52" class="t t-s t-m" text-anchor="middle">mlflow.db</text>
+<line x1="203" y1="62" x2="203" y2="436" class="vida"/>
+<rect x="269" y="14" width="110" height="48" rx="10" class="c-enl"/>
+<text x="324" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Artefactos</text>
+<text x="324" y="52" class="t t-s t-m" text-anchor="middle">modelo y firma</text>
+<line x1="324" y1="62" x2="324" y2="436" class="vida"/>
+<rect x="391" y="14" width="110" height="48" rx="10" class="c-enl"/>
+<text x="446" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Registro</text>
+<text x="446" y="52" class="t t-s t-m" text-anchor="middle">mora-30d</text>
+<line x1="446" y1="62" x2="446" y2="436" class="vida"/>
+<rect x="513" y="14" width="110" height="48" rx="10" class="caja"/>
+<text x="568" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Quien aprueba</text>
+<text x="568" y="52" class="t t-s t-m" text-anchor="middle">gerente y Valeria</text>
+<line x1="568" y1="62" x2="568" y2="436" class="vida"/>
+<rect x="634" y="14" width="110" height="48" rx="10" class="c-red"/>
+<text x="689" y="35" class="t t-b" text-anchor="middle" style="font-size:12px">Servicio</text>
+<text x="689" y="52" class="t t-s t-m" text-anchor="middle">usar_campeon.py</text>
+<line x1="689" y1="62" x2="689" y2="436" class="vida"/>
+<line x1="85" y1="100" x2="197" y2="100" class="ln s-enl" style="stroke-width:1.8" marker-end="url(#c2d3-e)"/>
+<text x="142" y="92" class="t t-s" text-anchor="middle"><tspan class="t-b">①</tspan> start_run()</text>
+<text x="142" y="114" class="t t-s t-m" text-anchor="middle">crea la corrida eb874da3</text>
+<line x1="85" y1="150" x2="197" y2="150" class="ln s-enl" style="stroke-width:1.8" marker-end="url(#c2d3-e)"/>
+<text x="142" y="142" class="t t-s" text-anchor="middle"><tspan class="t-b">②</tspan> log_params · log_metrics</text>
+<text x="142" y="164" class="t t-s t-m" text-anchor="middle">C, md5 de datos, commit, AUC</text>
+<line x1="85" y1="200" x2="318" y2="200" class="ln s-enl" style="stroke-width:1.8" marker-end="url(#c2d3-e)"/>
+<text x="202" y="192" class="t t-s" text-anchor="middle"><tspan class="t-b">③</tspan> log_model()</text>
+<text x="202" y="214" class="t t-s t-m" text-anchor="middle">el modelo con su firma y un ejemplo</text>
+<line x1="85" y1="250" x2="440" y2="250" class="ln s-enl" style="stroke-width:1.8" marker-end="url(#c2d3-e)"/>
+<text x="263" y="242" class="t t-s" text-anchor="middle"><tspan class="t-b">④</tspan> registered_model_name</text>
+<text x="263" y="264" class="t t-s t-m" text-anchor="middle">crea la versión 1</text>
+<line x1="564" y1="300" x2="452" y2="300" class="ln s-warm" style="stroke-width:1.8" marker-end="url(#c2d3-w)"/>
+<text x="507" y="292" class="t t-s" text-anchor="middle"><tspan class="t-b">⑤</tspan> alias campeon → versión 1</text>
+<text x="507" y="314" class="t t-s t-m" text-anchor="middle">con su tarjeta y su aprobación</text>
+<line x1="685" y1="350" x2="452" y2="350" class="ln s-red" style="stroke-width:1.8" marker-end="url(#c2d3-r)"/>
+<text x="568" y="342" class="t t-s" text-anchor="middle"><tspan class="t-b">⑥</tspan> models:/mora-30d@campeon</text>
+<text x="568" y="364" class="t t-s t-m" text-anchor="middle">el registro resuelve: versión 1</text>
+<line x1="328" y1="400" x2="683" y2="400" class="ln s-red" style="stroke-width:1.8" marker-end="url(#c2d3-r)"/>
+<text x="507" y="392" class="t t-s" text-anchor="middle"><tspan class="t-b">⑦</tspan> descarga el artefacto</text>
+<text x="507" y="414" class="t t-s t-m" text-anchor="middle">de la versión 1, sin copiar archivos a mano</text>
+<rect x="760" y="77" width="124" height="145" rx="8" class="c-enl"/>
+<text x="770" y="97" class="t t-xs t-b">ANOTAR</text>
+<text x="770" y="115" class="t t-s">la corrida y</text>
+<text x="770" y="130" class="t t-s">su resultado</text>
+<rect x="760" y="227" width="124" height="95" rx="8" class="caja"/>
+<text x="770" y="247" class="t t-xs t-b">REGISTRAR</text>
+<text x="770" y="265" class="t t-s">y aprobar</text>
+<rect x="760" y="327" width="124" height="95" rx="8" class="c-red"/>
+<text x="770" y="347" class="t t-xs t-b">USAR</text>
+<text x="770" y="365" class="t t-s">por alias,</text>
+<text x="770" y="380" class="t t-s">no por archivo</text>
+</svg></div><figcaption><b>Una corrida en MLflow, del entrenamiento al uso.</b> Los participantes están arriba y el tiempo corre hacia abajo. ① El script abre una corrida; ② anota parámetros y métricas en la base de seguimiento, incluidos el hash de los datos y el commit; ③ sube el modelo con su firma al almacén de artefactos; ④ lo registra como versión 1 de <code>mora-30d</code>. ⑤ Quien aprueba le pone el alias <code>campeon</code> (flecha roja: es una decisión de una persona). ⑥ El servicio pide <code>models:/mora-30d@campeon</code> y el registro resuelve que es la versión 1; ⑦ el servicio descarga ese artefacto. A la derecha, las fases: anotar, registrar y aprobar, y usar.</figcaption></figure><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Anota dos corridas del modelo de mora en MLflow</h3></div><p>Vas a entrenar el modelo de mora dos veces con distintos <code>C</code>, con el hash de los datos y el commit del código anotados en cada corrida, y a compararlas en la interfaz de MLflow. Sigue en la carpeta <code>mora-30d</code>, con el entorno activado y los datos de la práctica anterior. MLflow pesa unos cientos de MB.</p><div class="code-copia"><pre><code>"""Entrena el modelo de mora y lo anota todo en MLflow."""
+import argparse
+import subprocess
+from pathlib import Path
+
+import mlflow
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import recall_score, roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
+             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
+CATEGORICAS = ["metodo_pago"]
+
+p = argparse.ArgumentParser()
+p.add_argument("--C", type=float, default=1.0)
+p.add_argument("--datos", default="datos/clientes-m00.csv")
+a = p.parse_args()
+
+# El linaje: con qué datos (hash de DVC) y con qué código (commit de Git)
+hash_datos = Path(a.datos + ".dvc").read_text().split("md5: ")[1].split()[0]
+commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+
+df = pd.read_csv(a.datos)
+X, y = df[NUMERICAS + CATEGORICAS], df.mora_30d
+ent_X, pru_X, ent_y, pru_y = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),
+                          ("cat", OneHotEncoder(handle_unknown="ignore"), CATEGORICAS)])
+modelo = make_pipeline(prep, LogisticRegression(C=a.C, max_iter=1000))
+
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+mlflow.set_experiment("mora-30d")
+with mlflow.start_run():
+    modelo.fit(ent_X, ent_y)
+    prob = modelo.predict_proba(pru_X)[:, 1]
+    mlflow.log_params({"C": a.C, "variables": len(NUMERICAS + CATEGORICAS), "semilla_split": 42,
+                       "datos": a.datos, "datos_md5": hash_datos, "git_commit": commit})
+    mlflow.log_metrics({"auc": roc_auc_score(pru_y, prob),
+                        "recall_umbral_030": recall_score(pru_y, prob &gt;= 0.30)})
+    info = mlflow.sklearn.log_model(modelo, name="modelo", input_example=pru_X.head(3),
+                                    registered_model_name="mora-30d")
+    print(f"AUC {roc_auc_score(pru_y, prob):.3f} | version registrada {info.registered_model_version}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><ol class="steps"><li><span>Guarda el script como <code>entrenar.py</code>, instala MLflow y guarda el script en Git, para que la corrida anote un commit que de verdad contiene ese código:</span></li></ol><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install mlflow</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git add entrenar.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>git commit -m "Script de entrenamiento con MLflow"</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python entrenar.py --C 1.0</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python entrenar.py --C 0.01</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps" start="2" style="counter-reset:st 1"><li><span>Abre <code>http://127.0.0.1:5000</code> en el navegador. En el experimento <code>mora-30d</code>, selecciona las dos corridas y pulsa «Compare».</span></li><li><span>Abre una corrida y busca, en los parámetros, <code>datos_md5</code> y <code>git_commit</code>. En la pestaña de artefactos, abre el archivo <code>MLmodel</code>.</span></li><li><span>Detén el servidor con <code>Ctrl+C</code> en la terminal cuando termines.</span></li></ol><p><b>Qué observar:</b> las dos corridas aparecen en una tabla con sus parámetros y métricas lado a lado. El AUC es casi idéntico (0,789 y 0,790): bajar <code>C</code> cien veces casi no cambia nada con 14.000 clientes de entrenamiento, y el registro lo muestra antes de que alguien lo presente como una mejora. Cada corrida guarda el hash de los datos y el commit, así que el linaje queda escrito por el propio código. Cada entrenamiento creó además una versión de <code>mora-30d</code> en la pestaña «Models», sin alias todavía. No subas <code>mlflow.db</code> ni la carpeta <code>mlruns</code> a Git: son el almacén de esta práctica.</p></div></section>
+<section><h2>El registro de modelos: versiones, etapas y aprobaciones</h2><div class="prose"><p>Un <b>registro de modelos</b> (<i>model registry</i>) es el catálogo de los modelos que pueden llegar a producción. Cada vez que se registra un modelo, el registro crea una <b>versión</b> numerada que nunca cambia: la versión 1 de <code>mora-30d</code> será siempre el mismo artefacto, con el enlace a la corrida que lo produjo. Así el linaje sigue vivo aunque pasen años.</p></div><div class="analogia"><b>Imagínalo así</b><p>El registro de modelos funciona como el registro de medicamentos aprobados de un país. Cada fórmula tiene su número y su ficha, y nadie la cambia: una fórmula nueva es un registro nuevo. Las farmacias no deciden qué vender mirando los laboratorios; venden lo que el registro autoriza. Y cuando un medicamento se retira, el registro guarda su historia.</p></div><div class="prose"><p>Durante años, MLflow organizó las versiones en <b>etapas</b> (<i>stages</i>): <i>Staging</i> (en prueba), <i>Production</i> (en producción) y <i>Archived</i> (archivada). Desde la versión 2.9, MLflow las desaconseja y propone <b>alias</b> (<i>aliases</i>) y <b>etiquetas</b> (<i>tags</i>): un alias es un nombre que apunta a una sola versión y se puede mover; una etiqueta es un dato libre, como quién aprobó. Otras herramientas siguen hablando de etapas, pero la idea es la misma: el servicio no pide «el archivo nuevo», pide «el modelo que hoy está en producción», y el registro dice cuál es.</p><p>El curso usa tres alias para el modelo de mora:</p><ul><li><code>campeon</code>: la versión que usa producción. El servicio carga siempre <code>models:/mora-30d@campeon</code>.</li><li><code>candidata</code>: una versión que pasó las reglas automáticas y espera aprobación.</li><li><code>retador</code>: una versión que compite con el campeón en producción, en sombra o en canario (capítulos 06 y 08).</li></ul><p>Para que una versión reciba el alias <code>candidata</code>, tiene que pasar cinco reglas, y para pasar a <code>campeon</code>, una persona tiene que aprobarla:</p><ol class="steps"><li><span>No usa variables prohibidas, como <code>gestion_cobranza</code>.</span></li><li><span>Su métrica se midió con datos que no vio en el entrenamiento.</span></li><li><span>La brecha entre el AUC de entrenamiento y el de validación es de 0,05 o menos: si es mayor, el modelo memorizó en lugar de aprender, lo que se llama <b>sobreajuste</b> (<i>overfitting</i>).</span></li><li><span>Su AUC es de al menos 0,75 si no hay campeón, o supera al campeón por 0,01 o más si lo hay.</span></li><li><span>Tiene su tarjeta de modelo completa (la última sección).</span></li></ol><p>La aprobación final es de la gerente de Cobranzas, dueña del caso, junto con Valeria. El registro guarda quién aprobó y cuándo, en una etiqueta de la versión: es la pista de auditoría.</p></div><div class="lab" id="02-lab-2"><div class="lab-title"><span class="tag">Laboratorio</span><h3>Compara diez experimentos en una tabla y promueve el mejor en el registro</h3></div><p class="hint">Diez corridas del modelo de mora, de una semana de pruebas. Ordénalas, elige una y propónla como candidata: el registro aplica las cinco reglas. Si pasa, apruébala para que sea el campeón. Después propón otra y mira cómo cambia la regla del AUC cuando ya hay un campeón.</p><style>
+[id="02-lab-2"] table{width:100%;border-collapse:collapse;font:500 .8rem var(--f-display)}
+[id="02-lab-2"] th,[id="02-lab-2"] td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+[id="02-lab-2"] th{color:var(--muted);font-size:.72rem;letter-spacing:.04em}
+[id="02-lab-2"] td.n{font-family:var(--f-mono);text-align:right}
+[id="02-lab-2"] tr.sel td{background:var(--accent-soft)}
+[id="02-lab-2"] tr.mal td.n.m{color:var(--warm);font-weight:700}
+[id="02-lab-2"] .c2l2-reg{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:8px}
+[id="02-lab-2"] .c2l2-v{border:1.5px solid var(--c-enl);border-radius:10px;padding:8px 10px;background:var(--c-enl-s);font:500 .8rem/1.4 var(--f-display);color:var(--ink)}
+[id="02-lab-2"] .c2l2-v b{font-size:.95rem}
+[id="02-lab-2"] .c2l2-v .al{display:inline-block;font:600 .74rem var(--f-mono);padding:1px 6px;border-radius:5px;background:var(--card);border:1px solid var(--c-enl);margin-top:3px}
+[id="02-lab-2"] .c2l2-v.vacio{border-style:dashed;border-color:var(--line);background:var(--paper);color:var(--muted)}
+[id="02-lab-2"] .c2l2-tit{font:600 .8rem var(--f-display);color:var(--muted);margin-bottom:-6px}
+</style>
+<div class="opciones">
+  <label>Ordenar las corridas por
+    <select id="c2l2-orden">
+      <option value="id">número de corrida</option>
+      <option value="val" selected>AUC de validación (mayor primero)</option>
+      <option value="brecha">brecha entrenamiento − validación</option>
+    </select></label>
+</div>
+<div class="tbl"><table aria-label="Diez corridas del modelo de mora">
+  <thead><tr><th></th><th>Corrida</th><th>Qué se probó</th><th>AUC val.</th><th>AUC ent.</th><th>Brecha</th><th>Recall 0,30</th><th>Tarjeta</th></tr></thead>
+  <tbody id="c2l2-tb"></tbody>
+</table></div>
+<div class="btns">
+  <button type="button" class="primary" id="c2l2-prop">Proponer la corrida elegida como candidata</button>
+  <button type="button" id="c2l2-apr" disabled>Aprobar: pasa a campeón</button>
+  <button type="button" id="c2l2-rei">Vaciar el registro</button>
+</div>
+<p class="c2l2-tit">Registro de modelos: mora-30d</p>
+<div class="c2l2-reg" id="c2l2-reg" aria-live="polite"></div>
+<div class="readout texto" id="c2l2-out" aria-live="polite"></div></div><div class="prose"><p>La corrida con mejor número de la tabla es la que no debe entrar: usa la variable con fuga. La segunda mejor midió su AUC sobre los datos con que entrenó. Las reglas no son burocracia; son las preguntas que Valeria se habría hecho a mano, escritas para que nadie se las salte un viernes a las seis de la tarde.</p></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Pon un alias y carga el campeón sin saber qué versión es</h3></div><p>Vas a darle el alias <code>campeon</code> a la versión 1, cargar el modelo por su alias desde otro script y, después, mover el alias a la versión 2 sin tocar el código del servicio. Sigue en <code>mora-30d</code>, con las dos versiones de la práctica anterior.</p><div class="code-copia"><pre><code>"""Carga el modelo con alias «campeon» y predice el mes 3."""
+import mlflow
+import pandas as pd
+
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+cliente = mlflow.MlflowClient()
+version = cliente.get_model_version_by_alias("mora-30d", "campeon")
+corrida = cliente.get_run(version.run_id)
+print(f"Campeon: mora-30d version {version.version}, corrida {version.run_id[:8]}")
+print(f"Entrenado con {corrida.data.params['datos']} (md5 {corrida.data.params['datos_md5'][:8]}) "
+      f"y el commit {corrida.data.params['git_commit']}")
+
+modelo = mlflow.sklearn.load_model("models:/mora-30d@campeon")
+mes3 = pd.read_csv("datos/clientes-m03.csv")
+prob = modelo.predict_proba(mes3)[:, 1]
+print(f"Mes 3: {(prob &gt;= 0.30).sum()} de {len(mes3)} clientes entran a la lista")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><ol class="steps"><li><span>Guarda el script como <code>usar_campeon.py</code>. Pon el alias en la versión 1 y corre el script:</span></li></ol><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>python -c "import mlflow; mlflow.set_tracking_uri('sqlite:///mlflow.db'); mlflow.MlflowClient().set_registered_model_alias('mora-30d', 'campeon', 1)"</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python usar_campeon.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps" start="2" style="counter-reset:st 1"><li><span>Cambia el <code>1</code> del final de la primera línea por <code>2</code>, ejecútala de nuevo y vuelve a correr <code>python usar_campeon.py</code>.</span></li><li><span>Abre la pestaña «Models» de la interfaz de MLflow (vuelve a levantarla si la detuviste) y mira dónde quedó el alias.</span></li></ol><p><b>Qué observar:</b> el script nunca nombra una versión ni un archivo, y aun así imprime qué versión cargó, con qué datos y con qué commit se entrenó: el linaje completo a partir de un alias. Al mover el alias a la versión 2, el mismo script carga otro modelo sin cambiar una línea; el número de clientes en la lista del mes 3 casi no cambia, porque las dos versiones son casi iguales. Mover un alias es la forma más simple de desplegar y de volver atrás, y por eso conviene que solo lo haga quien aprueba.</p></div><div class="caso"><b>Un caso real</b><p><b>«¿Por qué a mí?».</b> En varios países, quien usa un modelo para decisiones de crédito debe poder explicarle a una persona por qué se le negó o se le cobró más, y en la Unión Europea la Ley de IA clasifica la evaluación de solvencia de personas como un uso de alto riesgo, con obligaciones de registros y documentación técnica. Equipos de riesgo que operan bajo esas reglas cuentan la misma lección: la pregunta no llega el día del entrenamiento, sino meses después, por un reclamo o una auditoría, y la única forma de contestarla es haber guardado el linaje desde el principio. Reconstruir con qué datos y qué versión se decidió algo, después, cuesta semanas o es imposible.</p></div></section>
+<section><h2>Tarjetas de modelo (la transparencia a fondo está en IA responsable)</h2><div class="prose"><p>El registro dice qué versión hay y de dónde viene. No dice para qué sirve, para qué no, ni dónde falla. Eso va en una <b>tarjeta de modelo</b> (<i>model card</i>), un documento corto que propusieron Margaret Mitchell y otros en 2019 y que hoy acompaña, por ejemplo, a casi todos los modelos públicos de Hugging Face.</p></div><div class="analogia"><b>Imagínalo así</b><p>El prospecto de un medicamento dice para qué está indicado, la dosis, las contraindicaciones y los efectos adversos. Nadie lo lee por gusto, pero el día que hace falta, ahí está. Un modelo sin tarjeta es un frasco sin prospecto: puede funcionar bien, y aun así nadie sabe cuándo no tomarlo.</p></div><div class="prose"><p>La tarjeta de la versión 1 del modelo de mora, en Markdown y guardada como artefacto de la corrida:</p><div class="code-copia"><pre><code># Tarjeta de modelo: mora-30d, versión 1
+Dueña: gerente de Cobranzas · Responsable técnica: Valeria · Aprobado: 28 de enero
+Uso previsto: ordenar a los clientes por riesgo de mora a 30 días el día de emisión de
+  la factura, para la lista de gestión preventiva (recordatorio y acuerdo de pago).
+Fuera de alcance: decidir cortes, cambiar precios o negar el servicio a un cliente.
+Datos: clientes-m00.csv (md5 44d5c0a1), 20.000 clientes sintéticos, mora del 7,5 %.
+Variables: 8 (historial de pagos, plan, método de pago, reclamos). Prohibida: gestion_cobranza.
+Métricas (30 % de validación): AUC 0,789; recall con umbral 0,30: 0,24.
+Limitaciones: no conoce métodos de pago nuevos; la etiqueta se conoce 45 días después.
+Desempeño por grupos: pendiente de medir por método de pago y por antigüedad.
+Revisión: mensual, con el monitoreo del capítulo 07.</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Fíjate en dos líneas. «Fuera de alcance» protege al modelo de que lo usen para lo que no se hizo: una lista para llamar no es un sistema para cortar. Y «desempeño por grupos» queda pendiente a propósito: medir si el modelo se equivoca más con unos clientes que con otros, y qué hacer si pasa, es tema de <a href="https://aaramirez.github.io/ia-responsable/temario.html" target="_blank" rel="noopener">IA responsable</a>.</p></div><div class="ml"><b>En la práctica</b><p><b>La regla de Valeria.</b> Después de esta semana, el equipo escribió una sola regla en el archivo de instrucciones del proyecto: «ningún modelo llega a producción si no se puede rastrear». En la práctica significa que el pipeline se niega a registrar una corrida sin hash de datos ni commit, que el servicio solo carga modelos por alias y que cada fila de la lista guarda la versión que la calculó. La primera vez que la regla molestó fue cuando Andrés quiso probar «rapidito» un cambio desde su cuaderno; la primera vez que sirvió fue tres meses después, cuando un cliente reclamó por una llamada y la respuesta tardó diez minutos en lugar de una semana.</p></div></section>
+<section><h2>La idea clave</h2><div class="prose"><p>Linaje completo: de cada predicción a los datos y el código que la hicieron posible. Los datos se versionan con una huella (DVC, lakeFS o tablas con historia), el código con Git, cada entrenamiento se anota con sus parámetros y métricas, y el modelo vive en un registro con versiones que no cambian, alias que se mueven con aprobación y una tarjeta que dice para qué sirve.</p></div></section>
+<section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Qué guarda Git cuando versionas un CSV con DVC?</summary><p>Solo el archivo <code>.dvc</code>, con el hash MD5, el tamaño y el nombre. Los datos quedan en la caché local y en el remoto de DVC.</p></details><details><summary>Dos corridas dan AUC 0,789 y 0,790. ¿Por qué la segunda no puede ser campeona si la primera ya lo es?</summary><p>Porque la regla exige superar al campeón por 0,01 o más; una diferencia de 0,001 puede ser ruido de la partición y no justifica cambiar el modelo en producción.</p></details><details><summary>¿Por qué el servicio carga <code>models:/mora-30d@campeon</code> y no una versión con número?</summary><p>Para que desplegar o volver atrás sea mover el alias en el registro, con aprobación, sin cambiar el código del servicio.</p></details><details><summary>Una corrida tiene AUC 1,000 en entrenamiento y 0,570 en validación. ¿Qué regla no pasa y qué le pasó al modelo?</summary><p>La de la brecha: es de 0,43, muy por encima de 0,05. El modelo memorizó los datos de entrenamiento (sobreajuste) y no generaliza.</p></details><details><summary>La lista guarda la probabilidad de cada cliente, pero no la versión del modelo. ¿Qué pregunta ya no se puede contestar?</summary><p>Qué modelo hizo cada predicción; y con eso se pierden también sus datos, su código y sus parámetros, porque solo se alcanzan a través de la versión.</p></details></div></section>
+<section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Qué es Git LFS (<i>Large File Storage</i>) y en qué se diferencia de DVC para guardar datos y modelos?<small>Pista: compara qué guarda cada uno en el repositorio y dónde quedan los archivos.</small></li><li>¿Por qué MD5 ya no se considera seguro en criptografía y por qué una herramienta como DVC puede seguir usándolo?<small>Pista: busca «colisiones de MD5» y piensa en quién podría fabricar una.</small></li><li>¿Qué contiene el archivo <code>MLmodel</code> que guarda MLflow y qué son sus «flavors»?</li><li>¿Cómo guarda Apache Iceberg sus instantáneas con archivos de metadatos y de manifiesto, y por qué eso permite el viaje en el tiempo sin copiar la tabla?</li><li>¿Qué secciones propone el artículo original de las tarjetas de modelo que no aparecen en la tarjeta del modelo de mora?<small>Pista: lee la sección 4 del artículo de Mitchell y otros.</small></li></ol></div></section>
+<section><h2>Para saber más</h2><div class="vids"><span>Para saber más</span><a class="vid" href="https://mlflow.org/docs/latest/ml/model-registry/" target="_blank" rel="noopener">MLflow Model Registry <small>documentación oficial de versiones y alias, en inglés</small></a><a class="vid" href="https://dvc.org/doc/start" target="_blank" rel="noopener">Get Started with DVC <small>guía oficial, en inglés</small></a><a class="vid" href="https://arxiv.org/abs/1810.03993" target="_blank" rel="noopener">Model Cards for Model Reporting <small>artículo de Mitchell y otros (2019), en inglés</small></a><a class="vid" href="https://docs.lakefs.io/" target="_blank" rel="noopener">Documentación de lakeFS <small>ramas y commits sobre un lago de datos, en inglés</small></a></div></section>
+<label class="got"><input type="checkbox" id="got"> Lo tengo claro</label>
+<nav class="pager" id="pager" aria-label="Capítulo anterior y siguiente"></nav>
+</main>
+</div>
+<footer><span>Curso abierto de aaramirez.github.io.</span><span>Sitio publicado: <a href="https://github.com/aaramirez/mlops" target="_blank" rel="noopener">github.com/aaramirez/mlops</a></span></footer>
+</div>
+<script src="assets/lab.js"></script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const raiz=document.querySelector('[id="02-lab-1"]');
+  const P=[
+    {cli:'100245',mes:'febrero',p:'0,41',lista:true,cuaderno:false},
+    {cli:'103118',mes:'febrero',p:'0,12',lista:false,cuaderno:false},
+    {cli:'100877',mes:'enero',p:'0,35',lista:true,cuaderno:true}
+  ];
+  let sel=0;
+  const nodo=(cls,col,tit,html)=>'<div class="c2l1-n '+cls+'" style="border-left:5px solid var('+col+')"><b style="color:var('+col+')">'+tit+'</b>'+html+'</div>';
+  function leer(){
+    const p=P[sel],ver=$('#c2l1-ver').checked&&!p.cuaderno,mlf=$('#c2l1-mlf').checked&&!p.cuaderno,dvc=$('#c2l1-dvc').checked&&!p.cuaderno,git=$('#c2l1-git').checked&&!p.cuaderno;
+    raiz.querySelectorAll('input[type=checkbox]').forEach(c=>c.disabled=p.cuaderno);
+    const h=[];
+    h.push(nodo(ver?'':'roto','--c-red','Predicción','Cliente <code>'+p.cli+'</code><br>p = '+p.p+(p.lista?' · en la lista':' · fuera')+'<br>'+(ver?'modelo <code>mora-30d v1</code>':'modelo: <b style="display:inline;color:var(--warm)">?</b>')));
+    const llega1=ver;
+    h.push(nodo(!llega1?'lejos':(mlf?'':'roto'),'--c-enl','Versión',!llega1?'no se sabe cuál':(mlf?'<code>mora-30d</code> v1<br>alias <code>@campeon</code><br>aprobada el 28 ene':'un archivo<br><code>modelo_final.pkl</code><br>sin historia')));
+    const llega2=llega1&&mlf;
+    h.push(nodo(!llega2?'lejos':'','--c-enl','Corrida',!llega2?'sin corrida anotada':'run <code>eb874da3</code><br>C = 1,0 · semilla 42<br>AUC 0,789'));
+    h.push(nodo(!llega2?'lejos':(dvc?'':'roto'),'--c-fis','Datos',!llega2?'—':(dvc?'<code>clientes-m00.csv</code><br>md5 <code>44d5c0a1</code><br>en el remoto de DVC':'«clientes_sep_final2.csv»<br>sobrescrito en marzo')));
+    h.push(nodo(!llega2?'lejos':(git?'':'roto'),'--muted','Código',!llega2?'—':(git?'<code>entrenar.py</code><br>commit <code>7eb9bf3</code>':'un cuaderno con celdas<br>que cambiaron')));
+    h.push(nodo(!llega2?'lejos':'','--muted','Entorno',!llega2?'—':'Python 3.13<br>scikit-learn 1.9.1<br>anotado en la corrida'));
+    $('#c2l1-cad').innerHTML=h.join('');
+    const Q=[
+      ['¿Qué modelo hizo esta predicción?',ver],
+      ['¿Con qué parámetros y qué AUC tenía ese modelo?',ver&&mlf],
+      ['¿Con qué datos exactos se entrenó?',ver&&mlf&&dvc],
+      ['¿Qué código lo produjo?',ver&&mlf&&git],
+      ['¿Se puede volver a entrenar idéntico para una auditoría?',ver&&mlf&&dvc&&git]
+    ];
+    const n=Q.filter(q=>q[1]).length;
+    let o='<span class="big">Linaje: '+n+' de 5 preguntas con respuesta</span>';
+    o+='<span class="c2l1-q">'+Q.map(q=>'<span class="'+(q[1]?'ok':'warn')+'">'+(q[1]?'Sí · ':'No · ')+q[0]+'</span>').join('')+'</span>';
+    if(p.cuaderno)o+='<span>Esta fila salió del cuaderno de Andrés en enero, antes de versionar nada: no importa qué marques, no hay eslabones que seguir. Si este cliente reclama que lo llamaron por error, nadie puede explicar por qué entró a la lista.</span>';
+    else if(!ver)o+='<span>Sin la versión en la predicción, la cadena se corta en el primer eslabón: en febrero pudo haber corrido más de un modelo, y todo lo demás que versionaste queda sin conexión con esta fila.</span>';
+    else if(n===5)o+='<span>Cadena completa: si el cliente '+p.cli+' reclama, puedes mostrar con qué datos, qué código y qué parámetros se hizo el modelo, y volver a entrenarlo para comprobarlo.</span>';
+    else o+='<span>Cada eslabón que falta deja una pregunta sin respuesta. Fíjate en que los datos y el código solo se alcanzan a través de la corrida: sin ella, aunque existan, no sabes cuáles fueron.</span>';
+    $('#c2l1-out').innerHTML=o;
+  }
+  raiz.querySelectorAll('.btns button').forEach(b=>b.addEventListener('click',()=>{sel=+b.dataset.p;raiz.querySelectorAll('.btns button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));leer();}));
+  raiz.querySelectorAll('input[type=checkbox]').forEach(c=>c.addEventListener('change',leer));
+  leer();
+})();
+</script>
+<script>
+(function(){
+  const {$}=window.Lab;
+  const raiz=document.querySelector('[id="02-lab-2"]');
+  // [id, descripción, auc validación, auc entrenamiento, recall, tarjeta, evaluada aparte, usa variable prohibida]
+  const R=[
+    ['r01','Logística, C = 1,0, 8 variables',0.789,0.789,0.24,true,true,false],
+    ['r02','Logística, C = 0,01, 8 variables',0.790,0.789,0.23,true,true,false],
+    ['r03','Logística + gestion_cobranza',0.856,0.867,0.45,true,true,true],
+    ['r04','Árbol, profundidad 20',0.570,1.000,0.24,true,true,false],
+    ['r05','Árbol, profundidad 5',0.733,0.752,0.21,true,true,false],
+    ['r06','Bosque aleatorio, 300 árboles',0.746,1.000,0.27,false,true,false],
+    ['r07','Boosting por histogramas',0.777,0.882,0.24,true,true,false],
+    ['r08','Boosting con 3 variables',0.757,0.807,0.17,false,true,false],
+    ['r09','Boosting, medido sobre el entrenamiento',0.882,0.882,0.31,true,false,false],
+    ['r10','Logística sin metodo_pago',0.784,0.779,0.22,true,true,false]
+  ];
+  const MINIMO=0.75,MEJORA=0.01;
+  let elegida='r02',registro=[],campeon=null,candidata=null;
+  const fx=v=>v.toFixed(3).replace('.',',');
+  function reglas(r){
+    const c=campeon?registro.find(v=>v.n===campeon):null;
+    const base=c?c.r[2]+MEJORA:MINIMO;
+    return [
+      ['Sin variables prohibidas',!r[7],'usa gestion_cobranza, que se registra después del vencimiento'],
+      ['Evaluada con datos que no vio',r[6],'el AUC está medido sobre los mismos datos del entrenamiento'],
+      ['Brecha entrenamiento − validación ≤ 0,05',r[3]-r[2]<=0.0505,'brecha de '+fx(r[3]-r[2])+': memorizó el entrenamiento'],
+      [c?'AUC ≥ campeón + 0,01 ('+fx(base)+')':'AUC ≥ 0,75 (mínimo aceptado)',r[6]&&r[2]>=base-1e-9,c?'no supera al campeón por 0,01: la diferencia puede ser ruido':'no llega al mínimo de 0,75'],
+      ['Tarjeta de modelo completa',r[5],'falta la tarjeta: nadie sabe para qué sirve ni sus límites']
+    ];
+  }
+  function tabla(){
+    const o=$('#c2l2-orden').value;
+    const rs=R.slice().sort((a,b)=>o==='val'?b[2]-a[2]:o==='brecha'?(a[3]-a[2])-(b[3]-b[2]):a[0].localeCompare(b[0]));
+    $('#c2l2-tb').innerHTML=rs.map(r=>{const malo=!r[6]||r[7];return '<tr class="'+(r[0]===elegida?'sel ':'')+(malo?'mal':'')+'"><td><input type="radio" name="c2l2-r" value="'+r[0]+'"'+(r[0]===elegida?' checked':'')+' aria-label="Elegir '+r[0]+'"></td><td>'+r[0]+'</td><td>'+r[1]+'</td><td class="n m">'+fx(r[2])+(r[6]?'':'*')+'</td><td class="n">'+fx(r[3])+'</td><td class="n">'+fx(r[3]-r[2])+'</td><td class="n">'+r[4].toFixed(2).replace('.',',')+'</td><td>'+(r[5]?'sí':'no')+'</td></tr>';}).join('');
+    raiz.querySelectorAll('input[name=c2l2-r]').forEach(i=>i.addEventListener('change',()=>{elegida=i.value;tabla();}));
+  }
+  function pintarRegistro(){
+    if(!registro.length){$('#c2l2-reg').innerHTML='<div class="c2l2-v vacio">El registro está vacío: el cuaderno nunca guardó ninguna versión.</div>';return;}
+    $('#c2l2-reg').innerHTML=registro.map(v=>'<div class="c2l2-v"><b>Versión '+v.n+'</b> · '+v.r[0]+'<br>'+v.r[1]+'<br>AUC '+fx(v.r[2])+'<br>'+(v.n===campeon?'<span class="al">@campeon</span>':v.n===candidata?'<span class="al">@candidata</span>':'<span style="color:var(--muted)">sin alias</span>')+'</div>').join('');
+  }
+  function proponer(){
+    const r=R.find(x=>x[0]===elegida),rg=reglas(r),ok=rg.every(x=>x[1]);
+    let o='<span>Reglas para '+r[0]+':</span>'+rg.map(x=>'<span class="'+(x[1]?'ok':'warn')+'">'+(x[1]?'Pasa · ':'No pasa · ')+x[0]+(x[1]?'':' — '+x[2])+'</span>').join('');
+    if(ok){
+      const n=registro.length+1;registro.push({n,r});candidata=n;$('#c2l2-apr').disabled=false;
+      o+='<span class="ok">Se registra como versión '+n+' con el alias @candidata. Falta la aprobación de la gerente de Cobranzas.</span>';
+      if(r[0]==='r01'||r[0]==='r02')o+='<span>r01 y r02 dan casi el mismo AUC: el valor de C casi no importa con 14.000 clientes. Cualquiera de las dos es una buena v1.</span>';
+      if(r[0]==='r10')o+='<span>Pasa, pero r02 tiene mejor AUC con el mismo costo: si la eliges, conviene anotar por qué en la tarjeta.</span>';
+    }else{
+      o+='<span class="warn">No se registra como candidata.</span>';
+      if(r[0]==='r03'||r[0]==='r09')o+='<span>Es la corrida con mejor número de la tabla, y por eso la más peligrosa: el número no es real.</span>';
+    }
+    $('#c2l2-out').innerHTML=o;pintarRegistro();
+  }
+  function aprobar(){
+    if(!candidata)return;
+    const prev=campeon;campeon=candidata;candidata=null;$('#c2l2-apr').disabled=true;
+    let o='<span class="ok">La versión '+campeon+' tiene ahora el alias @campeon'+(prev?'; la versión '+prev+' queda registrada, sin alias, por si hay que volver a ella.':'.')+'</span>';
+    o+='<span>El servicio carga <code>models:/mora-30d@campeon</code> y no cambia ni una línea. Elige otra corrida y propónla: la regla del AUC ahora exige superar al campeón por 0,01.</span>';
+    $('#c2l2-out').innerHTML=o;pintarRegistro();
+  }
+  $('#c2l2-orden').addEventListener('change',tabla);
+  $('#c2l2-prop').addEventListener('click',proponer);
+  $('#c2l2-apr').addEventListener('click',aprobar);
+  $('#c2l2-rei').addEventListener('click',()=>{registro=[];campeon=null;candidata=null;$('#c2l2-apr').disabled=true;pintarRegistro();$('#c2l2-out').innerHTML='<span>Registro vacío. Elige una corrida y propónla.</span>';});
+  tabla();pintarRegistro();
+  $('#c2l2-out').innerHTML='<span>Elige una corrida en la tabla y propónla como candidata. El * marca un AUC medido sobre los datos de entrenamiento.</span>';
+})();
+</script>
+</body>
+</html>

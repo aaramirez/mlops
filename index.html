@@ -38,9 +38,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <section>
   <h2>Cómo usar este curso</h2>
   <div class="prose">
-    <p><b>Estado.</b> El curso está en preparación. La <a href="temario.html">tabla de contenido</a> ya tiene los 11 capítulos con sus secciones y sus laboratorios, y está en revisión.</p>
+    <p><b>Estado.</b> Curso completo: los 11 capítulos tienen sus laboratorios, diagramas y prácticas. Empieza por la <a href="temario.html">tabla de contenido</a> o por el primer capítulo.</p>
     <p><b>Para quién es.</b> Científicos de datos que quieren llevar sus modelos a producción e ingenieros que los operan. Conviene conocer Python y el aprendizaje supervisado de Aprendizaje automático. Los contenedores y la integración continua están en DevOps, y los pipelines de datos, en Ingeniería de datos.</p>
-    <p><b>Cómo está hecho.</b> Un modelo de predicción de abandono de clientes de una empresa ficticia recorre todo el curso: se versiona, se entrena en un pipeline, se sirve, se despliega en canario, se degrada con el tiempo y se reentrena. Los laboratorios simulan cada etapa en la página: mueves la deriva de los datos, el tráfico del canario o el umbral de una alerta y ves la consecuencia.</p>
+    <p><b>Cómo está hecho.</b> Un modelo de predicción de mora (facturas que siguen sin pagar a los 30 días) de una empresa ficticia recorre todo el curso: se versiona, se entrena en un pipeline, se sirve, se despliega en canario, se degrada con el tiempo y se reentrena. Los laboratorios simulan cada etapa en la página: mueves la deriva de los datos, el tráfico del canario o el umbral de una alerta y ves la consecuencia.</p>
   </div>
 </section>
 
@@ -52,32 +52,32 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <details class="stage" id="parte-1" open><summary><h2><span class="pn">Parte 1</span> Del cuaderno al sistema</h2><span class="cuenta" data-etapa-cuenta="1"></span></summary>
   <div class="mods">
-    <div class="mod soon" data-id="por-que-falla"><span class="n">01</span><b>Por qué falla un modelo en producción</b><p>Datos que cambian, código que no se puede repetir y nadie mirando: el ciclo de vida y sus niveles de madurez.</p></div>
-    <div class="mod soon" data-id="versionar"><span class="n">02</span><b>Versionar datos, código y modelos</b><p>Saber con qué datos, qué código y qué parámetros se hizo cada modelo, y el registro que los guarda.</p></div>
-    <div class="mod soon" data-id="entrenamiento-reproducible"><span class="n">03</span><b>Entrenamiento reproducible y pipelines de ML</b><p>Del cuaderno a un pipeline que cualquiera puede correr y que da el mismo resultado.</p></div>
-    <div class="mod soon" data-id="feature-stores"><span class="n">04</span><b>Feature stores</b><p>Calcular las variables una vez y servir las mismas en el entrenamiento y en producción.</p></div>
+    <a class="mod" data-id="por-que-falla" href="01-por-que-falla.html"><span class="n">01</span><b>Por qué falla un modelo en producción</b><p>Datos que cambian, código que no se puede repetir y nadie mirando: el ciclo de vida y sus niveles de madurez.</p></a>
+    <a class="mod" data-id="versionar" href="02-versionar.html"><span class="n">02</span><b>Versionar datos, código y modelos</b><p>Saber con qué datos, qué código y qué parámetros se hizo cada modelo, y el registro que los guarda.</p></a>
+    <a class="mod" data-id="entrenamiento-reproducible" href="03-entrenamiento-reproducible.html"><span class="n">03</span><b>Entrenamiento reproducible y pipelines de ML</b><p>Del cuaderno a un pipeline que cualquiera puede correr y que da el mismo resultado.</p></a>
+    <a class="mod" data-id="feature-stores" href="04-feature-stores.html"><span class="n">04</span><b>Feature stores</b><p>Calcular las variables una vez y servir las mismas en el entrenamiento y en producción.</p></a>
   </div>
 </details>
 
 <details class="stage" id="parte-2" open><summary><h2><span class="pn">Parte 2</span> Servir y desplegar</h2><span class="cuenta" data-etapa-cuenta="2"></span></summary>
   <div class="mods">
-    <div class="mod soon" data-id="servir-modelos"><span class="n">05</span><b>Servir modelos: por lotes, en línea y en el borde</b><p>Las formas de entregar predicciones y lo que cuesta cada una en latencia y en dinero.</p></div>
-    <div class="mod soon" data-id="desplegar-modelos"><span class="n">06</span><b>Desplegar modelos: *shadow*, canario y pruebas A/B</b><p>Cambiar el modelo en producción sin apostarlo todo de una vez.</p></div>
+    <a class="mod" data-id="servir-modelos" href="05-servir-modelos.html"><span class="n">05</span><b>Servir modelos: por lotes, en línea y en el borde</b><p>Las formas de entregar predicciones y lo que cuesta cada una en latencia y en dinero.</p></a>
+    <a class="mod" data-id="desplegar-modelos" href="06-desplegar-modelos.html"><span class="n">06</span><b>Desplegar modelos: *shadow*, canario y pruebas A/B</b><p>Cambiar el modelo en producción sin apostarlo todo de una vez.</p></a>
   </div>
 </details>
 
 <details class="stage" id="parte-3" open><summary><h2><span class="pn">Parte 3</span> Operar</h2><span class="cuenta" data-etapa-cuenta="3"></span></summary>
   <div class="mods">
-    <div class="mod soon" data-id="monitoreo"><span class="n">07</span><b>Monitoreo: deriva de datos y de concepto</b><p>Lo que hay que vigilar de un modelo además de que el servicio responda.</p></div>
-    <div class="mod soon" data-id="reentrenamiento"><span class="n">08</span><b>Reentrenamiento y gobierno del modelo</b><p>Cuándo y cómo reentrenar, quién aprueba el modelo nuevo y cómo se retira el viejo.</p></div>
+    <a class="mod" data-id="monitoreo" href="07-monitoreo.html"><span class="n">07</span><b>Monitoreo: deriva de datos y de concepto</b><p>Lo que hay que vigilar de un modelo además de que el servicio responda.</p></a>
+    <a class="mod" data-id="reentrenamiento" href="08-reentrenamiento.html"><span class="n">08</span><b>Reentrenamiento y gobierno del modelo</b><p>Cuándo y cómo reentrenar, quién aprueba el modelo nuevo y cómo se retira el viejo.</p></a>
   </div>
 </details>
 
 <details class="stage" id="parte-4" open><summary><h2><span class="pn">Parte 4</span> Modelos de lenguaje y plataforma</h2><span class="cuenta" data-etapa-cuenta="4"></span></summary>
   <div class="mods">
-    <div class="mod soon" data-id="llmops"><span class="n">09</span><b>LLMOps: lo que cambia con los modelos de lenguaje</b><p>Modelos que no entrenas, prompts que se versionan, costos por token y evaluación sin una sola respuesta correcta.</p></div>
-    <div class="mod soon" data-id="prompts-mlops-produccion"><span class="n">10</span><b>Prompts para llevar un modelo a producción</b><p>Qué pedirle a un asistente para que el servicio de un modelo valide su entrada, sea trazable, se despliegue con cuidado y avise cuando se degrada.</p></div>
-    <div class="mod soon" data-id="plataforma"><span class="n">11</span><b>La plataforma de MLOps y el proyecto integrador</b><p>Las piezas de una plataforma, cómo elegirlas y el modelo de abandono de punta a punta.</p></div>
+    <a class="mod" data-id="llmops" href="09-llmops.html"><span class="n">09</span><b>LLMOps: lo que cambia con los modelos de lenguaje</b><p>Modelos que no entrenas, prompts que se versionan, costos por token y evaluación sin una sola respuesta correcta.</p></a>
+    <a class="mod" data-id="prompts-mlops-produccion" href="10-prompts-mlops-produccion.html"><span class="n">10</span><b>Prompts para llevar un modelo a producción</b><p>Qué pedirle a un asistente para que el servicio de un modelo valide su entrada, sea trazable, se despliegue con cuidado y avise cuando se degrada.</p></a>
+    <a class="mod" data-id="plataforma" href="11-plataforma.html"><span class="n">11</span><b>La plataforma de MLOps y el proyecto integrador</b><p>Las piezas de una plataforma, cómo elegirlas y el modelo de mora de punta a punta.</p></a>
   </div>
 </details>
 
