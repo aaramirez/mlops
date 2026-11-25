@@ -135,59 +135,59 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <button type="button" id="c8l2-no">Mantener la v3</button>
 </div>
 <div class="c8l2-ver" id="c8l2-ver" aria-live="polite">Lee la tabla y decide.</div>
-<div class="readout texto" id="c8l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Campeona contra retadora con los meses del curso</h3></div><p>Vas a entrenar una v3 con los meses 2 a 4 y una v4 con los meses 7 a 9, compararlas sobre los meses 11 y 12 (fuera del tiempo) con un bootstrap pareado y por segmento, y guardar la decisión en un archivo para auditoría. Trabaja en la carpeta <code>mora-30d</code>, con el entorno activado; el programa importa <code>generar_datos.py</code>. Guárdalo como <code>campeon_retador.py</code>:</p><div class="code-copia"><pre><code>"""Campeona (v3) contra retadora (v4): evaluación fuera del tiempo, bootstrap y segmentos."""
-import datetime, json, sys
-import numpy as np
-import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from generar_datos import generar
-
-MESES_V4 = [int(m) for m in sys.argv[1:]] or [7, 8, 9]     # ventana de la retadora
-NUM = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
-       "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
-
-def entrenar(meses):
-    datos = pd.concat([generar(m, 20000, 42) for m in meses])
-    columnas = ColumnTransformer([("num", StandardScaler(), NUM),
-                                  ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
-    return make_pipeline(columnas, LogisticRegression(max_iter=2000)).fit(datos, datos.mora_30d)
-
-campeon = entrenar([2, 3, 4])                                # v3, la campeona
-retador = entrenar(MESES_V4)                                 # v4, la retadora
-prueba = pd.concat([generar(m, 20000, 42) for m in (11, 12)])  # fuera del tiempo: ninguna los vio
-y = prueba.mora_30d.to_numpy()
-pc, pr = campeon.predict_proba(prueba)[:, 1], retador.predict_proba(prueba)[:, 1]
-
-rng = np.random.default_rng(0)
-difs = []
-for _ in range(300):                                         # bootstrap pareado: los mismos clientes
-    i = rng.integers(0, len(y), len(y))
-    difs.append(roc_auc_score(y[i], pr[i]) - roc_auc_score(y[i], pc[i]))
-lo, hi = np.percentile(difs, [2.5, 97.5])
-auc_c, auc_r = roc_auc_score(y, pc), roc_auc_score(y, pr)
-print(f"Retadora entrenada con los meses {MESES_V4}")
-print(f"AUC global      v3 {auc_c:.3f}   v4 {auc_r:.3f}   dif. {auc_r - auc_c:+.3f}   IC 95 % [{lo:+.3f}, {hi:+.3f}]")
-segmentos_ok = True
-for nombre, m in (("billetera", prueba.metodo_pago == "billetera"), ("otros pagos", prueba.metodo_pago != "billetera")):
-    m = m.to_numpy()
-    a_c, a_r = roc_auc_score(y[m], pc[m]), roc_auc_score(y[m], pr[m])
-    segmentos_ok &amp;= (a_r - a_c) &gt;= -0.01
-    print(f"AUC {nombre:&lt;11} v3 {a_c:.3f}   v4 {a_r:.3f}   dif. {a_r - a_c:+.3f}")
-
-regla = "AUC +0,01 con el IC sobre 0 y ningún segmento cae más de 0,01"
-entra = (auc_r - auc_c) &gt;= 0.01 and lo &gt; 0 and segmentos_ok
-decision = {"fecha": datetime.date.today().isoformat(), "modelo": "mora-30d",
-            "campeon": "v3", "retador": "v4", "meses_retador": MESES_V4, "regla": regla,
-            "auc_campeon": round(auc_c, 4), "auc_retador": round(auc_r, 4),
-            "ic95_diferencia": [round(lo, 4), round(hi, 4)],
-            "decision": "promover a candidata" if entra else "mantener la campeona"}
-with open("decision-mora-v4.json", "w", encoding="utf-8") as f:
-    json.dump(decision, f, ensure_ascii=False, indent=2)
-print("Decisión:", decision["decision"], "(guardada en decision-mora-v4.json)")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python campeon_retador.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python campeon_retador.py 4 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python campeon_retador.py 0 1 2 3 4 5 6 7 8 9</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 campeon_retador.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 campeon_retador.py 4 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 campeon_retador.py 0 1 2 3 4 5 6 7 8 9</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Con la ventana por omisión, lee el AUC de cada versión, la diferencia con su intervalo y los dos segmentos, y abre <code>decision-mora-v4.json</code>.</span></li><li><span>Repite con una retadora entrenada con los meses 4 y 5, antes del cambio.</span></li><li><span>Repite con una ventana que crece, del mes 0 al 9.</span></li></ol><p><b>Qué observar:</b> la v3, entrenada antes del cambio del mes 6, ya está por debajo del mínimo de 0,75; la v4, que aprendió de los meses posteriores, le gana por unos 0,02 en los dos segmentos y su intervalo queda lejos del cero: la regla dice promoverla a candidata, y el archivo guarda la regla, los números y la decisión, que es lo que pedirá auditoría. La retadora de los meses 4 y 5 mejora apenas 0,003: el intervalo queda sobre cero, pero la mejora es menor que 0,01 y la campeona sigue. La ventana que crece casi empata con la de tres meses, porque mezcla meses de antes y de después del cambio: con deriva de concepto, más datos no siempre es mejor. Tarda unos segundos por el bootstrap.</p></div></section>
+<div class="readout texto" id="c8l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Campeona contra retadora con los meses del curso</h3></div><p>Vas a entrenar una v3 con los meses 2 a 4 y una v4 con los meses 7 a 9, compararlas sobre los meses 11 y 12 (fuera del tiempo) con un bootstrap pareado y por segmento, y guardar la decisión en un archivo para auditoría. Trabaja en la carpeta <code>mora-30d</code>, con el entorno activado; el programa importa <code>generar_datos.py</code>. Guárdalo como <code>campeon_retador.py</code>:</p><div class="code-copia code-lineas"><pre><code><span class="ln">"""Campeona (v3) contra retadora (v4): evaluación fuera del tiempo, bootstrap y segmentos."""</span>
+<span class="ln">import datetime, json, sys</span>
+<span class="ln">import numpy as np</span>
+<span class="ln">import pandas as pd</span>
+<span class="ln">from sklearn.compose import ColumnTransformer</span>
+<span class="ln">from sklearn.linear_model import LogisticRegression</span>
+<span class="ln">from sklearn.metrics import roc_auc_score</span>
+<span class="ln">from sklearn.pipeline import make_pipeline</span>
+<span class="ln">from sklearn.preprocessing import OneHotEncoder, StandardScaler</span>
+<span class="ln">from generar_datos import generar</span>
+<span class="ln"></span>
+<span class="ln">MESES_V4 = [int(m) for m in sys.argv[1:]] or [7, 8, 9]     # ventana de la retadora</span>
+<span class="ln">NUM = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",</span>
+<span class="ln">       "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]</span>
+<span class="ln"></span>
+<span class="ln">def entrenar(meses):</span>
+<span class="ln">    datos = pd.concat([generar(m, 20000, 42) for m in meses])</span>
+<span class="ln">    columnas = ColumnTransformer([("num", StandardScaler(), NUM),</span>
+<span class="ln">                                  ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])</span>
+<span class="ln">    return make_pipeline(columnas, LogisticRegression(max_iter=2000)).fit(datos, datos.mora_30d)</span>
+<span class="ln"></span>
+<span class="ln">campeon = entrenar([2, 3, 4])                                # v3, la campeona</span>
+<span class="ln">retador = entrenar(MESES_V4)                                 # v4, la retadora</span>
+<span class="ln">prueba = pd.concat([generar(m, 20000, 42) for m in (11, 12)])  # fuera del tiempo: ninguna los vio</span>
+<span class="ln">y = prueba.mora_30d.to_numpy()</span>
+<span class="ln">pc, pr = campeon.predict_proba(prueba)[:, 1], retador.predict_proba(prueba)[:, 1]</span>
+<span class="ln"></span>
+<span class="ln">rng = np.random.default_rng(0)</span>
+<span class="ln">difs = []</span>
+<span class="ln">for _ in range(300):                                         # bootstrap pareado: los mismos clientes</span>
+<span class="ln">    i = rng.integers(0, len(y), len(y))</span>
+<span class="ln">    difs.append(roc_auc_score(y[i], pr[i]) - roc_auc_score(y[i], pc[i]))</span>
+<span class="ln">lo, hi = np.percentile(difs, [2.5, 97.5])</span>
+<span class="ln">auc_c, auc_r = roc_auc_score(y, pc), roc_auc_score(y, pr)</span>
+<span class="ln">print(f"Retadora entrenada con los meses {MESES_V4}")</span>
+<span class="ln">print(f"AUC global      v3 {auc_c:.3f}   v4 {auc_r:.3f}   dif. {auc_r - auc_c:+.3f}   IC 95 % [{lo:+.3f}, {hi:+.3f}]")</span>
+<span class="ln">segmentos_ok = True</span>
+<span class="ln">for nombre, m in (("billetera", prueba.metodo_pago == "billetera"), ("otros pagos", prueba.metodo_pago != "billetera")):</span>
+<span class="ln">    m = m.to_numpy()</span>
+<span class="ln">    a_c, a_r = roc_auc_score(y[m], pc[m]), roc_auc_score(y[m], pr[m])</span>
+<span class="ln">    segmentos_ok &amp;= (a_r - a_c) &gt;= -0.01</span>
+<span class="ln">    print(f"AUC {nombre:&lt;11} v3 {a_c:.3f}   v4 {a_r:.3f}   dif. {a_r - a_c:+.3f}")</span>
+<span class="ln"></span>
+<span class="ln">regla = "AUC +0,01 con el IC sobre 0 y ningún segmento cae más de 0,01"</span>
+<span class="ln">entra = (auc_r - auc_c) &gt;= 0.01 and lo &gt; 0 and segmentos_ok</span>
+<span class="ln">decision = {"fecha": datetime.date.today().isoformat(), "modelo": "mora-30d",</span>
+<span class="ln">            "campeon": "v3", "retador": "v4", "meses_retador": MESES_V4, "regla": regla,</span>
+<span class="ln">            "auc_campeon": round(auc_c, 4), "auc_retador": round(auc_r, 4),</span>
+<span class="ln">            "ic95_diferencia": [round(lo, 4), round(hi, 4)],</span>
+<span class="ln">            "decision": "promover a candidata" if entra else "mantener la campeona"}</span>
+<span class="ln">with open("decision-mora-v4.json", "w", encoding="utf-8") as f:</span>
+<span class="ln">    json.dump(decision, f, ensure_ascii=False, indent=2)</span>
+<span class="ln">print("Decisión:", decision["decision"], "(guardada en decision-mora-v4.json)")</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python campeon_retador.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python campeon_retador.py 4 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python campeon_retador.py 0 1 2 3 4 5 6 7 8 9</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 campeon_retador.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 campeon_retador.py 4 5</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python3 campeon_retador.py 0 1 2 3 4 5 6 7 8 9</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Con la ventana por omisión, lee el AUC de cada versión, la diferencia con su intervalo y los dos segmentos, y abre <code>decision-mora-v4.json</code>.</span></li><li><span>Repite con una retadora entrenada con los meses 4 y 5, antes del cambio.</span></li><li><span>Repite con una ventana que crece, del mes 0 al 9.</span></li></ol><p><b>Qué observar:</b> la v3, entrenada antes del cambio del mes 6, ya está por debajo del mínimo de 0,75; la v4, que aprendió de los meses posteriores, le gana por unos 0,02 en los dos segmentos y su intervalo queda lejos del cero: la regla dice promoverla a candidata, y el archivo guarda la regla, los números y la decisión, que es lo que pedirá auditoría. La retadora de los meses 4 y 5 mejora apenas 0,003: el intervalo queda sobre cero, pero la mejora es menor que 0,01 y la campeona sigue. La ventana que crece casi empata con la de tres meses, porque mezcla meses de antes y de después del cambio: con deriva de concepto, más datos no siempre es mejor. Tarda unos segundos por el bootstrap.</p></div></section>
 <section><h2>Aprobaciones, auditoría y documentación</h2><div class="analogia"><b>Imagínalo así</b><p>En un banco, quien escribe un cheque grande no es quien lo autoriza, y queda una copia firmada de cada uno. No es desconfianza en una persona: es que, con dinero de por medio, el proceso tiene que resistir errores, apuros y malas ideas. Un modelo que decide a quién se llama por una deuda merece el mismo cuidado.</p></div><div class="prose"><p>Un modelo que toma decisiones sobre clientes necesita, además de la regla, que alguien con autoridad la aplique y que quede constancia. En el registro de modelos, eso se traduce en tres piezas.</p><p><b>La aprobación separa a quien construye de quien aprueba.</b> En el modelo de mora firman dos personas: una revisión independiente de riesgo de modelos, que no entrenó la v4 y revisa la evidencia técnica, y la gerente de Cobranzas, dueña del caso, que revisa el impacto en su operación. Este principio de una revisión independiente viene de la banca: la guía pública SR 11-7 de la Reserva Federal de Estados Unidos sobre gestión del riesgo de modelos lo convirtió en práctica común, y muchas industrias lo adoptaron.</p><p><b>La auditoría reconstruye cualquier decisión.</b> Cada paso deja una línea con quién, cuándo, qué versión, qué evidencia y qué se decidió. Con el linaje del <a href="02-versionar.html">capítulo 2</a> y la versión que lleva cada predicción, se puede responder una pregunta como «¿por qué llamaron a este cliente el 3 de agosto?» con la versión que lo marcó, los datos con que se entrenó y quién la aprobó.</p><p><b>La documentación viaja con el modelo.</b> La tarjeta del modelo (<i>model card</i>) del capítulo 2 se actualiza con cada versión: para qué sirve y para qué no, con qué datos se entrenó, cómo le va por segmento y qué limitaciones conocidas tiene. La v4 agrega una nota: con menos de seis meses de historia de la billetera, su comportamiento con esos clientes se revisará en tres meses.</p></div><figure class="fig fig-flujo" id="08-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 470" style="min-width:740px" role="img" aria-label="Diagrama de secuencia de la aprobación de la v4: el pipeline registra la v4 con su linaje y métricas y el alias candidata; el registro avisa a la revisión de riesgo de modelos, que revisa la evidencia y aprueba; la gerente de Cobranzas aprueba el impacto en el negocio; el registro mueve el alias retador y el despliegue la pone en sombra y en canario; al final se mueve el alias campeon; cada paso queda en el registro de auditoría">
 <defs>
 <marker id="c8d2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-apl"/></marker>

@@ -304,106 +304,106 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div class="c11l2-vers" id="c11l2-vers" aria-label="Versiones en el registro"></div>
 <div class="c11l2-scroll"><svg class="c11l2-graf" id="c11l2-graf" viewBox="0 0 640 220" role="img" aria-label="AUC del modelo en producción y PSI máximo de las entradas, mes a mes"></svg></div>
 <div class="legend"><span><i style="background:var(--c-red)"></i>AUC del modelo en producción (se conoce 45 días después)</span><span><i style="background:var(--c-tra)"></i>PSI máximo de las entradas</span><span>Punteadas: AUC mínimo 0,75 y PSI 0,2</span></div>
-<div class="readout texto" id="c11l2-out" aria-live="polite"></div></div><div class="prose"><p>El recorrido tiene cinco momentos, cada uno con la pieza que lo sostiene:</p><ol class="steps"><li><span><b>Datos con versión.</b> El generador del capítulo 1 produce los clientes de cada mes con semilla fija; cada mes es una versión, con su huella. El modelo nunca lee «la tabla»: lee la versión del mes.</span></li><li><span><b>Entrenar y registrar.</b> El pipeline valida los datos (y rechaza <code>gestion_cobranza</code>), entrena, evalúa contra el mínimo de 0,75 y registra la versión con sus parámetros y sus métricas. No mueve el alias: eso lo decide una persona.</span></li><li><span><b>Servir.</b> La lista mensual y la API cargan la versión del alias <code>campeon</code>. Cada predicción queda con su versión: es lo que después permite medir y comparar.</span></li><li><span><b>Monitorear.</b> Cada mes se calcula el PSI de cada variable contra la referencia del entrenamiento y, cuando llega la etiqueta, el AUC. Los dos miran cosas distintas: el PSI ve la billetera y el alza de tarifas en cuanto ocurren; el cambio de relación del mes 6 no mueve ninguna entrada, y solo el AUC lo ve, tarde.</span></li><li><span><b>Reentrenar y gobernar.</b> Una alerta abre un retador entrenado con datos recientes. El retador se compara con el campeón en un mes que ninguno de los dos vio y entra solo si gana. Al entrar, el campeón anterior queda de reserva y el más viejo se retira, con su ficha archivada.</span></li></ol></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Corre el proyecto completo: un año del modelo de mora con MLflow</h3></div><p>Vas a correr en tu computadora el ciclo completo del modelo de mora durante doce meses simulados: entrenamiento, registro con alias, predicción, deriva, reentrenamiento y campeón contra retador. Trabaja en la carpeta <code>mora-30d</code> del capítulo 1, con su entorno activado y su <code>generar_datos.py</code>. Instala MLflow, que pesa unos cientos de megabytes:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install "mlflow&gt;=3.1"</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>proyecto.py</code>:</p><div class="code-copia"><pre><code>"""Proyecto integrador: el modelo mora-30d da la vuelta completa al ciclo.
-
-Entrena y registra con MLflow, predice la lista de cada mes con la versión del alias
-campeon, mide la deriva (PSI) y el AUC cuando llega la etiqueta, y reentrena un
-retador que solo entra si le gana al campeón.
-Uso: python proyecto.py --hasta 12
-"""
-import argparse
-import warnings
-
-import mlflow
-import numpy as np
-import pandas as pd
-from mlflow import MlflowClient
-from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
-from generar_datos import generar
-
-warnings.filterwarnings("ignore")
-NOMBRE, SEMILLA, AUC_MIN, PSI_ALERTA = "mora-30d", 42, 0.75, 0.2
-NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
-             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
-mlflow.set_tracking_uri("sqlite:///proyecto.db")   # aparte del registro del capítulo 2
-mlflow.set_experiment(NOMBRE)
-cliente = MlflowClient()
-
-
-def datos(mes):
-    return generar(mes, 20000, SEMILLA)
-
-
-def entrenar(df, meses):
-    """Entrena, registra una versión nueva y la devuelve (sin moverle el alias)."""
-    prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),
-                              ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
-    modelo = make_pipeline(prep, LogisticRegression(max_iter=1000)).fit(df, df.mora_30d)
-    with mlflow.start_run(run_name=f"meses-{meses}"):
-        mlflow.log_params({"meses": meses, "semilla": SEMILLA, "filas": len(df)})
-        info = mlflow.sklearn.log_model(modelo, name="modelo", registered_model_name=NOMBRE,
-                                        input_example=df[NUMERICAS + ["metodo_pago"]].head(3))
-    return str(info.registered_model_version), modelo
-
-
-def psi(ref, act, columna):
-    """PSI de una columna: tramos por cuantiles, o una categoría por valor si hay pocos."""
-    if ref[columna].nunique() &lt;= 6:
-        r = ref[columna].astype(str).value_counts(normalize=True)
-        a = act[columna].astype(str).value_counts(normalize=True)
-        r, a = r.reindex(r.index.union(a.index), fill_value=0), a.reindex(r.index.union(a.index), fill_value=0)
-    else:
-        cortes = np.unique(np.quantile(ref[columna], np.linspace(0, 1, 11)[1:-1]))
-        r = np.bincount(np.searchsorted(cortes, ref[columna], side="right"), minlength=len(cortes) + 1) / len(ref)
-        a = np.bincount(np.searchsorted(cortes, act[columna], side="right"), minlength=len(cortes) + 1) / len(act)
-    r, a = np.clip(np.asarray(r, float), 1e-4, None), np.clip(np.asarray(a, float), 1e-4, None)
-    return float(np.sum((a - r) * np.log(a / r)))
-
-
-p = argparse.ArgumentParser()
-p.add_argument("--hasta", type=int, default=12)
-args = p.parse_args()
-
-referencia = datos(0)
-version, campeon = entrenar(referencia, "0")
-cliente.set_registered_model_alias(NOMBRE, "campeon", version)
-print(f"Mes 0: v{version} entrenada con el mes 0 y con el alias campeon")
-retador, alertas_seguidas = None, 0
-
-for mes in range(1, args.hasta + 1):
-    df = datos(mes)
-    prob = campeon.predict_proba(df)[:, 1]
-    lista = (prob &gt;= 0.30).mean()
-    deriva = {c: psi(referencia, df, c) for c in NUMERICAS + ["metodo_pago"]}
-    peor = max(deriva, key=deriva.get)
-    alertas_seguidas = alertas_seguidas + 1 if deriva[peor] &gt; PSI_ALERTA else 0
-    auc = roc_auc_score(df.mora_30d, prob)   # en la vida real se conoce 45 días después
-    linea = (f"Mes {mes:2}: v{version} | lista {lista:5.1%} | PSI máx {deriva[peor]:5.2f} ({peor})"
-             f" | AUC {auc:.3f}")
-    if retador:   # campeón contra retador con los datos de un mes que ninguno vio
-        auc_r = roc_auc_score(df.mora_30d, retador[1].predict_proba(df)[:, 1])
-        if auc_r &gt;= auc + 0.01:   # la retadora debe superar al campeón por 0,01
-            cliente.set_registered_model_alias(NOMBRE, "campeon", retador[0])
-            linea += f" -&gt; retador v{retador[0]} gana ({auc_r:.3f}): pasa a campeon"
-            version, campeon, referencia = retador[0], retador[1], datos(mes - 1)
-        else:
-            linea += f" -&gt; retador v{retador[0]} no gana ({auc_r:.3f}): se archiva"
-        retador = None
-    elif auc &lt; AUC_MIN or alertas_seguidas &gt;= 2:
-        motivo = "AUC bajo el mínimo" if auc &lt; AUC_MIN else "deriva dos meses seguidos"
-        recientes = pd.concat([datos(mes - 1), df])
-        retador = entrenar(recientes, f"{mes - 1}-{mes}")
-        cliente.set_registered_model_alias(NOMBRE, "retador", retador[0])
-        linea += f" -&gt; {motivo}: se entrena el retador v{retador[0]}"
-    print(linea)
-
-print("\nVersiones registradas:", [m.version for m in cliente.search_model_versions(f"name='{NOMBRE}'")])
-print("Alias campeon -&gt;", cliente.get_model_version_by_alias(NOMBRE, "campeon").version)</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>python proyecto.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>mlflow ui --backend-store-uri sqlite:///proyecto.db</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre <code>python proyecto.py</code> (tarda menos de un minuto). Entre las líneas de MLflow que anuncian cada versión nueva, lee el informe de cada mes.</span></li><li><span>Anota en qué mes salta la primera alerta de deriva y qué variable la produce, qué pasa con el primer retador y qué dispara al segundo.</span></li><li><span>Abre <code>http://127.0.0.1:5000</code> con el segundo comando y busca el modelo <code>mora-30d</code> en la sección de modelos: mira sus versiones, el alias <code>campeon</code> y los parámetros de cada corrida. Detén el servidor con Ctrl+C al terminar.</span></li><li><span>Cambia <code>PSI_ALERTA</code> a 0,5 o <code>AUC_MIN</code> a 0,70, borra <code>proyecto.db</code> y córrelo de nuevo: ¿cuándo se reentrena ahora y cuánto tiempo pasa el modelo por debajo del mínimo?</span></li></ol><p><b>Qué observar:</b> el PSI de <code>metodo_pago</code> cruza 0,2 en el mes 4 por la billetera, y la segunda alerta seguida, en el mes 5, entrena un retador con los meses 4 y 5. Ese retador no gana en el mes 6: la relación entre el historial y la mora acaba de cambiar, y un modelo entrenado justo antes del cambio no sirve después. En el mes 7 el AUC queda bajo 0,75 (además, el alza de tarifas dispara el PSI de <code>precio_plan</code>); el retador entrenado con los meses 6 y 7 le gana al campeón en el mes 8 y pasa a producción, y la referencia de la deriva se renueva con él. Es el ciclo completo del curso en un minuto: la deriva de datos se ve enseguida, la de concepto solo con la etiqueta, y ningún modelo entra sin ganarle al que está. El script calcula el AUC del mes en el acto para que el año quepa en un minuto; en la vida real esa cifra llega 45 días después. Los decimales pueden variar un poco con otras versiones de scikit-learn.</p></div><div class="caso"><b>Un caso real</b><p><b>Una plataforma para que cada equipo no reinvente el ciclo.</b> En 2017, Uber describió públicamente Michelangelo, la plataforma interna de aprendizaje automático que había construido después de ver que cada equipo armaba por su cuenta, y de forma distinta, la manera de preparar datos, entrenar, desplegar y vigilar sus modelos, con sistemas difíciles de mantener y de escalar. La plataforma unió esas etapas en un flujo común, con un almacén de variables compartido entre equipos, un registro de modelos y el monitoreo de las predicciones. Lo que enseña no es la escala de Uber: es que la plataforma nace cuando el costo de que cada modelo repita el trabajo supera el de construir las piezas una vez.</p></div></section>
+<div class="readout texto" id="c11l2-out" aria-live="polite"></div></div><div class="prose"><p>El recorrido tiene cinco momentos, cada uno con la pieza que lo sostiene:</p><ol class="steps"><li><span><b>Datos con versión.</b> El generador del capítulo 1 produce los clientes de cada mes con semilla fija; cada mes es una versión, con su huella. El modelo nunca lee «la tabla»: lee la versión del mes.</span></li><li><span><b>Entrenar y registrar.</b> El pipeline valida los datos (y rechaza <code>gestion_cobranza</code>), entrena, evalúa contra el mínimo de 0,75 y registra la versión con sus parámetros y sus métricas. No mueve el alias: eso lo decide una persona.</span></li><li><span><b>Servir.</b> La lista mensual y la API cargan la versión del alias <code>campeon</code>. Cada predicción queda con su versión: es lo que después permite medir y comparar.</span></li><li><span><b>Monitorear.</b> Cada mes se calcula el PSI de cada variable contra la referencia del entrenamiento y, cuando llega la etiqueta, el AUC. Los dos miran cosas distintas: el PSI ve la billetera y el alza de tarifas en cuanto ocurren; el cambio de relación del mes 6 no mueve ninguna entrada, y solo el AUC lo ve, tarde.</span></li><li><span><b>Reentrenar y gobernar.</b> Una alerta abre un retador entrenado con datos recientes. El retador se compara con el campeón en un mes que ninguno de los dos vio y entra solo si gana. Al entrar, el campeón anterior queda de reserva y el más viejo se retira, con su ficha archivada.</span></li></ol></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Corre el proyecto completo: un año del modelo de mora con MLflow</h3></div><p>Vas a correr en tu computadora el ciclo completo del modelo de mora durante doce meses simulados: entrenamiento, registro con alias, predicción, deriva, reentrenamiento y campeón contra retador. Trabaja en la carpeta <code>mora-30d</code> del capítulo 1, con su entorno activado y su <code>generar_datos.py</code>. Instala MLflow, que pesa unos cientos de megabytes:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install "mlflow&gt;=3.1"</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>proyecto.py</code>:</p><div class="code-copia code-lineas"><pre><code><span class="ln">"""Proyecto integrador: el modelo mora-30d da la vuelta completa al ciclo.</span>
+<span class="ln"></span>
+<span class="ln">Entrena y registra con MLflow, predice la lista de cada mes con la versión del alias</span>
+<span class="ln">campeon, mide la deriva (PSI) y el AUC cuando llega la etiqueta, y reentrena un</span>
+<span class="ln">retador que solo entra si le gana al campeón.</span>
+<span class="ln">Uso: python proyecto.py --hasta 12</span>
+<span class="ln">"""</span>
+<span class="ln">import argparse</span>
+<span class="ln">import warnings</span>
+<span class="ln"></span>
+<span class="ln">import mlflow</span>
+<span class="ln">import numpy as np</span>
+<span class="ln">import pandas as pd</span>
+<span class="ln">from mlflow import MlflowClient</span>
+<span class="ln">from sklearn.compose import ColumnTransformer</span>
+<span class="ln">from sklearn.linear_model import LogisticRegression</span>
+<span class="ln">from sklearn.metrics import roc_auc_score</span>
+<span class="ln">from sklearn.pipeline import make_pipeline</span>
+<span class="ln">from sklearn.preprocessing import OneHotEncoder, StandardScaler</span>
+<span class="ln"></span>
+<span class="ln">from generar_datos import generar</span>
+<span class="ln"></span>
+<span class="ln">warnings.filterwarnings("ignore")</span>
+<span class="ln">NOMBRE, SEMILLA, AUC_MIN, PSI_ALERTA = "mora-30d", 42, 0.75, 0.2</span>
+<span class="ln">NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",</span>
+<span class="ln">             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]</span>
+<span class="ln">mlflow.set_tracking_uri("sqlite:///proyecto.db")   # aparte del registro del capítulo 2</span>
+<span class="ln">mlflow.set_experiment(NOMBRE)</span>
+<span class="ln">cliente = MlflowClient()</span>
+<span class="ln"></span>
+<span class="ln"></span>
+<span class="ln">def datos(mes):</span>
+<span class="ln">    return generar(mes, 20000, SEMILLA)</span>
+<span class="ln"></span>
+<span class="ln"></span>
+<span class="ln">def entrenar(df, meses):</span>
+<span class="ln">    """Entrena, registra una versión nueva y la devuelve (sin moverle el alias)."""</span>
+<span class="ln">    prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),</span>
+<span class="ln">                              ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])</span>
+<span class="ln">    modelo = make_pipeline(prep, LogisticRegression(max_iter=1000)).fit(df, df.mora_30d)</span>
+<span class="ln">    with mlflow.start_run(run_name=f"meses-{meses}"):</span>
+<span class="ln">        mlflow.log_params({"meses": meses, "semilla": SEMILLA, "filas": len(df)})</span>
+<span class="ln">        info = mlflow.sklearn.log_model(modelo, name="modelo", registered_model_name=NOMBRE,</span>
+<span class="ln">                                        input_example=df[NUMERICAS + ["metodo_pago"]].head(3))</span>
+<span class="ln">    return str(info.registered_model_version), modelo</span>
+<span class="ln"></span>
+<span class="ln"></span>
+<span class="ln">def psi(ref, act, columna):</span>
+<span class="ln">    """PSI de una columna: tramos por cuantiles, o una categoría por valor si hay pocos."""</span>
+<span class="ln">    if ref[columna].nunique() &lt;= 6:</span>
+<span class="ln">        r = ref[columna].astype(str).value_counts(normalize=True)</span>
+<span class="ln">        a = act[columna].astype(str).value_counts(normalize=True)</span>
+<span class="ln">        r, a = r.reindex(r.index.union(a.index), fill_value=0), a.reindex(r.index.union(a.index), fill_value=0)</span>
+<span class="ln">    else:</span>
+<span class="ln">        cortes = np.unique(np.quantile(ref[columna], np.linspace(0, 1, 11)[1:-1]))</span>
+<span class="ln">        r = np.bincount(np.searchsorted(cortes, ref[columna], side="right"), minlength=len(cortes) + 1) / len(ref)</span>
+<span class="ln">        a = np.bincount(np.searchsorted(cortes, act[columna], side="right"), minlength=len(cortes) + 1) / len(act)</span>
+<span class="ln">    r, a = np.clip(np.asarray(r, float), 1e-4, None), np.clip(np.asarray(a, float), 1e-4, None)</span>
+<span class="ln">    return float(np.sum((a - r) * np.log(a / r)))</span>
+<span class="ln"></span>
+<span class="ln"></span>
+<span class="ln">p = argparse.ArgumentParser()</span>
+<span class="ln">p.add_argument("--hasta", type=int, default=12)</span>
+<span class="ln">args = p.parse_args()</span>
+<span class="ln"></span>
+<span class="ln">referencia = datos(0)</span>
+<span class="ln">version, campeon = entrenar(referencia, "0")</span>
+<span class="ln">cliente.set_registered_model_alias(NOMBRE, "campeon", version)</span>
+<span class="ln">print(f"Mes 0: v{version} entrenada con el mes 0 y con el alias campeon")</span>
+<span class="ln">retador, alertas_seguidas = None, 0</span>
+<span class="ln"></span>
+<span class="ln">for mes in range(1, args.hasta + 1):</span>
+<span class="ln">    df = datos(mes)</span>
+<span class="ln">    prob = campeon.predict_proba(df)[:, 1]</span>
+<span class="ln">    lista = (prob &gt;= 0.30).mean()</span>
+<span class="ln">    deriva = {c: psi(referencia, df, c) for c in NUMERICAS + ["metodo_pago"]}</span>
+<span class="ln">    peor = max(deriva, key=deriva.get)</span>
+<span class="ln">    alertas_seguidas = alertas_seguidas + 1 if deriva[peor] &gt; PSI_ALERTA else 0</span>
+<span class="ln">    auc = roc_auc_score(df.mora_30d, prob)   # en la vida real se conoce 45 días después</span>
+<span class="ln">    linea = (f"Mes {mes:2}: v{version} | lista {lista:5.1%} | PSI máx {deriva[peor]:5.2f} ({peor})"</span>
+<span class="ln">             f" | AUC {auc:.3f}")</span>
+<span class="ln">    if retador:   # campeón contra retador con los datos de un mes que ninguno vio</span>
+<span class="ln">        auc_r = roc_auc_score(df.mora_30d, retador[1].predict_proba(df)[:, 1])</span>
+<span class="ln">        if auc_r &gt;= auc + 0.01:   # la retadora debe superar al campeón por 0,01</span>
+<span class="ln">            cliente.set_registered_model_alias(NOMBRE, "campeon", retador[0])</span>
+<span class="ln">            linea += f" -&gt; retador v{retador[0]} gana ({auc_r:.3f}): pasa a campeon"</span>
+<span class="ln">            version, campeon, referencia = retador[0], retador[1], datos(mes - 1)</span>
+<span class="ln">        else:</span>
+<span class="ln">            linea += f" -&gt; retador v{retador[0]} no gana ({auc_r:.3f}): se archiva"</span>
+<span class="ln">        retador = None</span>
+<span class="ln">    elif auc &lt; AUC_MIN or alertas_seguidas &gt;= 2:</span>
+<span class="ln">        motivo = "AUC bajo el mínimo" if auc &lt; AUC_MIN else "deriva dos meses seguidos"</span>
+<span class="ln">        recientes = pd.concat([datos(mes - 1), df])</span>
+<span class="ln">        retador = entrenar(recientes, f"{mes - 1}-{mes}")</span>
+<span class="ln">        cliente.set_registered_model_alias(NOMBRE, "retador", retador[0])</span>
+<span class="ln">        linea += f" -&gt; {motivo}: se entrena el retador v{retador[0]}"</span>
+<span class="ln">    print(linea)</span>
+<span class="ln"></span>
+<span class="ln">print("\nVersiones registradas:", [m.version for m in cliente.search_model_versions(f"name='{NOMBRE}'")])</span>
+<span class="ln">print("Alias campeon -&gt;", cliente.get_model_version_by_alias(NOMBRE, "campeon").version)</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>python proyecto.py</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>mlflow ui --backend-store-uri sqlite:///proyecto.db</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre <code>python proyecto.py</code> (tarda menos de un minuto). Entre las líneas de MLflow que anuncian cada versión nueva, lee el informe de cada mes.</span></li><li><span>Anota en qué mes salta la primera alerta de deriva y qué variable la produce, qué pasa con el primer retador y qué dispara al segundo.</span></li><li><span>Abre <code>http://127.0.0.1:5000</code> con el segundo comando y busca el modelo <code>mora-30d</code> en la sección de modelos: mira sus versiones, el alias <code>campeon</code> y los parámetros de cada corrida. Detén el servidor con Ctrl+C al terminar.</span></li><li><span>Cambia <code>PSI_ALERTA</code> a 0,5 o <code>AUC_MIN</code> a 0,70, borra <code>proyecto.db</code> y córrelo de nuevo: ¿cuándo se reentrena ahora y cuánto tiempo pasa el modelo por debajo del mínimo?</span></li></ol><p><b>Qué observar:</b> el PSI de <code>metodo_pago</code> cruza 0,2 en el mes 4 por la billetera, y la segunda alerta seguida, en el mes 5, entrena un retador con los meses 4 y 5. Ese retador no gana en el mes 6: la relación entre el historial y la mora acaba de cambiar, y un modelo entrenado justo antes del cambio no sirve después. En el mes 7 el AUC queda bajo 0,75 (además, el alza de tarifas dispara el PSI de <code>precio_plan</code>); el retador entrenado con los meses 6 y 7 le gana al campeón en el mes 8 y pasa a producción, y la referencia de la deriva se renueva con él. Es el ciclo completo del curso en un minuto: la deriva de datos se ve enseguida, la de concepto solo con la etiqueta, y ningún modelo entra sin ganarle al que está. El script calcula el AUC del mes en el acto para que el año quepa en un minuto; en la vida real esa cifra llega 45 días después. Los decimales pueden variar un poco con otras versiones de scikit-learn.</p></div><div class="caso"><b>Un caso real</b><p><b>Una plataforma para que cada equipo no reinvente el ciclo.</b> En 2017, Uber describió públicamente Michelangelo, la plataforma interna de aprendizaje automático que había construido después de ver que cada equipo armaba por su cuenta, y de forma distinta, la manera de preparar datos, entrenar, desplegar y vigilar sus modelos, con sistemas difíciles de mantener y de escalar. La plataforma unió esas etapas en un flujo común, con un almacén de variables compartido entre equipos, un registro de modelos y el monitoreo de las predicciones. Lo que enseña no es la escala de Uber: es que la plataforma nace cuando el costo de que cada modelo repita el trabajo supera el de construir las piezas una vez.</p></div></section>
 <section><h2>Lista de verificación antes de salir a producción</h2><div class="prose"><p>El capítulo anterior terminó con una lista para revisar el código que entrega un asistente. Esta es otra cosa: la lista que firma el equipo antes de que un modelo, cualquiera, empiece a decidir en serio. Cada punto tiene un dueño y una evidencia.</p></div><div class="analogia"><b>Imagínalo así</b><p>Antes de despegar, los pilotos recorren una lista en voz alta, aunque hayan volado mil veces. No es desconfianza en su memoria: es reconocer que el día que se olvida un punto es justo el día que hacía falta.</p></div><div class="prose"><div class="tbl"><table><thead><tr><th>Etapa</th><th>Pregunta</th><th>Evidencia</th><th>Dueño</th></tr></thead><tbody><tr><td>Problema</td><td>¿Qué decisión mejora y con qué métrica se sabrá?</td><td>Ficha con la métrica, el mínimo y el umbral</td><td>Dueña del caso</td></tr><tr><td>Datos</td><td>¿Los datos de entrenamiento tienen versión y pasan la validación?</td><td>Huella de los datos y reporte de validación</td><td>Científico de datos</td></tr><tr><td>Datos</td><td>¿Hay alguna variable que no exista en el momento de predecir?</td><td>Lista de variables prohibidas revisada</td><td>Científico de datos</td></tr><tr><td>Entrenar</td><td>¿El entrenamiento se repite con el mismo resultado?</td><td>Dos corridas con la misma métrica</td><td>Ingeniera de ML</td></tr><tr><td>Entrenar</td><td>¿Supera el mínimo, también por tramo de clientes?</td><td>Métricas por tramo en el experimento</td><td>Científico de datos</td></tr><tr><td>Servir</td><td>¿Cada predicción lleva su versión y queda registrada?</td><td>Una predicción rastreada hasta sus datos</td><td>Ingeniera de ML</td></tr><tr><td>Servir</td><td>¿La entrada se valida y hay tiempo límite?</td><td>Peticiones mal formadas con su 422</td><td>Ingeniera de ML</td></tr><tr><td>Desplegar</td><td>¿Hay sombra o canario con condiciones de reversión escritas?</td><td>Plan de despliegue y comando de reversión probado</td><td>Ingeniera de ML</td></tr><tr><td>Monitorear</td><td>¿Cada alerta tiene umbral, dueño y acción?</td><td>Alerta de prueba que llegó a su dueño</td><td>Operación</td></tr><tr><td>Reentrenar</td><td>¿Qué dispara un reentrenamiento y quién aprueba el retador?</td><td>Política escrita y registro de aprobación</td><td>Dueña del caso</td></tr><tr><td>Gobierno</td><td>¿Hay tarjeta de modelo y fecha de revisión?</td><td>Tarjeta publicada en el registro</td><td>Ingeniera de ML</td></tr><tr><td>Gobierno</td><td>¿Qué pasa si hay que apagar el modelo hoy?</td><td>Regla de respaldo sin modelo, acordada con el negocio</td><td>Dueña del caso</td></tr></tbody></table></div><p>La última pregunta es la que más se olvida. Si mañana el modelo tuviera que apagarse, ¿Cobranzas se queda sin lista o tiene una regla simple de respaldo, como «clientes con dos facturas tarde en el año»? Un modelo sin plan de apagado no está listo, aunque todo lo demás esté en verde.</p></div><div class="ml"><b>En la práctica</b><p><b>La plataforma del segundo modelo.</b> Con la v4 en producción, Cobranzas pidió un segundo modelo: qué acuerdo de pago ofrecer a cada cliente en mora. Valeria midió el éxito de la plataforma con una sola cifra: cuánto tardó el segundo modelo en llegar a producción. El de mora había tardado cinco meses; el de acuerdos, cinco semanas, porque los datos versionados, el pipeline, el registro, la plantilla del servicio y el monitoreo ya existían. Lo único nuevo fueron sus variables, su ficha y su política de reentrenamiento. Andrés lo resumió en la reunión de cierre: «El primer modelo construyó la cocina; el segundo solo trajo su receta».</p></div></section>
 <section><h2>La idea clave</h2><div class="prose"><p>MLOps como un ciclo cerrado. Una plataforma no es un producto, sino las piezas que se pasan artefactos con identificador (datos con versión, modelos registrados, predicciones con su versión, alertas con dueño) para que el ciclo de vida dé la vuelta sin depender de una persona. Se arma con una mezcla de compra, código abierto y servicios gestionados según los modelos, las personas y los datos de cada organización, con los roles escritos, y se juzga por una sola pregunta: cuando el mundo cambia, ¿el modelo se entera, se renueva con control y vuelve a empezar?</p></div></section>
 <section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Qué tiene que pasar entre dos piezas de la plataforma para que el linaje no se corte?</summary><p>Que se pasen artefactos con identificador: una versión de datos, una versión de modelo, una predicción con su versión. Un archivo copiado a mano o «la tabla de siempre» corta el linaje.</p></details><details><summary>Un equipo tiene datos versionados, pipeline, registro y servicio impecables, pero ningún monitoreo. ¿Por qué su ciclo sigue abierto?</summary><p>Porque nadie ve cuándo el modelo se degrada, así que nada dispara el reentrenamiento: el modelo falla en silencio hasta que el negocio se queja.</p></details><details><summary>¿Cuándo conviene armar con código abierto en lugar de comprar una plataforma integral?</summary><p>Cuando hay personas para operar la infraestructura y se quiere evitar la dependencia de un proveedor o cambiar piezas por separado; el costo se mueve de la licencia a las horas del equipo.</p></details><details><summary>En el proyecto, ¿por qué el primer retador no le gana al campeón?</summary><p>Porque se entrenó con los meses 4 y 5, justo antes de que cambiara la relación entre el historial y la mora en el mes 6; después del cambio no predice mejor que el campeón.</p></details><details><summary>¿Por qué la decisión de reemplazar un modelo no la toma quien lo entrenó?</summary><p>Porque quien entrena tiene interés en su versión; la decisión la toma la dueña del caso con la evidencia de campeón contra retador, y queda registrada para auditoría.</p></details></div></section>

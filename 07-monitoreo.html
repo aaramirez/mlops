@@ -148,45 +148,45 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div id="c7l1-k1"><small>PSI (índice de estabilidad)</small><b id="c7l1-psi">–</b><em id="c7l1-psi-e"></em></div>
   <div id="c7l1-k2"><small>Kolmogorov-Smirnov: D y valor p</small><b id="c7l1-ks">–</b><em id="c7l1-ks-e"></em></div>
 </div>
-<div class="readout texto" id="c7l1-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Calcula el PSI y Kolmogorov-Smirnov sobre los meses del curso</h3></div><p>Vas a comparar el mes 0, con el que se entrenó el modelo, con los meses 3, 6, 9 y 12, y a ver qué medida detecta cada una de las tres derivas. Trabaja en la carpeta <code>mora-30d</code>, con el entorno activado; agrega SciPy:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install scipy</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>deriva.py</code> (importa <code>generar_datos.py</code>, así que no hace falta generar los archivos antes):</p><div class="code-copia"><pre><code>"""PSI y Kolmogorov-Smirnov del mes 0 (referencia) contra los meses de producción."""
-import numpy as np
-import pandas as pd
-from scipy.stats import ks_2samp
-from generar_datos import generar
-
-def psi_numerica(ref, act, tramos=10):
-    cortes = np.unique(np.quantile(ref, np.linspace(0, 1, tramos + 1)[1:-1]))
-    e = np.bincount(np.searchsorted(cortes, ref, side="right"), minlength=len(cortes) + 1) / len(ref)
-    a = np.bincount(np.searchsorted(cortes, act, side="right"), minlength=len(cortes) + 1) / len(act)
-    return psi(e, a)
-
-def psi_categorica(ref, act):
-    cats = sorted(set(ref) | set(act))
-    e = ref.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()
-    a = act.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()
-    return psi(e, a)
-
-def psi(e, a):
-    e, a = np.clip(e, 1e-4, None), np.clip(a, 1e-4, None)
-    return float(np.sum((a - e) * np.log(a / e)))
-
-ref = generar(0, 20000, 42)
-filas = []
-for mes in (3, 6, 9, 12):
-    act = generar(mes, 20000, 42)
-    ks = ks_2samp(ref.dias_atraso_prom_6m, act.dias_atraso_prom_6m)
-    filas.append({"mes": mes,
-                  "PSI metodo_pago": psi_categorica(ref.metodo_pago, act.metodo_pago),
-                  "KS D precio_plan": ks_2samp(ref.precio_plan, act.precio_plan).statistic,
-                  "PSI dias_atraso": psi_numerica(ref.dias_atraso_prom_6m, act.dias_atraso_prom_6m),
-                  "KS p dias_atraso": ks.pvalue, "mora real": act.mora_30d.mean()})
-print(pd.DataFrame(filas).round(4).to_string(index=False))
-
-print("\nEl mismo cambio pequeño (días de atraso un 3 % más altos), con muestras de distinto tamaño:")
-for n in (500, 2000, 20000):
-    act = ref.dias_atraso_prom_6m.sample(n, random_state=1).to_numpy() * 1.03
-    print(f"  n = {n:&gt;6}:  PSI {psi_numerica(ref.dias_atraso_prom_6m, act):.3f}   "
-          f"KS p {ks_2samp(ref.dias_atraso_prom_6m, act).pvalue:.2g}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python deriva.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 deriva.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Busca en qué mes salta el PSI del método de pago y en cuál el KS del precio del plan.</span></li><li><span>Mira el PSI de los días de atraso y la mora real del mes 9 frente al mes 3.</span></li><li><span>En la segunda tabla, compara el PSI y el valor p de KS para el mismo cambio con 500 y con 20.000 clientes.</span></li></ol><p><b>Qué observar:</b> la billetera dispara el PSI del método de pago desde el mes 6 (una categoría que no existía da un PSI enorme, y su valor exacto depende del número chico que reemplaza al cero), y el alza del mes 7 aparece en el KS del precio desde el mes 9. Los días de atraso no se mueven nunca, y aun así la mora real pasa de 7,6 % a más de 10 %: esa es la deriva de concepto, invisible en las entradas. En la segunda tabla, con 20.000 clientes KS da un valor p diminuto por un cambio de 3 % mientras el PSI dice «estable»: el valor p dice si hay diferencia, no si importa.</p></div><div class="prose"><p>Herramientas de código abierto como Evidently o NannyML calculan estas medidas para todas las variables, arman informes y guardan la historia. Antes de adoptar una, conviene escribir la propia en veinte líneas, como en la práctica, para saber qué está midiendo.</p></div></section>
+<div class="readout texto" id="c7l1-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Calcula el PSI y Kolmogorov-Smirnov sobre los meses del curso</h3></div><p>Vas a comparar el mes 0, con el que se entrenó el modelo, con los meses 3, 6, 9 y 12, y a ver qué medida detecta cada una de las tres derivas. Trabaja en la carpeta <code>mora-30d</code>, con el entorno activado; agrega SciPy:</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install scipy</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Guarda este programa como <code>deriva.py</code> (importa <code>generar_datos.py</code>, así que no hace falta generar los archivos antes):</p><div class="code-copia code-lineas"><pre><code><span class="ln">"""PSI y Kolmogorov-Smirnov del mes 0 (referencia) contra los meses de producción."""</span>
+<span class="ln">import numpy as np</span>
+<span class="ln">import pandas as pd</span>
+<span class="ln">from scipy.stats import ks_2samp</span>
+<span class="ln">from generar_datos import generar</span>
+<span class="ln"></span>
+<span class="ln">def psi_numerica(ref, act, tramos=10):</span>
+<span class="ln">    cortes = np.unique(np.quantile(ref, np.linspace(0, 1, tramos + 1)[1:-1]))</span>
+<span class="ln">    e = np.bincount(np.searchsorted(cortes, ref, side="right"), minlength=len(cortes) + 1) / len(ref)</span>
+<span class="ln">    a = np.bincount(np.searchsorted(cortes, act, side="right"), minlength=len(cortes) + 1) / len(act)</span>
+<span class="ln">    return psi(e, a)</span>
+<span class="ln"></span>
+<span class="ln">def psi_categorica(ref, act):</span>
+<span class="ln">    cats = sorted(set(ref) | set(act))</span>
+<span class="ln">    e = ref.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()</span>
+<span class="ln">    a = act.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()</span>
+<span class="ln">    return psi(e, a)</span>
+<span class="ln"></span>
+<span class="ln">def psi(e, a):</span>
+<span class="ln">    e, a = np.clip(e, 1e-4, None), np.clip(a, 1e-4, None)</span>
+<span class="ln">    return float(np.sum((a - e) * np.log(a / e)))</span>
+<span class="ln"></span>
+<span class="ln">ref = generar(0, 20000, 42)</span>
+<span class="ln">filas = []</span>
+<span class="ln">for mes in (3, 6, 9, 12):</span>
+<span class="ln">    act = generar(mes, 20000, 42)</span>
+<span class="ln">    ks = ks_2samp(ref.dias_atraso_prom_6m, act.dias_atraso_prom_6m)</span>
+<span class="ln">    filas.append({"mes": mes,</span>
+<span class="ln">                  "PSI metodo_pago": psi_categorica(ref.metodo_pago, act.metodo_pago),</span>
+<span class="ln">                  "KS D precio_plan": ks_2samp(ref.precio_plan, act.precio_plan).statistic,</span>
+<span class="ln">                  "PSI dias_atraso": psi_numerica(ref.dias_atraso_prom_6m, act.dias_atraso_prom_6m),</span>
+<span class="ln">                  "KS p dias_atraso": ks.pvalue, "mora real": act.mora_30d.mean()})</span>
+<span class="ln">print(pd.DataFrame(filas).round(4).to_string(index=False))</span>
+<span class="ln"></span>
+<span class="ln">print("\nEl mismo cambio pequeño (días de atraso un 3 % más altos), con muestras de distinto tamaño:")</span>
+<span class="ln">for n in (500, 2000, 20000):</span>
+<span class="ln">    act = ref.dias_atraso_prom_6m.sample(n, random_state=1).to_numpy() * 1.03</span>
+<span class="ln">    print(f"  n = {n:&gt;6}:  PSI {psi_numerica(ref.dias_atraso_prom_6m, act):.3f}   "</span>
+<span class="ln">          f"KS p {ks_2samp(ref.dias_atraso_prom_6m, act).pvalue:.2g}")</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python deriva.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 deriva.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Busca en qué mes salta el PSI del método de pago y en cuál el KS del precio del plan.</span></li><li><span>Mira el PSI de los días de atraso y la mora real del mes 9 frente al mes 3.</span></li><li><span>En la segunda tabla, compara el PSI y el valor p de KS para el mismo cambio con 500 y con 20.000 clientes.</span></li></ol><p><b>Qué observar:</b> la billetera dispara el PSI del método de pago desde el mes 6 (una categoría que no existía da un PSI enorme, y su valor exacto depende del número chico que reemplaza al cero), y el alza del mes 7 aparece en el KS del precio desde el mes 9. Los días de atraso no se mueven nunca, y aun así la mora real pasa de 7,6 % a más de 10 %: esa es la deriva de concepto, invisible en las entradas. En la segunda tabla, con 20.000 clientes KS da un valor p diminuto por un cambio de 3 % mientras el PSI dice «estable»: el valor p dice si hay diferencia, no si importa.</p></div><div class="prose"><p>Herramientas de código abierto como Evidently o NannyML calculan estas medidas para todas las variables, arman informes y guardan la historia. Antes de adoptar una, conviene escribir la propia en veinte líneas, como en la práctica, para saber qué está midiendo.</p></div></section>
 <section><h2>Cuando la etiqueta llega tarde: métricas aproximadas</h2><div class="analogia"><b>Imagínalo así</b><p>Un agricultor no sabe cuánto va a cosechar hasta el final de la temporada, pero no espera de brazos cruzados. Mira la humedad del suelo, la altura de las plantas, cuántas flores salieron. Ninguna de esas señales es la cosecha, pero todas la anuncian, y le dan tiempo para regar o fertilizar mientras todavía sirve.</p></div><div class="prose"><p>En el modelo de mora, la <b>etiqueta</b> (<i>label</i>), el dato de si el cliente cayó o no en mora, llega mucho después de la predicción. A eso se le llama <b>retraso de la etiqueta</b> (<i>label delay</i>). Durante ese tiempo, el desempeño real es desconocido, y el equipo vigila <b>métricas aproximadas</b> (<i>proxy metrics</i>).</p></div><figure class="fig fig-esquema" id="07-diagrama-3"><div class="lienzo"><svg viewBox="0 0 900 360" style="min-width:700px" role="img" aria-label="Línea de tiempo de una predicción de mora: el día 0 se emite la factura y el modelo predice; el día 15 vence; el día 22 llega la señal temprana; el día 45 se sabe si cayó en mora a 30 días; el día 60 la etiqueta está madura para entrenar. Debajo, qué se puede vigilar en cada tramo: entradas y predicciones desde el día 0, señales tempranas desde el 22 y desempeño real desde el 45">
 <defs><marker id="c7d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker></defs>
 <path d="M40 120 H870" class="ln" style="stroke-width:2.5" marker-end="url(#c7d3-m)"/>

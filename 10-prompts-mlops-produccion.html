@@ -77,7 +77,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <path d="M150 388 Q120 310 130 234" class="ln" style="stroke-width:1.5" marker-end="url(#c10d1-m)"/>
 <path d="M200 140 Q260 90 328 70" class="ln" style="stroke-width:1.5" marker-end="url(#c10d1-m)"/>
 <text x="450" y="508" class="t t-s t-m" text-anchor="middle">Nada de esto cambia el resultado de la primera prueba; por eso el asistente no lo pone si no se pide.</text>
-</svg></div><figcaption><b>Lo que trae el prompt corto y lo que falta.</b> En el centro, lo único que el asistente genera con el pedido de una línea: una API que carga un archivo y responde. Alrededor, el ciclo de vida del curso con sus etapas en color, y en cada una lo que el asistente omite si no se pide, con el capítulo donde se enseñó. Cada etapa del anillo es una sección de este capítulo.</figcaption></figure><div class="prose"><p>El prompt corto era este:</p><div class="code-copia"><pre><code>Hazme una API con FastAPI que cargue modelo.pkl y devuelva la probabilidad de mora.</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Las secciones que siguen lo reemplazan por un archivo de instrucciones y un prompt por etapa. No son frases mágicas: son <b>especificaciones</b> (<i>specifications</i>), escritas para que un asistente las cumpla y para que una persona pueda comprobar que se cumplieron. Cómo escribir prompts profesionales para una aplicación con un modelo de lenguaje, con su evaluación y su seguridad, está en <a href="https://aaramirez.github.io/aplicaciones-con-ia/temario.html" target="_blank" rel="noopener">Aplicaciones con IA</a>; aquí el modelo es uno propio, y lo que importa es la reproducibilidad, el registro, el monitoreo y el reentrenamiento.</p></div><div class="lab" id="10-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>El servicio del prompt corto y el del prompt completo</h3></div><p class="hint">El mismo modelo de mora, servido por los dos servicios. Elige una situación (una petición normal, columnas en otro orden, un campo con otro nombre, un valor imposible, un mes de deriva, un modelo que no carga) y mira qué responde cada uno, con su código HTTP y lo que queda en el registro. Pulsa «Correr todas» para ver el marcador.</p><style>
+</svg></div><figcaption><b>Lo que trae el prompt corto y lo que falta.</b> En el centro, lo único que el asistente genera con el pedido de una línea: una API que carga un archivo y responde. Alrededor, el ciclo de vida del curso con sus etapas en color, y en cada una lo que el asistente omite si no se pide, con el capítulo donde se enseñó. Cada etapa del anillo es una sección de este capítulo.</figcaption></figure><div class="prose"><p>El prompt corto era este:</p><div class="code-copia code-lineas"><pre><code><span class="ln">Hazme una API con FastAPI que cargue modelo.pkl y devuelva la probabilidad de mora.</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Las secciones que siguen lo reemplazan por un archivo de instrucciones y un prompt por etapa. No son frases mágicas: son <b>especificaciones</b> (<i>specifications</i>), escritas para que un asistente las cumpla y para que una persona pueda comprobar que se cumplieron. Cómo escribir prompts profesionales para una aplicación con un modelo de lenguaje, con su evaluación y su seguridad, está en <a href="https://aaramirez.github.io/aplicaciones-con-ia/temario.html" target="_blank" rel="noopener">Aplicaciones con IA</a>; aquí el modelo es uno propio, y lo que importa es la reproducibilidad, el registro, el monitoreo y el reentrenamiento.</p></div><div class="lab" id="10-lab-1"><div class="lab-title"><span class="tag">Laboratorio</span><h3>El servicio del prompt corto y el del prompt completo</h3></div><p class="hint">El mismo modelo de mora, servido por los dos servicios. Elige una situación (una petición normal, columnas en otro orden, un campo con otro nombre, un valor imposible, un mes de deriva, un modelo que no carga) y mira qué responde cada uno, con su código HTTP y lo que queda en el registro. Pulsa «Correr todas» para ver el marcador.</p><style>
 [id="10-lab-1"] .c10l1-g{display:grid;gap:4px}
 [id="10-lab-1"] .c10l1-g>span{font:700 .72rem var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 [id="10-lab-1"] .c10l1-pet{font:500 .78rem/1.4 var(--f-mono);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
@@ -106,92 +106,92 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div class="c10l1-g"><span>Lo que llega al servicio</span><div class="c10l1-pet" id="c10l1-pet"></div></div>
 <div class="c10l1-par" id="c10l1-par" aria-live="polite"></div>
 <div class="readout texto" id="c10l1-out" aria-live="polite"></div></div></section>
-<section><h2>El archivo de instrucciones del proyecto de ML</h2><div class="prose"><p>Antes de los prompts va un archivo que el asistente lee en cada conversación. Cada herramienta tiene su convención (<code>AGENTS.md</code>, <code>CLAUDE.md</code>, las reglas del editor); el contenido es lo que importa. El método general para escribirlo está en <a href="https://aaramirez.github.io/desarrollo-de-aplicaciones/temario.html" target="_blank" rel="noopener">Ingeniería de software</a>. Aquí va lo propio de un proyecto de aprendizaje automático: dónde están los datos, cómo se registra un modelo, qué comandos prueban que algo funciona y qué no se hace nunca.</p></div><div class="analogia"><b>Imagínalo así</b><p>En un laboratorio de análisis clínicos hay un manual en la pared: dónde se guardan las muestras, cómo se rotulan, qué equipo se calibra cada mañana y qué resultado no sale sin la firma de un responsable. Nadie lo recita cada día, pero todos lo siguen, y un auditor puede revisar que se cumplió.</p></div><div class="prose"><div class="code-copia"><pre><code># Modelo de mora: instrucciones para asistentes de código
-
-## Estructura
-- datos/: solo lectura. Los datos se versionan con DVC; nunca se editan a mano.
-- entrenamiento/: el pipeline (validar -&gt; entrenar -&gt; evaluar -&gt; registrar).
-- servicio/: la API de predicción. No importa nada de entrenamiento/ salvo
-  variables/, que es compartido.
-- variables/: única definición de cada variable. El entrenamiento y el servicio
-  la usan igual.
-
-## Registro de modelos
-- Seguimiento y registro con MLflow (variable MLFLOW_TRACKING_URI).
-- El modelo se llama "mora-30d". El servicio carga siempre models:/mora-30d@campeon,
-  nunca un archivo suelto ni un número de versión escrito en el código.
-- Mover el alias campeon lo hace una persona, nunca un script del asistente.
-
-## Esquema
-- servicio/esquema.py es la fuente del contrato: nombres, tipos y rangos.
-  Un cambio de esquema es una versión mayor del servicio.
-
-## Comandos
-- Pruebas: python -m pytest -q
-- Pipeline completo con datos de muestra: python -m entrenamiento.pipeline --muestra
-- Validación de datos: python -m entrenamiento.validar datos/actual.parquet
-
-## Reglas
-- Toda aleatoriedad usa la semilla de config.yml.
-- Ningún dato personal en registros ni en artefactos (el cliente va como id).
-- No se agregan dependencias sin fijar su versión en requirements.txt.
-
-## Terminado significa
-- Pruebas en verde, pipeline de muestra corriendo de punta a punta y el modelo
-  nuevo registrado con sus métricas, sin moverle el alias.</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Tres detalles hacen que funcione. Las reglas se pueden verificar: «carga <code>models:/mora-30d@campeon</code>» se revisa con una búsqueda; «usa buenas prácticas» no. Los comandos están completos, así que el asistente los corre en lugar de suponer. Y hay una frontera explícita entre lo que hace el asistente y lo que hace una persona: registrar un modelo sí, moverle el alias no.</p></div></section>
-<section><h2>Prompt para el pipeline de entrenamiento</h2><div class="analogia"><b>Imagínalo así</b><p>Una receta de panadería industrial no dice «harina a gusto». Dice qué harina, de qué lote, cuántos gramos, a qué temperatura y cuánto tiempo, y cada tanda queda anotada. Si un día el pan sale distinto, se compara la planilla de ese día con la de ayer.</p></div><div class="prose"><p>El capítulo 3 convirtió el cuaderno en un pipeline. El prompt pide exactamente eso, con números y con pruebas:</p><div class="code-copia"><pre><code>Contexto: proyecto descrito en el archivo de instrucciones. Python 3.12,
-scikit-learn y MLflow con las versiones de requirements.txt.
-
-Construye entrenamiento/pipeline.py con cinco pasos en funciones separadas:
-1. cargar(version_datos): lee la versión de datos indicada (etiqueta de DVC)
-   y registra su huella (hash) como parámetro del experimento.
-2. validar(df): rechaza la tabla y detiene el pipeline si falta una columna,
-   si un tipo no coincide, si más del 2 % de una columna es nulo, si un valor
-   cae fuera del rango de servicio/esquema.py o si aparece gestion_cobranza,
-   que se registra después del vencimiento. El reporte dice qué falló.
-3. entrenar(df, semilla): toda aleatoriedad (partición, modelo) usa la semilla
-   de config.yml. La partición es por fecha: entrena con los meses anteriores
-   y prueba con el último, nunca al azar.
-4. evaluar(modelo, prueba): AUC, precisión y exhaustividad con el umbral de
-   config.yml, y la misma métrica por tramo de antigüedad.
-5. registrar(...): un experimento de MLflow con parámetros, métricas, versión
-   de datos, commit de Git y la firma de entrada. Solo si el AUC de prueba
-   es al menos 0,75 registra el modelo como "mora-30d" con la etiqueta de su
-   versión de datos. No mueve el alias.
-
-Pruebas que debes escribir:
-- dos corridas con la misma semilla y los mismos datos -&gt; mismas métricas
-- una tabla sin la columna dias_atraso_prom_6m -&gt; validar falla con un
-  mensaje que la nombra
-- una tabla con fechas mezcladas -&gt; la prueba nunca contiene meses anteriores
-  a los de entrenamiento</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Los requisitos responden a fallas concretas del curso. La huella de los datos y el commit permiten el linaje del capítulo 2. La partición por fecha y la variable prohibida atacan la <b>fuga de datos</b> (<i>data leakage</i>) del capítulo 1: <code>gestion_cobranza</code> le hizo prometer al cuaderno un AUC de 0,86 que en producción no existía, y una partición al azar puede hacer algo parecido, porque el modelo se prueba con meses que «ya vio». La métrica por tramo detecta un modelo que mejora el promedio y empeora para los clientes nuevos. Y la prohibición de mover el alias deja la decisión de producción en manos de una persona, como en el capítulo 8.</p></div></section>
-<section><h2>Prompt para servir el modelo</h2><div class="analogia"><b>Imagínalo así</b><p>En la ventanilla de un banco, el cajero no acepta un cheque con la fecha en blanco o con la cifra en letras distinta de la cifra en números: lo devuelve y dice por qué. Y cada operación que acepta queda anotada con su número, su hora y quién la atendió.</p></div><div class="prose"><p>Esta es la pieza que falló en la historia del principio. El capítulo 5 explicó cómo servir; el prompt fija el contrato:</p><div class="code-copia"><pre><code>Construye servicio/app.py con FastAPI: POST /v1/predecir.
-
-Contrato:
-- Entrada: {"cliente_id": str, "antiguedad_meses": int 0..600,
-  "precio_plan": float 1..500, "metodo_pago": "debito" | "tarjeta" |
-  "efectivo" | "transferencia" | "billetera", "dias_atraso_prom_6m": float
-  0..365, "facturas_tarde_12m": int 0..12, "reclamos_90d": int 0..50,
-  "bajo_plan_3m": 0 | 1, "pago_parcial_3m": 0 | 1}. Campos por nombre,
-  nunca una lista posicional. Campos extra o faltantes, tipos o rangos inválidos -&gt; 422 con
-  {"error": {"code", "message", "campo"}}.
-- Salida 200: {"prob_mora": float, "umbral": 0.30, "en_lista": bool,
-  "version_modelo": str, "prediccion_id": str}.
-
-Requisitos:
-1. Al arrancar carga models:/mora-30d@campeon. Si no puede, el proceso no
-   queda sirviendo: /salud responde 503 y el despliegue lo detecta.
-2. Las variables se calculan con variables/, el mismo código del entrenamiento.
-3. Tiempo límite de 300 ms por predicción; si se supera, 503 con el sobre de
-   error. Nunca un 500 con la traza de la excepción.
-4. Registra cada predicción: prediccion_id, hora, versión del modelo, entradas
-   (sin datos personales), probabilidad y latencia. Ese registro alimenta el
-   monitoreo y se une después con la mora real.
-5. GET /salud y GET /version (nombre, versión del modelo, commit del servicio).
-
-Pruebas: una por fila del contrato (campo extra, campo faltante, tipo, cada
-rango), el modelo que no carga -&gt; /salud 503, y una predicción cuya respuesta
-trae la misma versión que quedó en el registro.</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Mira dónde se concentra el valor. «Campos por nombre, nunca una lista posicional» elimina de raíz el error de las columnas cambiadas. Los rangos convierten un <code>-5</code> en un 422 con el nombre del campo, en lugar de una probabilidad inventada. La lista cerrada de <code>metodo_pago</code> obliga a decidir de antemano qué pasa con un método nuevo, como la billetera del capítulo 1: aquí se acepta porque el negocio la ofrece, aunque el modelo no la haya visto al entrenar, y el monitoreo cuenta cuánto crece. La versión en cada respuesta y en el registro es el linaje del capítulo 2 llevado a cada predicción. Y el registro de predicciones es la materia prima del monitoreo: sin él no hay deriva que medir.</p></div><figure class="fig fig-flujo" id="10-diagrama-2"><div class="lienzo"><svg viewBox="0 0 980 470" style="min-width:780px" role="img" aria-label="Diagrama de secuencia de una predicción en el servicio completo: cobranza envía los campos por nombre, el validador revisa nombres, tipos y rangos y devuelve 422 si algo falla, el modelo calcula la probabilidad, el servicio registra la predicción con su versión y cobranza recibe la probabilidad, la decisión y la versión">
+<section><h2>El archivo de instrucciones del proyecto de ML</h2><div class="prose"><p>Antes de los prompts va un archivo que el asistente lee en cada conversación. Cada herramienta tiene su convención (<code>AGENTS.md</code>, <code>CLAUDE.md</code>, las reglas del editor); el contenido es lo que importa. El método general para escribirlo está en <a href="https://aaramirez.github.io/desarrollo-de-aplicaciones/temario.html" target="_blank" rel="noopener">Ingeniería de software</a>. Aquí va lo propio de un proyecto de aprendizaje automático: dónde están los datos, cómo se registra un modelo, qué comandos prueban que algo funciona y qué no se hace nunca.</p></div><div class="analogia"><b>Imagínalo así</b><p>En un laboratorio de análisis clínicos hay un manual en la pared: dónde se guardan las muestras, cómo se rotulan, qué equipo se calibra cada mañana y qué resultado no sale sin la firma de un responsable. Nadie lo recita cada día, pero todos lo siguen, y un auditor puede revisar que se cumplió.</p></div><div class="prose"><div class="code-copia code-lineas"><pre><code><span class="ln"># Modelo de mora: instrucciones para asistentes de código</span>
+<span class="ln"></span>
+<span class="ln">## Estructura</span>
+<span class="ln">- datos/: solo lectura. Los datos se versionan con DVC; nunca se editan a mano.</span>
+<span class="ln">- entrenamiento/: el pipeline (validar -&gt; entrenar -&gt; evaluar -&gt; registrar).</span>
+<span class="ln">- servicio/: la API de predicción. No importa nada de entrenamiento/ salvo</span>
+<span class="ln">  variables/, que es compartido.</span>
+<span class="ln">- variables/: única definición de cada variable. El entrenamiento y el servicio</span>
+<span class="ln">  la usan igual.</span>
+<span class="ln"></span>
+<span class="ln">## Registro de modelos</span>
+<span class="ln">- Seguimiento y registro con MLflow (variable MLFLOW_TRACKING_URI).</span>
+<span class="ln">- El modelo se llama "mora-30d". El servicio carga siempre models:/mora-30d@campeon,</span>
+<span class="ln">  nunca un archivo suelto ni un número de versión escrito en el código.</span>
+<span class="ln">- Mover el alias campeon lo hace una persona, nunca un script del asistente.</span>
+<span class="ln"></span>
+<span class="ln">## Esquema</span>
+<span class="ln">- servicio/esquema.py es la fuente del contrato: nombres, tipos y rangos.</span>
+<span class="ln">  Un cambio de esquema es una versión mayor del servicio.</span>
+<span class="ln"></span>
+<span class="ln">## Comandos</span>
+<span class="ln">- Pruebas: python -m pytest -q</span>
+<span class="ln">- Pipeline completo con datos de muestra: python -m entrenamiento.pipeline --muestra</span>
+<span class="ln">- Validación de datos: python -m entrenamiento.validar datos/actual.parquet</span>
+<span class="ln"></span>
+<span class="ln">## Reglas</span>
+<span class="ln">- Toda aleatoriedad usa la semilla de config.yml.</span>
+<span class="ln">- Ningún dato personal en registros ni en artefactos (el cliente va como id).</span>
+<span class="ln">- No se agregan dependencias sin fijar su versión en requirements.txt.</span>
+<span class="ln"></span>
+<span class="ln">## Terminado significa</span>
+<span class="ln">- Pruebas en verde, pipeline de muestra corriendo de punta a punta y el modelo</span>
+<span class="ln">  nuevo registrado con sus métricas, sin moverle el alias.</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Tres detalles hacen que funcione. Las reglas se pueden verificar: «carga <code>models:/mora-30d@campeon</code>» se revisa con una búsqueda; «usa buenas prácticas» no. Los comandos están completos, así que el asistente los corre en lugar de suponer. Y hay una frontera explícita entre lo que hace el asistente y lo que hace una persona: registrar un modelo sí, moverle el alias no.</p></div></section>
+<section><h2>Prompt para el pipeline de entrenamiento</h2><div class="analogia"><b>Imagínalo así</b><p>Una receta de panadería industrial no dice «harina a gusto». Dice qué harina, de qué lote, cuántos gramos, a qué temperatura y cuánto tiempo, y cada tanda queda anotada. Si un día el pan sale distinto, se compara la planilla de ese día con la de ayer.</p></div><div class="prose"><p>El capítulo 3 convirtió el cuaderno en un pipeline. El prompt pide exactamente eso, con números y con pruebas:</p><div class="code-copia code-lineas"><pre><code><span class="ln">Contexto: proyecto descrito en el archivo de instrucciones. Python 3.12,</span>
+<span class="ln">scikit-learn y MLflow con las versiones de requirements.txt.</span>
+<span class="ln"></span>
+<span class="ln">Construye entrenamiento/pipeline.py con cinco pasos en funciones separadas:</span>
+<span class="ln">1. cargar(version_datos): lee la versión de datos indicada (etiqueta de DVC)</span>
+<span class="ln">   y registra su huella (hash) como parámetro del experimento.</span>
+<span class="ln">2. validar(df): rechaza la tabla y detiene el pipeline si falta una columna,</span>
+<span class="ln">   si un tipo no coincide, si más del 2 % de una columna es nulo, si un valor</span>
+<span class="ln">   cae fuera del rango de servicio/esquema.py o si aparece gestion_cobranza,</span>
+<span class="ln">   que se registra después del vencimiento. El reporte dice qué falló.</span>
+<span class="ln">3. entrenar(df, semilla): toda aleatoriedad (partición, modelo) usa la semilla</span>
+<span class="ln">   de config.yml. La partición es por fecha: entrena con los meses anteriores</span>
+<span class="ln">   y prueba con el último, nunca al azar.</span>
+<span class="ln">4. evaluar(modelo, prueba): AUC, precisión y exhaustividad con el umbral de</span>
+<span class="ln">   config.yml, y la misma métrica por tramo de antigüedad.</span>
+<span class="ln">5. registrar(...): un experimento de MLflow con parámetros, métricas, versión</span>
+<span class="ln">   de datos, commit de Git y la firma de entrada. Solo si el AUC de prueba</span>
+<span class="ln">   es al menos 0,75 registra el modelo como "mora-30d" con la etiqueta de su</span>
+<span class="ln">   versión de datos. No mueve el alias.</span>
+<span class="ln"></span>
+<span class="ln">Pruebas que debes escribir:</span>
+<span class="ln">- dos corridas con la misma semilla y los mismos datos -&gt; mismas métricas</span>
+<span class="ln">- una tabla sin la columna dias_atraso_prom_6m -&gt; validar falla con un</span>
+<span class="ln">  mensaje que la nombra</span>
+<span class="ln">- una tabla con fechas mezcladas -&gt; la prueba nunca contiene meses anteriores</span>
+<span class="ln">  a los de entrenamiento</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Los requisitos responden a fallas concretas del curso. La huella de los datos y el commit permiten el linaje del capítulo 2. La partición por fecha y la variable prohibida atacan la <b>fuga de datos</b> (<i>data leakage</i>) del capítulo 1: <code>gestion_cobranza</code> le hizo prometer al cuaderno un AUC de 0,86 que en producción no existía, y una partición al azar puede hacer algo parecido, porque el modelo se prueba con meses que «ya vio». La métrica por tramo detecta un modelo que mejora el promedio y empeora para los clientes nuevos. Y la prohibición de mover el alias deja la decisión de producción en manos de una persona, como en el capítulo 8.</p></div></section>
+<section><h2>Prompt para servir el modelo</h2><div class="analogia"><b>Imagínalo así</b><p>En la ventanilla de un banco, el cajero no acepta un cheque con la fecha en blanco o con la cifra en letras distinta de la cifra en números: lo devuelve y dice por qué. Y cada operación que acepta queda anotada con su número, su hora y quién la atendió.</p></div><div class="prose"><p>Esta es la pieza que falló en la historia del principio. El capítulo 5 explicó cómo servir; el prompt fija el contrato:</p><div class="code-copia code-lineas"><pre><code><span class="ln">Construye servicio/app.py con FastAPI: POST /v1/predecir.</span>
+<span class="ln"></span>
+<span class="ln">Contrato:</span>
+<span class="ln">- Entrada: {"cliente_id": str, "antiguedad_meses": int 0..600,</span>
+<span class="ln">  "precio_plan": float 1..500, "metodo_pago": "debito" | "tarjeta" |</span>
+<span class="ln">  "efectivo" | "transferencia" | "billetera", "dias_atraso_prom_6m": float</span>
+<span class="ln">  0..365, "facturas_tarde_12m": int 0..12, "reclamos_90d": int 0..50,</span>
+<span class="ln">  "bajo_plan_3m": 0 | 1, "pago_parcial_3m": 0 | 1}. Campos por nombre,</span>
+<span class="ln">  nunca una lista posicional. Campos extra o faltantes, tipos o rangos inválidos -&gt; 422 con</span>
+<span class="ln">  {"error": {"code", "message", "campo"}}.</span>
+<span class="ln">- Salida 200: {"prob_mora": float, "umbral": 0.30, "en_lista": bool,</span>
+<span class="ln">  "version_modelo": str, "prediccion_id": str}.</span>
+<span class="ln"></span>
+<span class="ln">Requisitos:</span>
+<span class="ln">1. Al arrancar carga models:/mora-30d@campeon. Si no puede, el proceso no</span>
+<span class="ln">   queda sirviendo: /salud responde 503 y el despliegue lo detecta.</span>
+<span class="ln">2. Las variables se calculan con variables/, el mismo código del entrenamiento.</span>
+<span class="ln">3. Tiempo límite de 300 ms por predicción; si se supera, 503 con el sobre de</span>
+<span class="ln">   error. Nunca un 500 con la traza de la excepción.</span>
+<span class="ln">4. Registra cada predicción: prediccion_id, hora, versión del modelo, entradas</span>
+<span class="ln">   (sin datos personales), probabilidad y latencia. Ese registro alimenta el</span>
+<span class="ln">   monitoreo y se une después con la mora real.</span>
+<span class="ln">5. GET /salud y GET /version (nombre, versión del modelo, commit del servicio).</span>
+<span class="ln"></span>
+<span class="ln">Pruebas: una por fila del contrato (campo extra, campo faltante, tipo, cada</span>
+<span class="ln">rango), el modelo que no carga -&gt; /salud 503, y una predicción cuya respuesta</span>
+<span class="ln">trae la misma versión que quedó en el registro.</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Mira dónde se concentra el valor. «Campos por nombre, nunca una lista posicional» elimina de raíz el error de las columnas cambiadas. Los rangos convierten un <code>-5</code> en un 422 con el nombre del campo, en lugar de una probabilidad inventada. La lista cerrada de <code>metodo_pago</code> obliga a decidir de antemano qué pasa con un método nuevo, como la billetera del capítulo 1: aquí se acepta porque el negocio la ofrece, aunque el modelo no la haya visto al entrenar, y el monitoreo cuenta cuánto crece. La versión en cada respuesta y en el registro es el linaje del capítulo 2 llevado a cada predicción. Y el registro de predicciones es la materia prima del monitoreo: sin él no hay deriva que medir.</p></div><figure class="fig fig-flujo" id="10-diagrama-2"><div class="lienzo"><svg viewBox="0 0 980 470" style="min-width:780px" role="img" aria-label="Diagrama de secuencia de una predicción en el servicio completo: cobranza envía los campos por nombre, el validador revisa nombres, tipos y rangos y devuelve 422 si algo falla, el modelo calcula la probabilidad, el servicio registra la predicción con su versión y cobranza recibe la probabilidad, la decisión y la versión">
 <defs>
 <marker id="c10d2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
 <marker id="c10d2-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="k-red"/></marker>
@@ -247,44 +247,44 @@ trae la misma versión que quedó en el registro.</code></pre><button type="butt
 <text x="862" y="410" class="t t-s t-m">límite total:</text>
 <text x="862" y="426" class="t t-s t-b">300 ms</text>
 </svg></div><figcaption><b>Una predicción en el servicio completo.</b> Participantes: el CRM, el servicio, el validador del esquema, el modelo cargado desde el registro y el registro de predicciones. ① El CRM envía los campos por nombre; ② el validador revisa nombres, tipos y rangos, y si algo falla, ③ vuelve un 422 que nombra el campo; ④ con la entrada válida, el modelo calcula la probabilidad; ⑤ el servicio escribe la predicción con su versión; ⑥ el CRM recibe la probabilidad, si el cliente entra a la lista y la versión del modelo. A la derecha, las fases: validar, predecir y registrar, con su presupuesto de tiempo.</figcaption></figure></section>
-<section><h2>Prompt para el despliegue: <i>shadow</i>, canario y reversión</h2><div class="analogia"><b>Imagínalo así</b><p>Un piloto nuevo vuela primero en el simulador, después de copiloto con un capitán al lado y recién entonces al mando, en rutas cortas. Y siempre hay un procedimiento escrito para devolver el control si algo sale mal.</p></div><div class="prose"><p>El capítulo 6 enseñó a cambiar el modelo sin apostarlo todo. El prompt pide la infraestructura que lo hace posible y, sobre todo, las condiciones escritas para avanzar y para volver:</p><div class="code-copia"><pre><code>Agrega al servicio el despliegue progresivo de una versión retadora.
-
-1. Modo sombra: si la variable RETADOR está definida, el servicio carga
-   también models:/mora-30d@retador, calcula su predicción para cada petición
-   y la registra con su versión, pero responde solo con la del campeón.
-   La sombra no puede sumar más de 50 ms a la latencia: si tarda, se omite.
-2. Canario: la variable PORCENTAJE_CANARIO (0 a 100) decide qué parte de las
-   peticiones responde el retador. El reparto es por cliente_id (hash), para
-   que un mismo cliente vea siempre la misma versión.
-3. Reversión: poner PORCENTAJE_CANARIO=0 vuelve todo al campeón sin desplegar
-   ni reiniciar. Documenta el comando exacto en el README.
-4. Condiciones automáticas de reversión, evaluadas cada 15 minutos:
-   latencia p95 del retador &gt; 1,5 veces la del campeón, tasa de errores &gt; 1 %
-   o diferencia en el porcentaje de clientes en la lista &gt; 5 puntos. Si se cumple una,
-   el canario vuelve a 0 y se avisa al canal del equipo.
-Pruebas: el mismo cliente_id cae siempre del mismo lado; con 0 % nadie recibe
-al retador; una sombra lenta no cambia la latencia del campeón.</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>El reparto por cliente evita que un agente vea al mismo cliente marcado en riesgo un día y no al siguiente, solo porque cayó en otra versión. Las condiciones de reversión escritas antes de empezar son la diferencia entre un canario y una esperanza: sin números, el equipo discute en medio del incidente si «está peor o es ruido». La integración continua que construye y prueba la imagen del servicio es la de <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>; aquí se pide lo propio del modelo.</p></div></section>
-<section><h2>Prompt para el monitoreo: deriva, alertas y reentrenamiento</h2><div class="analogia"><b>Imagínalo así</b><p>Un médico no espera a que el paciente se desmaye para tomarle la presión. La toma en cada control, la compara con la de la vez anterior y tiene un número a partir del cual pide más exámenes. Y no llama a urgencias por cada décima de diferencia.</p></div><div class="prose"><p>El capítulo 7 midió la deriva y el 8 decidió cuándo reentrenar. El prompt los convierte en un trabajo programado con umbrales:</p><div class="code-copia"><pre><code>Construye monitoreo/deriva.py, que corre cada día a las 6:00 sobre el
-registro de predicciones de las últimas 24 horas.
-
-1. Referencia: la distribución de cada variable en los datos de entrenamiento
-   del modelo con el alias campeon (guárdala al registrar el modelo, con
-   10 tramos por cuantiles).
-2. Deriva de datos: PSI por variable (para metodo_pago, sobre la proporción
-   de cada categoría). Umbrales: &lt; 0,1 estable; 0,1 a 0,2
-   vigilar; &gt; 0,2 alerta. Con menos de 500 predicciones no calcula: lo dice.
-3. Deriva de predicciones: PSI de la probabilidad y porcentaje de clientes
-   en la lista del día frente a la media de las 4 semanas anteriores.
-4. Desempeño: cuando llega la mora real (45 días después de emitida la
-   factura), une por prediccion_id y calcula el AUC por semana.
-5. Alertas: una alerta solo si el umbral se supera dos días seguidos, con la
-   variable, el valor, el gráfico y el enlace al tablero. Agrupa en un solo
-   mensaje las variables que saltan el mismo día.
-6. Reentrenamiento: si el AUC semanal cae bajo 0,75 o hay alerta de deriva
-   7 días seguidos, abre una tarea de reentrenamiento con el reporte. No
-   reentrena ni despliega solo.
-Pruebas: una variable desplazada medio desvío -&gt; PSI &gt; 0,2 dos días -&gt; una
-alerta; datos iguales a la referencia -&gt; ninguna; 300 predicciones -&gt; no calcula.</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Fíjate en dos decisiones. La regla de «dos días seguidos» y el agrupamiento son la diferencia entre alertas que sirven y alertas que cansan, el tema del capítulo 7: un equipo que recibe diez mensajes por la mañana deja de leerlos. Y el último requisito no deja que el sistema se reentrene y se despliegue solo: abre una tarea con el reporte, y la decisión pasa por el campeón contra retador del capítulo 8. Para un modelo que decide a quién llama Cobranzas, la aprobación humana es parte del gobierno, como explica <a href="https://aaramirez.github.io/ia-responsable/temario.html" target="_blank" rel="noopener">IA responsable</a>.</p></div></section>
+<section><h2>Prompt para el despliegue: <i>shadow</i>, canario y reversión</h2><div class="analogia"><b>Imagínalo así</b><p>Un piloto nuevo vuela primero en el simulador, después de copiloto con un capitán al lado y recién entonces al mando, en rutas cortas. Y siempre hay un procedimiento escrito para devolver el control si algo sale mal.</p></div><div class="prose"><p>El capítulo 6 enseñó a cambiar el modelo sin apostarlo todo. El prompt pide la infraestructura que lo hace posible y, sobre todo, las condiciones escritas para avanzar y para volver:</p><div class="code-copia code-lineas"><pre><code><span class="ln">Agrega al servicio el despliegue progresivo de una versión retadora.</span>
+<span class="ln"></span>
+<span class="ln">1. Modo sombra: si la variable RETADOR está definida, el servicio carga</span>
+<span class="ln">   también models:/mora-30d@retador, calcula su predicción para cada petición</span>
+<span class="ln">   y la registra con su versión, pero responde solo con la del campeón.</span>
+<span class="ln">   La sombra no puede sumar más de 50 ms a la latencia: si tarda, se omite.</span>
+<span class="ln">2. Canario: la variable PORCENTAJE_CANARIO (0 a 100) decide qué parte de las</span>
+<span class="ln">   peticiones responde el retador. El reparto es por cliente_id (hash), para</span>
+<span class="ln">   que un mismo cliente vea siempre la misma versión.</span>
+<span class="ln">3. Reversión: poner PORCENTAJE_CANARIO=0 vuelve todo al campeón sin desplegar</span>
+<span class="ln">   ni reiniciar. Documenta el comando exacto en el README.</span>
+<span class="ln">4. Condiciones automáticas de reversión, evaluadas cada 15 minutos:</span>
+<span class="ln">   latencia p95 del retador &gt; 1,5 veces la del campeón, tasa de errores &gt; 1 %</span>
+<span class="ln">   o diferencia en el porcentaje de clientes en la lista &gt; 5 puntos. Si se cumple una,</span>
+<span class="ln">   el canario vuelve a 0 y se avisa al canal del equipo.</span>
+<span class="ln">Pruebas: el mismo cliente_id cae siempre del mismo lado; con 0 % nadie recibe</span>
+<span class="ln">al retador; una sombra lenta no cambia la latencia del campeón.</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>El reparto por cliente evita que un agente vea al mismo cliente marcado en riesgo un día y no al siguiente, solo porque cayó en otra versión. Las condiciones de reversión escritas antes de empezar son la diferencia entre un canario y una esperanza: sin números, el equipo discute en medio del incidente si «está peor o es ruido». La integración continua que construye y prueba la imagen del servicio es la de <a href="https://aaramirez.github.io/devops/temario.html" target="_blank" rel="noopener">DevOps</a>; aquí se pide lo propio del modelo.</p></div></section>
+<section><h2>Prompt para el monitoreo: deriva, alertas y reentrenamiento</h2><div class="analogia"><b>Imagínalo así</b><p>Un médico no espera a que el paciente se desmaye para tomarle la presión. La toma en cada control, la compara con la de la vez anterior y tiene un número a partir del cual pide más exámenes. Y no llama a urgencias por cada décima de diferencia.</p></div><div class="prose"><p>El capítulo 7 midió la deriva y el 8 decidió cuándo reentrenar. El prompt los convierte en un trabajo programado con umbrales:</p><div class="code-copia code-lineas"><pre><code><span class="ln">Construye monitoreo/deriva.py, que corre cada día a las 6:00 sobre el</span>
+<span class="ln">registro de predicciones de las últimas 24 horas.</span>
+<span class="ln"></span>
+<span class="ln">1. Referencia: la distribución de cada variable en los datos de entrenamiento</span>
+<span class="ln">   del modelo con el alias campeon (guárdala al registrar el modelo, con</span>
+<span class="ln">   10 tramos por cuantiles).</span>
+<span class="ln">2. Deriva de datos: PSI por variable (para metodo_pago, sobre la proporción</span>
+<span class="ln">   de cada categoría). Umbrales: &lt; 0,1 estable; 0,1 a 0,2</span>
+<span class="ln">   vigilar; &gt; 0,2 alerta. Con menos de 500 predicciones no calcula: lo dice.</span>
+<span class="ln">3. Deriva de predicciones: PSI de la probabilidad y porcentaje de clientes</span>
+<span class="ln">   en la lista del día frente a la media de las 4 semanas anteriores.</span>
+<span class="ln">4. Desempeño: cuando llega la mora real (45 días después de emitida la</span>
+<span class="ln">   factura), une por prediccion_id y calcula el AUC por semana.</span>
+<span class="ln">5. Alertas: una alerta solo si el umbral se supera dos días seguidos, con la</span>
+<span class="ln">   variable, el valor, el gráfico y el enlace al tablero. Agrupa en un solo</span>
+<span class="ln">   mensaje las variables que saltan el mismo día.</span>
+<span class="ln">6. Reentrenamiento: si el AUC semanal cae bajo 0,75 o hay alerta de deriva</span>
+<span class="ln">   7 días seguidos, abre una tarea de reentrenamiento con el reporte. No</span>
+<span class="ln">   reentrena ni despliega solo.</span>
+<span class="ln">Pruebas: una variable desplazada medio desvío -&gt; PSI &gt; 0,2 dos días -&gt; una</span>
+<span class="ln">alerta; datos iguales a la referencia -&gt; ninguna; 300 predicciones -&gt; no calcula.</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Fíjate en dos decisiones. La regla de «dos días seguidos» y el agrupamiento son la diferencia entre alertas que sirven y alertas que cansan, el tema del capítulo 7: un equipo que recibe diez mensajes por la mañana deja de leerlos. Y el último requisito no deja que el sistema se reentrene y se despliegue solo: abre una tarea con el reporte, y la decisión pasa por el campeón contra retador del capítulo 8. Para un modelo que decide a quién llama Cobranzas, la aprobación humana es parte del gobierno, como explica <a href="https://aaramirez.github.io/ia-responsable/temario.html" target="_blank" rel="noopener">IA responsable</a>.</p></div></section>
 <section><h2>Revisar lo generado: la lista de verificación antes de producción</h2><div class="prose"><p>Un prompt completo sube mucho la probabilidad de recibir lo que pediste, pero no la lleva a uno. El asistente puede cumplir nueve requisitos y saltarse el décimo con la misma seguridad, o escribir una prueba que no prueba nada. Por eso lo generado se revisa con una lista, y cada punto tiene una forma de comprobarlo que no depende de leer todo el código.</p></div><figure class="fig fig-esquema" id="10-diagrama-3"><div class="lienzo"><svg viewBox="0 0 940 440" style="min-width:740px" role="img" aria-label="Esquema del prompt a la evidencia: para cada etapa del ciclo, el requisito central del prompt, la prueba que lo comprueba y la evidencia que debe quedar">
 <defs>
 <marker id="c10d3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
@@ -375,85 +375,85 @@ alerta; datos iguales a la referencia -&gt; ninguna; 300 predicciones -&gt; no c
 <div class="legend"><span><i style="background:var(--good)"></i>Detectado antes de producción o en días</span><span><i style="background:var(--accent)"></i>Detectado tarde, por el desempeño</span><span><i style="background:var(--warm)"></i>Lo nota el negocio</span></div>
 <div class="c10l2-inc" id="c10l2-inc" aria-label="Incidentes del año"></div>
 <div class="c10l2-tar" id="c10l2-tar" aria-live="polite"></div>
-<div class="readout texto" id="c10l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Pide el servicio con el prompt del capítulo y envíale peticiones mal formadas</h3></div><p>Vas a generar con un asistente de código el servicio del modelo de mora y a probarlo con un programa que no sabe cómo está escrito: solo conoce el contrato. Sirve cualquier asistente; sin cuenta, puedes usar un modelo de código local en Ollama. Trabaja en la carpeta <code>mora-30d</code> del capítulo 1, con su entorno activado: instala lo que falta para servir y genera los datos del mes 0 y del mes 9.</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install fastapi uvicorn joblib</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python generar_datos.py --meses 0 9</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Primero, el modelo y su referencia. Guarda este programa como <code>preparar.py</code> y córrelo con <code>python preparar.py</code>: entrena con el mes 0, como el cuaderno honesto, y deja <code>modelo.joblib</code> y <code>referencia.json</code> con la distribución de cada variable en el entrenamiento.</p><div class="code-copia"><pre><code>"""Entrena el modelo con el mes 0 y guarda la referencia para medir la deriva."""
-import json
-import joblib
-import numpy as np
-import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
-NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",
-             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
-m0 = pd.read_csv("datos/clientes-m00.csv")
-prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),
-                          ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])
-modelo = make_pipeline(prep, LogisticRegression(max_iter=1000)).fit(m0, m0.mora_30d)
-joblib.dump({"modelo": modelo, "version": "4", "columnas": NUMERICAS + ["metodo_pago"]},
-            "modelo.joblib")
-
-referencia = {}
-for c in ["metodo_pago", "precio_plan"]:   # pocas opciones: proporción de cada valor
-    referencia[c] = {"categorias": {str(k): v for k, v in m0[c].value_counts(normalize=True).items()}}
-for c in [c for c in NUMERICAS if c != "precio_plan"]:   # 10 tramos por cuantiles
-    cortes = sorted(set(np.quantile(m0[c], np.linspace(0, 1, 11)[1:-1]).tolist()))
-    tramos = np.searchsorted(cortes, m0[c], side="right")
-    referencia[c] = {"cortes": cortes,
-                     "proporciones": (np.bincount(tramos, minlength=len(cortes) + 1) / len(m0)).tolist()}
-json.dump(referencia, open("referencia.json", "w"), indent=2)
-print("modelo.joblib y referencia.json listos")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Después, pídele al asistente el servicio: pega el prompt de servir de este capítulo y agrega «el modelo está en <code>modelo.joblib</code> (un diccionario con <code>modelo</code>, un pipeline de scikit-learn que recibe un DataFrame; <code>version</code> y <code>columnas</code>) en lugar del registro; agrega <code>GET /v1/monitoreo/deriva</code>, que calcula el PSI de cada variable de las predicciones registradas contra <code>referencia.json</code> (cortes y proporciones por tramo para las numéricas; proporción de cada valor, como texto, para <code>metodo_pago</code> y <code>precio_plan</code>), y corre en el puerto 8000». Levántalo con <code>uvicorn app:app --port 8000</code> y, en otra terminal con el entorno activado, guarda y corre este programa como <code>peticiones.py</code>:</p><div class="code-copia"><pre><code>"""Prueba el contrato del servicio: peticiones mal formadas y un mes de deriva."""
-import csv, json, urllib.error, urllib.request
-
-BASE = "http://127.0.0.1:8000"
-
-def pedir(ruta, cuerpo=None):
-    datos = json.dumps(cuerpo).encode() if cuerpo is not None else None
-    req = urllib.request.Request(BASE + ruta, data=datos, headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.status, json.load(r)
-    except urllib.error.HTTPError as e:
-        try:
-            return e.code, json.loads(e.read() or b"{}")
-        except ValueError:
-            return e.code, {}
-    except OSError:
-        return 0, {}
-
-BUENA = {"cliente_id": "20417", "antiguedad_meses": 30, "precio_plan": 30.0,
-         "metodo_pago": "efectivo", "dias_atraso_prom_6m": 4.5, "facturas_tarde_12m": 1,
-         "reclamos_90d": 0, "bajo_plan_3m": 0, "pago_parcial_3m": 0}
-SIN_ATRASO = {k: v for k, v in BUENA.items() if k != "dias_atraso_prom_6m"}
-CASOS = [
-    ("normal", BUENA, 200),
-    ("lista posicional", {"cliente_id": "1", "valores": [30, 30.0, "efectivo", 4.5, 1, 0, 0, 0]}, 422),
-    ("campo con otro nombre", {**SIN_ATRASO, "dias_atraso": 4.5}, 422),
-    ("valor imposible", {**BUENA, "dias_atraso_prom_6m": -5}, 422),
-    ("tipo incorrecto", {**BUENA, "antiguedad_meses": "treinta"}, 422),
-    ("campo de más", {**BUENA, "nombre": "Carmen Rojas"}, 422),
-]
-malos = 0
-for nombre, cuerpo, espera in CASOS:
-    codigo, resp = pedir("/v1/predecir", cuerpo)
-    fallas = [] if codigo == espera else [f"código {codigo}, se esperaba {espera}"]
-    if espera == 200 and not resp.get("version_modelo"):
-        fallas.append("la respuesta no trae la versión del modelo")
-    if espera == 422 and "error" not in resp and "detail" not in resp:
-        fallas.append("el error no dice qué campo falló")
-    malos += bool(fallas)
-    print(f"[{'FALLA' if fallas else ' ok  '}] {nombre:22} {'; '.join(fallas)}")
-
-ENTEROS = ["antiguedad_meses", "facturas_tarde_12m", "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]
-with open("datos/clientes-m09.csv", newline="") as f:   # 600 clientes del mes 9
-    for i, fila in zip(range(600), csv.DictReader(f)):
-        cuerpo = {c: (int(fila[c]) if c in ENTEROS else fila[c] if c in ("cliente_id", "metodo_pago")
-                      else float(fila[c])) for c in BUENA}
-        pedir("/v1/predecir", cuerpo)
-codigo, deriva = pedir("/v1/monitoreo/deriva")
-print("\nDeriva:", json.dumps(deriva, ensure_ascii=False) if codigo == 200 else f"sin endpoint (código {codigo})")
-print(f"\n{len(CASOS) - malos} de {len(CASOS)} casos pasan")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><ol class="steps"><li><span>Corre <code>python peticiones.py</code> contra el servicio del prompt completo. Anota qué casos fallan.</span></li><li><span>Abre el registro de predicciones que escribió el servicio (archivo o tabla, según lo que generó) y busca la petición normal: ¿tiene la versión del modelo y el <code>prediccion_id</code> que volvió en la respuesta?</span></li><li><span>Mira la salida de la deriva: qué variables superan 0,2 y cuáles no.</span></li><li><span>Repite con el servicio del prompt corto del principio del capítulo y compara.</span></li></ol><p><b>Qué observar:</b> con el prompt corto suelen fallar casi todos los casos: la respuesta normal no trae la versión, el <code>-5</code> recibe una probabilidad con un 200, los demás errores vuelven como 500 sin decir qué campo falló (o, si el servicio acepta una lista, predice con los valores en cualquier orden) y no hay deriva que consultar porque nada quedó registrado. Con el prompt completo, los errores vuelven como 422 que nombran el campo, cada predicción queda con su versión y la deriva del mes 9 señala <code>precio_plan</code> (el alza de tarifas del mes 7) y <code>metodo_pago</code> (la billetera, que el mes 0 no tenía) muy por encima de 0,2, mientras el resto queda estable. El cambio de relación del mes 6 no aparece en ninguna variable: es deriva de concepto, y solo se ve cuando llega la mora real. El programa de prueba no sabe cómo está escrito el servicio: prueba el contrato, así que sirve igual para la versión de hoy y para la que genere el próximo asistente.</p></div><div class="ml"><b>En la práctica</b><p><b>El servicio de mora, segunda vuelta.</b> Con el archivo de instrucciones y los prompts del capítulo, la primera entrega del asistente pasó casi todo. Falló en dos puntos: calculaba <code>dias_atraso_prom_6m</code> con seis meses de calendario en lugar de importar <code>variables/</code>, que usa los últimos seis pagos (la diferencia entre entrenamiento y servicio de los capítulos 1 y 4, a punto de repetirse), y la prueba del modelo que no carga solo comprobaba que se escribiera un mensaje, no que <code>/salud</code> respondiera 503. Valeria le devolvió al asistente las dos fallas y agregó al archivo de instrucciones una línea: «una variable que existe en <code>variables/</code> nunca se recalcula en otro lugar».</p></div></section>
+<div class="readout texto" id="c10l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Pide el servicio con el prompt del capítulo y envíale peticiones mal formadas</h3></div><p>Vas a generar con un asistente de código el servicio del modelo de mora y a probarlo con un programa que no sabe cómo está escrito: solo conoce el contrato. Sirve cualquier asistente; sin cuenta, puedes usar un modelo de código local en Ollama. Trabaja en la carpeta <code>mora-30d</code> del capítulo 1, con su entorno activado: instala lo que falta para servir y genera los datos del mes 0 y del mes 9.</p><div class="cmds"><div class="cmd-panel" data-so="win mac linux"><div class="cmd-l"><code>pip install fastapi uvicorn joblib</code><button type="button" class="copiar">Copiar</button></div><div class="cmd-l"><code>python generar_datos.py --meses 0 9</code><button type="button" class="copiar">Copiar</button></div></div></div><p>Primero, el modelo y su referencia. Guarda este programa como <code>preparar.py</code> y córrelo con <code>python preparar.py</code>: entrena con el mes 0, como el cuaderno honesto, y deja <code>modelo.joblib</code> y <code>referencia.json</code> con la distribución de cada variable en el entrenamiento.</p><div class="code-copia code-lineas"><pre><code><span class="ln">"""Entrena el modelo con el mes 0 y guarda la referencia para medir la deriva."""</span>
+<span class="ln">import json</span>
+<span class="ln">import joblib</span>
+<span class="ln">import numpy as np</span>
+<span class="ln">import pandas as pd</span>
+<span class="ln">from sklearn.compose import ColumnTransformer</span>
+<span class="ln">from sklearn.linear_model import LogisticRegression</span>
+<span class="ln">from sklearn.pipeline import make_pipeline</span>
+<span class="ln">from sklearn.preprocessing import OneHotEncoder, StandardScaler</span>
+<span class="ln"></span>
+<span class="ln">NUMERICAS = ["antiguedad_meses", "precio_plan", "dias_atraso_prom_6m", "facturas_tarde_12m",</span>
+<span class="ln">             "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]</span>
+<span class="ln">m0 = pd.read_csv("datos/clientes-m00.csv")</span>
+<span class="ln">prep = ColumnTransformer([("num", StandardScaler(), NUMERICAS),</span>
+<span class="ln">                          ("cat", OneHotEncoder(handle_unknown="ignore"), ["metodo_pago"])])</span>
+<span class="ln">modelo = make_pipeline(prep, LogisticRegression(max_iter=1000)).fit(m0, m0.mora_30d)</span>
+<span class="ln">joblib.dump({"modelo": modelo, "version": "4", "columnas": NUMERICAS + ["metodo_pago"]},</span>
+<span class="ln">            "modelo.joblib")</span>
+<span class="ln"></span>
+<span class="ln">referencia = {}</span>
+<span class="ln">for c in ["metodo_pago", "precio_plan"]:   # pocas opciones: proporción de cada valor</span>
+<span class="ln">    referencia[c] = {"categorias": {str(k): v for k, v in m0[c].value_counts(normalize=True).items()}}</span>
+<span class="ln">for c in [c for c in NUMERICAS if c != "precio_plan"]:   # 10 tramos por cuantiles</span>
+<span class="ln">    cortes = sorted(set(np.quantile(m0[c], np.linspace(0, 1, 11)[1:-1]).tolist()))</span>
+<span class="ln">    tramos = np.searchsorted(cortes, m0[c], side="right")</span>
+<span class="ln">    referencia[c] = {"cortes": cortes,</span>
+<span class="ln">                     "proporciones": (np.bincount(tramos, minlength=len(cortes) + 1) / len(m0)).tolist()}</span>
+<span class="ln">json.dump(referencia, open("referencia.json", "w"), indent=2)</span>
+<span class="ln">print("modelo.joblib y referencia.json listos")</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Después, pídele al asistente el servicio: pega el prompt de servir de este capítulo y agrega «el modelo está en <code>modelo.joblib</code> (un diccionario con <code>modelo</code>, un pipeline de scikit-learn que recibe un DataFrame; <code>version</code> y <code>columnas</code>) en lugar del registro; agrega <code>GET /v1/monitoreo/deriva</code>, que calcula el PSI de cada variable de las predicciones registradas contra <code>referencia.json</code> (cortes y proporciones por tramo para las numéricas; proporción de cada valor, como texto, para <code>metodo_pago</code> y <code>precio_plan</code>), y corre en el puerto 8000». Levántalo con <code>uvicorn app:app --port 8000</code> y, en otra terminal con el entorno activado, guarda y corre este programa como <code>peticiones.py</code>:</p><div class="code-copia code-lineas"><pre><code><span class="ln">"""Prueba el contrato del servicio: peticiones mal formadas y un mes de deriva."""</span>
+<span class="ln">import csv, json, urllib.error, urllib.request</span>
+<span class="ln"></span>
+<span class="ln">BASE = "http://127.0.0.1:8000"</span>
+<span class="ln"></span>
+<span class="ln">def pedir(ruta, cuerpo=None):</span>
+<span class="ln">    datos = json.dumps(cuerpo).encode() if cuerpo is not None else None</span>
+<span class="ln">    req = urllib.request.Request(BASE + ruta, data=datos, headers={"Content-Type": "application/json"})</span>
+<span class="ln">    try:</span>
+<span class="ln">        with urllib.request.urlopen(req, timeout=10) as r:</span>
+<span class="ln">            return r.status, json.load(r)</span>
+<span class="ln">    except urllib.error.HTTPError as e:</span>
+<span class="ln">        try:</span>
+<span class="ln">            return e.code, json.loads(e.read() or b"{}")</span>
+<span class="ln">        except ValueError:</span>
+<span class="ln">            return e.code, {}</span>
+<span class="ln">    except OSError:</span>
+<span class="ln">        return 0, {}</span>
+<span class="ln"></span>
+<span class="ln">BUENA = {"cliente_id": "20417", "antiguedad_meses": 30, "precio_plan": 30.0,</span>
+<span class="ln">         "metodo_pago": "efectivo", "dias_atraso_prom_6m": 4.5, "facturas_tarde_12m": 1,</span>
+<span class="ln">         "reclamos_90d": 0, "bajo_plan_3m": 0, "pago_parcial_3m": 0}</span>
+<span class="ln">SIN_ATRASO = {k: v for k, v in BUENA.items() if k != "dias_atraso_prom_6m"}</span>
+<span class="ln">CASOS = [</span>
+<span class="ln">    ("normal", BUENA, 200),</span>
+<span class="ln">    ("lista posicional", {"cliente_id": "1", "valores": [30, 30.0, "efectivo", 4.5, 1, 0, 0, 0]}, 422),</span>
+<span class="ln">    ("campo con otro nombre", {**SIN_ATRASO, "dias_atraso": 4.5}, 422),</span>
+<span class="ln">    ("valor imposible", {**BUENA, "dias_atraso_prom_6m": -5}, 422),</span>
+<span class="ln">    ("tipo incorrecto", {**BUENA, "antiguedad_meses": "treinta"}, 422),</span>
+<span class="ln">    ("campo de más", {**BUENA, "nombre": "Carmen Rojas"}, 422),</span>
+<span class="ln">]</span>
+<span class="ln">malos = 0</span>
+<span class="ln">for nombre, cuerpo, espera in CASOS:</span>
+<span class="ln">    codigo, resp = pedir("/v1/predecir", cuerpo)</span>
+<span class="ln">    fallas = [] if codigo == espera else [f"código {codigo}, se esperaba {espera}"]</span>
+<span class="ln">    if espera == 200 and not resp.get("version_modelo"):</span>
+<span class="ln">        fallas.append("la respuesta no trae la versión del modelo")</span>
+<span class="ln">    if espera == 422 and "error" not in resp and "detail" not in resp:</span>
+<span class="ln">        fallas.append("el error no dice qué campo falló")</span>
+<span class="ln">    malos += bool(fallas)</span>
+<span class="ln">    print(f"[{'FALLA' if fallas else ' ok  '}] {nombre:22} {'; '.join(fallas)}")</span>
+<span class="ln"></span>
+<span class="ln">ENTEROS = ["antiguedad_meses", "facturas_tarde_12m", "reclamos_90d", "bajo_plan_3m", "pago_parcial_3m"]</span>
+<span class="ln">with open("datos/clientes-m09.csv", newline="") as f:   # 600 clientes del mes 9</span>
+<span class="ln">    for i, fila in zip(range(600), csv.DictReader(f)):</span>
+<span class="ln">        cuerpo = {c: (int(fila[c]) if c in ENTEROS else fila[c] if c in ("cliente_id", "metodo_pago")</span>
+<span class="ln">                      else float(fila[c])) for c in BUENA}</span>
+<span class="ln">        pedir("/v1/predecir", cuerpo)</span>
+<span class="ln">codigo, deriva = pedir("/v1/monitoreo/deriva")</span>
+<span class="ln">print("\nDeriva:", json.dumps(deriva, ensure_ascii=False) if codigo == 200 else f"sin endpoint (código {codigo})")</span>
+<span class="ln">print(f"\n{len(CASOS) - malos} de {len(CASOS)} casos pasan")</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><ol class="steps"><li><span>Corre <code>python peticiones.py</code> contra el servicio del prompt completo. Anota qué casos fallan.</span></li><li><span>Abre el registro de predicciones que escribió el servicio (archivo o tabla, según lo que generó) y busca la petición normal: ¿tiene la versión del modelo y el <code>prediccion_id</code> que volvió en la respuesta?</span></li><li><span>Mira la salida de la deriva: qué variables superan 0,2 y cuáles no.</span></li><li><span>Repite con el servicio del prompt corto del principio del capítulo y compara.</span></li></ol><p><b>Qué observar:</b> con el prompt corto suelen fallar casi todos los casos: la respuesta normal no trae la versión, el <code>-5</code> recibe una probabilidad con un 200, los demás errores vuelven como 500 sin decir qué campo falló (o, si el servicio acepta una lista, predice con los valores en cualquier orden) y no hay deriva que consultar porque nada quedó registrado. Con el prompt completo, los errores vuelven como 422 que nombran el campo, cada predicción queda con su versión y la deriva del mes 9 señala <code>precio_plan</code> (el alza de tarifas del mes 7) y <code>metodo_pago</code> (la billetera, que el mes 0 no tenía) muy por encima de 0,2, mientras el resto queda estable. El cambio de relación del mes 6 no aparece en ninguna variable: es deriva de concepto, y solo se ve cuando llega la mora real. El programa de prueba no sabe cómo está escrito el servicio: prueba el contrato, así que sirve igual para la versión de hoy y para la que genere el próximo asistente.</p></div><div class="ml"><b>En la práctica</b><p><b>El servicio de mora, segunda vuelta.</b> Con el archivo de instrucciones y los prompts del capítulo, la primera entrega del asistente pasó casi todo. Falló en dos puntos: calculaba <code>dias_atraso_prom_6m</code> con seis meses de calendario en lugar de importar <code>variables/</code>, que usa los últimos seis pagos (la diferencia entre entrenamiento y servicio de los capítulos 1 y 4, a punto de repetirse), y la prueba del modelo que no carga solo comprobaba que se escribiera un mensaje, no que <code>/salud</code> respondiera 503. Valeria le devolvió al asistente las dos fallas y agregó al archivo de instrucciones una línea: «una variable que existe en <code>variables/</code> nunca se recalcula en otro lugar».</p></div></section>
 <section><h2>La idea clave</h2><div class="prose"><p>Un servicio de modelo no está listo porque responde. Está listo cuando cada entrada se valida contra un esquema, cada predicción lleva su versión y queda registrada, el cambio de modelo pasa por sombra y canario con condiciones de reversión escritas, y una alerta con umbral avisa antes de que el negocio note la degradación. El asistente construye lo que se le pide: se le pide por escrito, con un archivo de instrucciones, un prompt por etapa y pruebas que cualquier versión del código debe pasar.</p></div></section>
 <section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Por qué el prompt de servir exige «campos por nombre, nunca una lista posicional»?</summary><p>Porque con una lista, un cliente que manda los valores en otro orden recibe una predicción absurda sin ningún error. Con campos por nombre, un nombre que no coincide da 422.</p></details><details><summary>¿Qué permite que la respuesta lleve la versión del modelo y que esa versión quede en el registro de predicciones?</summary><p>Reconstruir el linaje de cada predicción, comparar versiones durante un canario y unir después la predicción con la mora real para medir el desempeño de cada versión.</p></details><details><summary>¿Por qué el prompt de entrenamiento pide partir por fecha y no al azar?</summary><p>Para evitar la fuga de datos: con una partición al azar el modelo se prueba con meses que ya vio, y su métrica promete más de lo que dará en producción.</p></details><details><summary>En el prompt de monitoreo, ¿para qué sirve exigir que el umbral se supere dos días seguidos y agrupar las alertas?</summary><p>Para que las alertas sirvan y no cansen: un día raro no dispara nada y un mismo problema llega en un solo mensaje.</p></details><details><summary>¿Por qué el monitoreo abre una tarea de reentrenamiento en lugar de reentrenar y desplegar solo?</summary><p>Porque el modelo nuevo debe ganarle al campeón y pasar una aprobación humana, como parte del gobierno del modelo.</p></details></div></section>
 <section><h2>Para investigar</h2><div class="investiga"><h3>Para investigar</h3><p class="hint">Estas preguntas no se responden en el capítulo: búscalas por tu cuenta.</p><ol><li>¿Qué es la firma de un modelo (<i>model signature</i>) en MLflow y cómo se usa para validar la entrada al servirlo?<small>Pista: busca «MLflow model signature input example».</small></li><li>¿Qué es una prueba de contrato (<i>contract testing</i>) entre servicios y qué herramientas existen para escribirlas?</li><li>¿Qué son Great Expectations y Pandera, y en qué se diferencian de validar cada petición con un esquema de Pydantic?</li><li>¿Qué es un valor SHAP y cómo se podría agregar al registro de cada predicción sin multiplicar la latencia?</li></ol></div></section>

@@ -119,21 +119,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="c4l1-v ent"><small>Entrenamiento · pipeline</small><b id="c4l1-ve"></b><span id="c4l1-pe"></span><div class="c4l1-pista"><div class="c4l1-bar" id="c4l1-be"></div><div class="c4l1-um"></div></div><span id="c4l1-de"></span></div>
   <div class="c4l1-v ser"><small>Producción · API</small><b id="c4l1-vs"></b><span id="c4l1-ps"></span><div class="c4l1-pista"><div class="c4l1-bar" id="c4l1-bs"></div><div class="c4l1-um"></div></div><span id="c4l1-ds"></span></div>
 </div>
-<div class="readout texto" id="c4l1-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Dos recetas, dos números</h3></div><p>Vas a calcular la misma variable con dos recetas razonables y ver que dan números distintos para el mismo cliente. Trabaja en la carpeta <code>mora-30d</code>, con su entorno activado. Guarda este programa como <code>sesgo.py</code>:</p><div class="code-copia"><pre><code>import pandas as pd
-
-# Días de atraso de las últimas seis facturas de un cliente (None = todavía sin pagar)
-atrasos = [0, 3, 0, 12, None, None]
-
-# Receta del entrenamiento (pandas, en el pipeline): mean() ignora las facturas sin pagar
-entrenamiento = pd.Series(atrasos, dtype="float").mean()
-
-# Receta del servicio (reescrita en la API por otro equipo): las sin pagar cuentan como 0
-def dias_atraso_prom_6m(lista):
-    return sum(d or 0 for d in lista) / len(lista)
-servicio = dias_atraso_prom_6m(atrasos)
-
-print(f"entrenamiento: {entrenamiento:.2f} días")
-print(f"servicio:      {servicio:.2f} días")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python sesgo.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 sesgo.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el programa y anota los dos valores.</span></li><li><span>Cambia la lista a <code>[0, 3, 0, 12, 20, 25]</code> (el cliente pagó todo, tarde) y vuelve a correrlo.</span></li></ol><p><b>Qué observar:</b> con dos facturas sin pagar, el pipeline dice 3,75 días y la API 2,50: el mismo cliente se ve un tercio más puntual en producción. Con todas las facturas pagadas, las dos recetas coinciden, y por eso el error pasa las pruebas con datos «limpios». Ninguna de las dos recetas es absurda; el problema es que son dos. Fíjate además en que el cliente con facturas sin pagar es justo el que más importa para un modelo de mora.</p></div></section>
+<div class="readout texto" id="c4l1-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>Dos recetas, dos números</h3></div><p>Vas a calcular la misma variable con dos recetas razonables y ver que dan números distintos para el mismo cliente. Trabaja en la carpeta <code>mora-30d</code>, con su entorno activado. Guarda este programa como <code>sesgo.py</code>:</p><div class="code-copia code-lineas"><pre><code><span class="ln">import pandas as pd</span>
+<span class="ln"></span>
+<span class="ln"># Días de atraso de las últimas seis facturas de un cliente (None = todavía sin pagar)</span>
+<span class="ln">atrasos = [0, 3, 0, 12, None, None]</span>
+<span class="ln"></span>
+<span class="ln"># Receta del entrenamiento (pandas, en el pipeline): mean() ignora las facturas sin pagar</span>
+<span class="ln">entrenamiento = pd.Series(atrasos, dtype="float").mean()</span>
+<span class="ln"></span>
+<span class="ln"># Receta del servicio (reescrita en la API por otro equipo): las sin pagar cuentan como 0</span>
+<span class="ln">def dias_atraso_prom_6m(lista):</span>
+<span class="ln">    return sum(d or 0 for d in lista) / len(lista)</span>
+<span class="ln">servicio = dias_atraso_prom_6m(atrasos)</span>
+<span class="ln"></span>
+<span class="ln">print(f"entrenamiento: {entrenamiento:.2f} días")</span>
+<span class="ln">print(f"servicio:      {servicio:.2f} días")</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python sesgo.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 sesgo.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el programa y anota los dos valores.</span></li><li><span>Cambia la lista a <code>[0, 3, 0, 12, 20, 25]</code> (el cliente pagó todo, tarde) y vuelve a correrlo.</span></li></ol><p><b>Qué observar:</b> con dos facturas sin pagar, el pipeline dice 3,75 días y la API 2,50: el mismo cliente se ve un tercio más puntual en producción. Con todas las facturas pagadas, las dos recetas coinciden, y por eso el error pasa las pruebas con datos «limpios». Ninguna de las dos recetas es absurda; el problema es que son dos. Fíjate además en que el cliente con facturas sin pagar es justo el que más importa para un modelo de mora.</p></div></section>
 <section><h2>Qué es un feature store: almacén fuera de línea y en línea</h2><div class="prose"><p>Un <b>feature store</b> (almacén de variables) es un sistema que guarda la definición de cada variable una sola vez y la entrega calculada a dos clientes muy distintos: al pipeline de entrenamiento, que necesita la historia completa, y al servicio en línea, que necesita el último valor en milisegundos.</p></div><div class="analogia"><b>Imagínalo así</b><p>Piensa en la cocina central de una cadena de restaurantes. La salsa se prepara una vez, con una sola receta, en la cocina central. Una parte se congela en el depósito, con su fecha, para la escuela de cocineros que quiere practicar con la salsa de cualquier semana del año. Otra parte va, fresca, a la heladera de cada local para servir al instante. Nadie hace la salsa por su cuenta en el local.</p></div><div class="prose"><p>Por dentro, un feature store tiene cuatro piezas:</p><ul><li><b>El registro de definiciones</b> (<i>feature registry</i>): el catálogo de variables, escritas como código con su nombre, su tipo, su entidad (por ejemplo, <code>cliente</code>), su fuente y su dueño. Es la «receta única».</li><li><b>El almacén fuera de línea</b> (<i>offline store</i>): guarda la historia de cada variable con la fecha en que tomó cada valor. Vive en un almacén de datos o en archivos Parquet, y sirve para construir conjuntos de entrenamiento. Responde en segundos o minutos, con millones de filas.</li><li><b>El almacén en línea</b> (<i>online store</i>): guarda solo el valor más reciente de cada variable para cada entidad, en una base de clave y valor como Redis o DynamoDB. Responde en pocos milisegundos para un cliente a la vez.</li><li><b>La materialización</b> (<i>materialization</i>): el proceso que calcula las variables y copia los valores nuevos del almacén fuera de línea al en línea, por ejemplo cada hora.</li></ul></div><figure class="fig fig-arquitectura" id="04-diagrama-2"><div class="lienzo"><svg viewBox="0 0 900 400" style="min-width:720px" role="img" aria-label="Arquitectura de un feature store: a la izquierda, las fuentes por lotes y en streaming; en el centro, el registro con una sola definición de dias_atraso_prom_6m que alimenta el almacén fuera de línea, con la historia, y el almacén en línea, con el último valor; la materialización copia del primero al segundo; a la derecha, el pipeline de entrenamiento lee la historia con corrección en el tiempo y la API del modelo lee el último valor en unos 5 ms">
 <defs>
 <marker id="c4d2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fl-muted"/></marker>
@@ -276,57 +276,57 @@ print(f"servicio:      {servicio:.2f} días")</code></pre><button type="button" 
   <div><small>AUC fuera de línea</small><b id="c4l2-a1"></b></div>
   <div><small>AUC en producción</small><b id="c4l2-a2"></b></div>
 </div>
-<div class="readout texto" id="c4l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>La fuga que infla el AUC</h3></div><p>Vas a armar el conjunto de entrenamiento del modelo de mora con una unión ingenua y con una unión con corrección en el tiempo, y comparar el AUC. Sigue en la carpeta <code>mora-30d</code>, con su entorno activado. Guarda este programa como <code>punto_en_el_tiempo.py</code>:</p><div class="code-copia"><pre><code>import numpy as np, pandas as pd
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-
-rng = np.random.default_rng(3)
-N = 3000
-riesgo = rng.beta(1.2, 6, N)                     # propensión oculta de cada cliente
-# Eventos: cada factura vencida de cada cliente en 2026, con su fecha
-eventos = []
-for c in range(N):
-    for mes in range(1, 13):
-        if rng.random() &lt; riesgo[c]:
-            eventos.append((c, pd.Timestamp(2026, mes, rng.integers(1, 28))))
-ev = pd.DataFrame(eventos, columns=["cliente", "fecha"]).sort_values("fecha")
-ev["vencidas_acum"] = ev.groupby("cliente").cumcount() + 1
-
-# Etiquetas: para cada cliente, ¿tuvo una factura vencida en los 30 días siguientes al 1 de julio?
-corte = pd.Timestamp(2026, 7, 1)
-etiquetas = pd.DataFrame({"cliente": range(N), "fecha": corte})
-futuro = ev[(ev.fecha &gt;= corte) &amp; (ev.fecha &lt; corte + pd.Timedelta(days=30))].cliente.unique()
-etiquetas["mora"] = etiquetas.cliente.isin(futuro).astype(int)
-
-# Unión ingenua: el total de vencidas que hay hoy en la tabla (incluye el futuro)
-total = ev.groupby("cliente").size().rename("vencidas").reset_index()
-ingenua = etiquetas.merge(total, on="cliente", how="left").fillna({"vencidas": 0})
-
-# Unión con corrección en el tiempo: el último valor conocido ANTES de la fecha de cada etiqueta
-pit = pd.merge_asof(etiquetas.sort_values("fecha"), ev[["cliente", "fecha", "vencidas_acum"]],
-                    on="fecha", by="cliente", allow_exact_matches=False, direction="backward")
-pit["vencidas"] = pit["vencidas_acum"].fillna(0)
-
-for nombre, tabla in [("ingenua", ingenua), ("punto en el tiempo", pit)]:
-    X, y = tabla[["vencidas"]], tabla["mora"]
-    p = LogisticRegression().fit(X, y).predict_proba(X)[:, 1]
-    print(f"{nombre:20} AUC {roc_auc_score(y, p):.3f}")</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python punto_en_el_tiempo.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 punto_en_el_tiempo.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el programa y anota los dos AUC.</span></li><li><span>Cambia <code>corte</code> al 1 de noviembre (<code>pd.Timestamp(2026, 11, 1)</code>) y vuelve a correrlo.</span></li></ol><p><b>Qué observar:</b> la unión ingenua da un AUC cerca de 0,80 y la correcta, cerca de 0,64. La diferencia no es mérito del modelo: la unión ingenua cuenta las facturas vencidas de julio, que son justamente las que definen la etiqueta. En producción, el 1 de julio nadie conoce esas facturas, y el modelo ingenuo rendiría como el correcto o peor. Con el corte en noviembre los dos AUC suben, porque hay más historia antes de la fecha, pero la distancia entre ellos sigue ahí: la fuga no depende de la fecha que elijas. Para simplificar, el programa evalúa con los mismos datos con que entrena; con una sola variable y un modelo lineal, el AUC es casi el mismo que con datos aparte.</p></div></section>
+<div class="readout texto" id="c4l2-out" aria-live="polite"></div></div><div class="practica"><div class="practica-title"><span class="tag">En la terminal</span><h3>La fuga que infla el AUC</h3></div><p>Vas a armar el conjunto de entrenamiento del modelo de mora con una unión ingenua y con una unión con corrección en el tiempo, y comparar el AUC. Sigue en la carpeta <code>mora-30d</code>, con su entorno activado. Guarda este programa como <code>punto_en_el_tiempo.py</code>:</p><div class="code-copia code-lineas"><pre><code><span class="ln">import numpy as np, pandas as pd</span>
+<span class="ln">from sklearn.linear_model import LogisticRegression</span>
+<span class="ln">from sklearn.metrics import roc_auc_score</span>
+<span class="ln"></span>
+<span class="ln">rng = np.random.default_rng(3)</span>
+<span class="ln">N = 3000</span>
+<span class="ln">riesgo = rng.beta(1.2, 6, N)                     # propensión oculta de cada cliente</span>
+<span class="ln"># Eventos: cada factura vencida de cada cliente en 2026, con su fecha</span>
+<span class="ln">eventos = []</span>
+<span class="ln">for c in range(N):</span>
+<span class="ln">    for mes in range(1, 13):</span>
+<span class="ln">        if rng.random() &lt; riesgo[c]:</span>
+<span class="ln">            eventos.append((c, pd.Timestamp(2026, mes, rng.integers(1, 28))))</span>
+<span class="ln">ev = pd.DataFrame(eventos, columns=["cliente", "fecha"]).sort_values("fecha")</span>
+<span class="ln">ev["vencidas_acum"] = ev.groupby("cliente").cumcount() + 1</span>
+<span class="ln"></span>
+<span class="ln"># Etiquetas: para cada cliente, ¿tuvo una factura vencida en los 30 días siguientes al 1 de julio?</span>
+<span class="ln">corte = pd.Timestamp(2026, 7, 1)</span>
+<span class="ln">etiquetas = pd.DataFrame({"cliente": range(N), "fecha": corte})</span>
+<span class="ln">futuro = ev[(ev.fecha &gt;= corte) &amp; (ev.fecha &lt; corte + pd.Timedelta(days=30))].cliente.unique()</span>
+<span class="ln">etiquetas["mora"] = etiquetas.cliente.isin(futuro).astype(int)</span>
+<span class="ln"></span>
+<span class="ln"># Unión ingenua: el total de vencidas que hay hoy en la tabla (incluye el futuro)</span>
+<span class="ln">total = ev.groupby("cliente").size().rename("vencidas").reset_index()</span>
+<span class="ln">ingenua = etiquetas.merge(total, on="cliente", how="left").fillna({"vencidas": 0})</span>
+<span class="ln"></span>
+<span class="ln"># Unión con corrección en el tiempo: el último valor conocido ANTES de la fecha de cada etiqueta</span>
+<span class="ln">pit = pd.merge_asof(etiquetas.sort_values("fecha"), ev[["cliente", "fecha", "vencidas_acum"]],</span>
+<span class="ln">                    on="fecha", by="cliente", allow_exact_matches=False, direction="backward")</span>
+<span class="ln">pit["vencidas"] = pit["vencidas_acum"].fillna(0)</span>
+<span class="ln"></span>
+<span class="ln">for nombre, tabla in [("ingenua", ingenua), ("punto en el tiempo", pit)]:</span>
+<span class="ln">    X, y = tabla[["vencidas"]], tabla["mora"]</span>
+<span class="ln">    p = LogisticRegression().fit(X, y).predict_proba(X)[:, 1]</span>
+<span class="ln">    print(f"{nombre:20} AUC {roc_auc_score(y, p):.3f}")</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><div class="cmds"><div class="cmd-tabs" role="tablist" aria-label="Sistema operativo"><button type="button" role="tab" data-so="win">Windows</button><button type="button" role="tab" data-so="mac linux">macOS y Linux</button></div><div class="cmd-panel" role="tabpanel" data-so="win"><div class="cmd-l"><code>python punto_en_el_tiempo.py</code><button type="button" class="copiar">Copiar</button></div></div><div class="cmd-panel" role="tabpanel" data-so="mac linux"><div class="cmd-l"><code>python3 punto_en_el_tiempo.py</code><button type="button" class="copiar">Copiar</button></div></div></div><ol class="steps"><li><span>Corre el programa y anota los dos AUC.</span></li><li><span>Cambia <code>corte</code> al 1 de noviembre (<code>pd.Timestamp(2026, 11, 1)</code>) y vuelve a correrlo.</span></li></ol><p><b>Qué observar:</b> la unión ingenua da un AUC cerca de 0,80 y la correcta, cerca de 0,64. La diferencia no es mérito del modelo: la unión ingenua cuenta las facturas vencidas de julio, que son justamente las que definen la etiqueta. En producción, el 1 de julio nadie conoce esas facturas, y el modelo ingenuo rendiría como el correcto o peor. Con el corte en noviembre los dos AUC suben, porque hay más historia antes de la fecha, pero la distancia entre ellos sigue ahí: la fuga no depende de la fecha que elijas. Para simplificar, el programa evalúa con los mismos datos con que entrena; con una sola variable y un modelo lineal, el AUC es casi el mismo que con datos aparte.</p></div></section>
 <section><h2>Variables por lotes y en streaming</h2><div class="prose"><p>No todas las variables cambian al mismo ritmo, y eso decide cómo se calculan.</p><ul><li><b>Por lotes</b> (<i>batch features</i>): se calculan cada cierto tiempo, por ejemplo cada noche, sobre la historia. <code>antiguedad_meses</code>, <code>facturas_tarde_12m</code> y <code>reclamos_90d</code> cambian poco en un día; recalcularlas cada noche alcanza.</li><li><b>En streaming</b> (<i>streaming features</i>): se actualizan con cada evento, en segundos. Para el modelo de mora, la más valiosa es <code>pago_hoy</code>: si el cliente pagó a las 8:55, no tiene sentido llamarlo a las 9:00 para recordarle la factura. Esa variable sale del flujo de eventos de pagos, por ejemplo un tema de Kafka, y se escribe en el almacén en línea al instante.</li><li><b>Al momento de pedir</b> (<i>on-demand features</i>): se calculan con datos que llegan en la misma petición, como el canal por el que el cliente escribe ahora o la hora del día.</li></ul><p>Las variables en streaming son más caras: necesitan un procesador de flujos encendido todo el tiempo, y su corrección en el tiempo es más difícil, porque hay que guardar también su historia para entrenar. La regla práctica es empezar por lotes y pasar a streaming solo la variable cuya frescura cambia una decisión. El streaming como plataforma está en <a href="https://aaramirez.github.io/ingenieria-de-datos/temario.html" target="_blank" rel="noopener">Ingeniería de datos</a>.</p></div></section>
-<section><h2>Feast y los servicios gestionados como ejemplos</h2><div class="prose"><p><b>Feast</b> es el feature store de código abierto más conocido. No calcula las transformaciones pesadas (eso lo hace tu pipeline de datos o dbt); se encarga del registro, de la unión con corrección en el tiempo, de la materialización y de servir en línea. Las variables se definen en Python, así:</p><div class="code-copia"><pre><code>from datetime import timedelta
-from feast import Entity, FeatureView, Field, FileSource
-from feast.types import Float32, Int64
-
-cliente = Entity(name="cliente", join_keys=["cliente_id"])
-pagos = FileSource(path="data/historial_pagos.parquet", timestamp_field="fecha_evento")
-
-historial_pagos = FeatureView(
-    name="historial_pagos",
-    entities=[cliente],
-    ttl=timedelta(days=180),
-    schema=[Field(name="dias_atraso_prom_6m", dtype=Float32),
-            Field(name="facturas_tarde_12m", dtype=Int64)],
-    source=pagos,
-)</code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Con las definiciones aplicadas (<code>feast apply</code>), el pipeline de entrenamiento llama a <code>get_historical_features</code> con una tabla de clientes y fechas, y recibe las variables unidas con corrección en el tiempo. El comando <code>feast materialize</code> copia los valores recientes al almacén en línea, y la API del modelo llama a <code>get_online_features</code> con el <code>cliente_id</code>. Las dos llamadas leen la misma definición.</p><p>Entre los servicios gestionados, los feature stores de Vertex AI, SageMaker y Databricks hacen lo mismo dentro de su nube; Tecton y Hopsworks son plataformas comerciales dedicadas, con transformaciones en streaming incluidas. La pregunta para elegir no es cuál tiene más funciones, sino dónde viven ya tus datos y quién va a operar el sistema.</p></div><div class="caso"><b>Un caso real</b><p><b>El AUC que bajó al corregir un error.</b> Un equipo de una empresa de servicios por suscripción tenía un modelo de cancelación con AUC de 0,91 fuera de línea y resultados mediocres en producción. Al migrar sus variables a un feature store, la unión con corrección en el tiempo pasó a ser obligatoria, y el AUC del mismo modelo, con los mismos datos, bajó a 0,78. La primera reacción fue culpar a la herramienta. La revisión encontró que dos variables de reclamos se tomaban de la tabla actual, con reclamos posteriores a la fecha del ejemplo. El 0,78 era el número real; el modelo en producción nunca había rendido 0,91. A partir de ahí, las mejoras que se veían fuera de línea se vieron también en producción.</p></div></section>
+<section><h2>Feast y los servicios gestionados como ejemplos</h2><div class="prose"><p><b>Feast</b> es el feature store de código abierto más conocido. No calcula las transformaciones pesadas (eso lo hace tu pipeline de datos o dbt); se encarga del registro, de la unión con corrección en el tiempo, de la materialización y de servir en línea. Las variables se definen en Python, así:</p><div class="code-copia code-lineas"><pre><code><span class="ln">from datetime import timedelta</span>
+<span class="ln">from feast import Entity, FeatureView, Field, FileSource</span>
+<span class="ln">from feast.types import Float32, Int64</span>
+<span class="ln"></span>
+<span class="ln">cliente = Entity(name="cliente", join_keys=["cliente_id"])</span>
+<span class="ln">pagos = FileSource(path="data/historial_pagos.parquet", timestamp_field="fecha_evento")</span>
+<span class="ln"></span>
+<span class="ln">historial_pagos = FeatureView(</span>
+<span class="ln">    name="historial_pagos",</span>
+<span class="ln">    entities=[cliente],</span>
+<span class="ln">    ttl=timedelta(days=180),</span>
+<span class="ln">    schema=[Field(name="dias_atraso_prom_6m", dtype=Float32),</span>
+<span class="ln">            Field(name="facturas_tarde_12m", dtype=Int64)],</span>
+<span class="ln">    source=pagos,</span>
+<span class="ln">)</span></code></pre><button type="button" class="copiar copiar-todo">Copiar</button></div><p>Con las definiciones aplicadas (<code>feast apply</code>), el pipeline de entrenamiento llama a <code>get_historical_features</code> con una tabla de clientes y fechas, y recibe las variables unidas con corrección en el tiempo. El comando <code>feast materialize</code> copia los valores recientes al almacén en línea, y la API del modelo llama a <code>get_online_features</code> con el <code>cliente_id</code>. Las dos llamadas leen la misma definición.</p><p>Entre los servicios gestionados, los feature stores de Vertex AI, SageMaker y Databricks hacen lo mismo dentro de su nube; Tecton y Hopsworks son plataformas comerciales dedicadas, con transformaciones en streaming incluidas. La pregunta para elegir no es cuál tiene más funciones, sino dónde viven ya tus datos y quién va a operar el sistema.</p></div><div class="caso"><b>Un caso real</b><p><b>El AUC que bajó al corregir un error.</b> Un equipo de una empresa de servicios por suscripción tenía un modelo de cancelación con AUC de 0,91 fuera de línea y resultados mediocres en producción. Al migrar sus variables a un feature store, la unión con corrección en el tiempo pasó a ser obligatoria, y el AUC del mismo modelo, con los mismos datos, bajó a 0,78. La primera reacción fue culpar a la herramienta. La revisión encontró que dos variables de reclamos se tomaban de la tabla actual, con reclamos posteriores a la fecha del ejemplo. El 0,78 era el número real; el modelo en producción nunca había rendido 0,91. A partir de ahí, las mejoras que se veían fuera de línea se vieron también en producción.</p></div></section>
 <section><h2>Cuándo no hace falta uno</h2><div class="prose"><p>Un feature store es infraestructura: hay que operarlo, pagarlo y enseñarlo. No lo necesitas si:</p><ul><li><b>Solo predices por lotes.</b> Si el modelo corre una vez al mes sobre toda la cartera, el mismo código calcula las variables para entrenar y para predecir. No hay dos caminos, así que no hay sesgo entre ellos.</li><li><b>Tienes un solo modelo y pocas variables.</b> Una librería de funciones de variables, con sus pruebas, que importan el pipeline y la API, resuelve la «receta única» sin servidores nuevos.</li><li><b>Nadie más va a reusar las variables.</b> Buena parte del valor de un feature store es que el modelo de mora y el de cancelación compartan <code>facturas_tarde_12m</code> en lugar de reinventarla.</li></ul><p>Lo que sí hace falta siempre, con o sin feature store, es la corrección en el tiempo al armar los conjuntos de entrenamiento y una sola definición de cada variable. El feature store es una forma de garantizarlo; la disciplina es otra.</p></div><div class="ml"><b>En la práctica</b><p><b>La receta única del modelo de mora.</b> Valeria descubrió el 12,4 frente al 7,1 al comparar, para cien clientes, la variable que registraba la API con la que calculaba el pipeline. Como arreglo inmediato para la v2, movió las ocho variables a un paquete <code>variables_mora</code>, con pruebas unitarias para cada una, que importan tanto el pipeline como el servicio. Para la v3 fue un paso más allá: las variables pasaron a Feast. El pipeline arma el conjunto de entrenamiento con <code>get_historical_features</code>, que hace la unión con corrección en el tiempo, y la API pide el último valor al almacén en línea con <code>get_online_features</code>. Al reentrenar así, el AUC fuera de línea quedó igual que el que después se midió en producción, sin sorpresas. La primera variable en streaming, <code>pago_hoy</code>, ya tiene dónde vivir.</p></div></section>
 <section><h2>La idea clave</h2><div class="prose"><p><i>Feature store</i>: una sola definición de cada variable. El sesgo entre entrenamiento y servicio nace de tener dos recetas; la fuga, de unir con datos del futuro. Un feature store guarda la definición una vez, entrega la historia con corrección en el tiempo para entrenar y el último valor en milisegundos para servir. Si solo predices por lotes o tienes pocas variables, una librería compartida y uniones correctas pueden bastar.</p></div></section>
 <section><h2>Pruébate</h2><div class="quiz"><h3>Pruébate</h3><details><summary>¿Por qué el modelo no puede «darse cuenta» del sesgo entre entrenamiento y servicio?</summary><p>Porque solo recibe un número; no sabe con qué receta se calculó. Usa lo que aprendió para números parecidos aunque signifiquen otra cosa.</p></details><details><summary>¿Qué diferencia hay entre el almacén fuera de línea y el en línea?</summary><p>El fuera de línea guarda la historia de cada variable con sus fechas, para armar conjuntos de entrenamiento; el en línea guarda solo el último valor por entidad y responde en milisegundos al servicio.</p></details><details><summary>En una unión con corrección en el tiempo, ¿qué valor de la variable se toma para un ejemplo del 1 de julio?</summary><p>El último valor registrado antes del 1 de julio (y que ya estaba disponible a esa hora), nunca uno posterior.</p></details><details><summary>¿Por qué una fuga suele subir la métrica fuera de línea en lugar de bajarla?</summary><p>Porque le da al modelo información del futuro relacionada con la etiqueta; acierta más en la evaluación, pero en producción esa información no existe y rinde peor.</p></details><details><summary>El modelo de mora corre solo una vez al mes por lotes. ¿Necesita un feature store para evitar el sesgo?</summary><p>No necesariamente: si el mismo código calcula las variables para entrenar y para predecir, no hay dos recetas. Sigue necesitando uniones con corrección en el tiempo.</p></details></div></section>
